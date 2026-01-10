@@ -12,7 +12,6 @@
     let startHandY: number | null = null;
     let startHandX: number | null = null;
     let startPrice: number = 0;
-    let priceAccumulator: number = 0; // For Joystick Mode
 
     // Smooth Price Store (Spring Physics)
 
@@ -115,7 +114,6 @@
 
                         // Start from existing confirmed price if it exists, otherwise current
                         startPrice = confirmedPrice ?? currentPrice;
-                        priceAccumulator = startPrice;
 
                         // Hard set the spring to starting value (no animation)
                         selectedPrice.set(startPrice, { hard: true });
@@ -138,35 +136,19 @@
                         }
 
                         if (!isLocked) {
-                            // Option 3: JOYSTICK (Rate-Based)
-                            const joystickY = dy; // + (Up) / - (Down) relative to start point
+                            // Option 2: Dynamic Velocity (Non-Linear)
+                            const sign = Math.sign(dy);
+                            const mag = Math.abs(dy);
 
-                            // Deadzone to prevent drift
-                            const deadzone = 0.03;
+                            // Power of 1.5 for exponential feel
+                            const nonLinearDy = sign * Math.pow(mag, 1.5);
 
-                            if (Math.abs(joystickY) > deadzone) {
-                                // Calculate effective stick deflection (removing deadzone)
-                                const effectiveY =
-                                    (Math.abs(joystickY) - deadzone) *
-                                    Math.sign(joystickY);
+                            // Re-calibrated sensitivity (approx 5x base due to small numbers)
+                            const percentChange =
+                                nonLinearDy * (gestureSensitivity * 5);
 
-                                // Velocity Curve: Exponential (Power of 2.5) for fine control near center, fast near edges
-                                // dy is usually -0.2 to +0.2
-                                const velocity =
-                                    Math.sign(effectiveY) *
-                                    Math.pow(Math.abs(effectiveY * 5), 2.5);
-
-                                // Sensitivity Factor
-                                const speedMultiplier = gestureSensitivity * 5;
-
-                                // Apply Rate to Accumulator
-                                const change =
-                                    startPrice * (velocity * speedMultiplier);
-                                priceAccumulator += change;
-
-                                // Update Store
-                                selectedPrice.set(priceAccumulator);
-                            }
+                            const target = startPrice * (1 + percentChange);
+                            selectedPrice.set(target);
                         }
                     }
                 }
