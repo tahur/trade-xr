@@ -50,27 +50,20 @@
 
 {#if isVisible}
     <div
-        class="fixed top-0 right-32 bottom-0 w-40 flex items-center z-50 pointer-events-none"
+        class="fixed top-0 right-32 bottom-0 w-32 flex items-center z-50 pointer-events-none"
     >
-        <!-- Ruler Track -->
+        <!-- Simple Slider Track (Reverted) -->
         <div
-            class="relative h-2/3 w-16 bg-white/20 backdrop-blur-2xl rounded-2xl mx-auto overflow-hidden border border-white/40 shadow-xl flex flex-col justify-between py-4"
+            class="relative h-2/3 w-3 bg-white/20 backdrop-blur-2xl rounded-full mx-auto overflow-hidden border border-white/30 shadow-lg"
         >
-            <!-- Tick Marks Generator -->
-            {#each Array(40) as _, i}
-                <div
-                    class={`w-full h-[1px] ${i % 5 === 0 ? "bg-black/30 w-3/4 self-end" : "bg-black/10 w-1/3 self-end mr-2"}`}
-                ></div>
-            {/each}
-
-            <!-- Center Indicator Line -->
+            <!-- Center Line -->
             <div
-                class="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500/80 shadow-[0_0_10px_rgba(239,68,68,0.5)] z-10"
+                class="absolute top-1/2 left-0 right-0 h-0.5 bg-white/50"
             ></div>
 
             <!-- Dynamic Filled Zone -->
             <div
-                class={`absolute w-full transition-all duration-75 left-0 right-0 opacity-20 ${isPositive ? "bottom-1/2 bg-green-500" : "top-1/2 bg-red-500"}`}
+                class={`absolute w-full transition-all duration-75 left-0 right-0 ${isPositive ? "bottom-1/2 bg-gradient-to-t from-emerald-500/80 to-emerald-400" : "top-1/2 bg-gradient-to-b from-rose-500/80 to-rose-400"}`}
                 style={`height: ${Math.min(Math.abs(((selectedPrice - startPrice) / (startPrice * 0.1)) * 50), 50)}%`}
             ></div>
         </div>
