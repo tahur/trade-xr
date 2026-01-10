@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { spring } from "svelte/motion"; // New import
     import { gestureState } from "$lib/stores/gesture";
     import { tradingStore } from "$lib/stores/trading";
 
@@ -9,7 +10,12 @@
     let startHandY: number | null = null;
     let startHandX: number | null = null;
     let startPrice: number = 0;
-    let selectedPrice: number = 0;
+
+    // Smooth Price Store (Spring Physics)
+    const selectedPrice = spring(0, {
+        stiffness: 0.1, // Lower stiffness = smoother/slower follow
+        damping: 0.8, // Higher damping = less oscillation
+    });
 
     // Peristent State
     let confirmedPrice: number | null = null;
@@ -29,7 +35,9 @@
 
                 // Start from existing confirmed price if it exists, otherwise current
                 startPrice = confirmedPrice ?? currentPrice;
-                selectedPrice = startPrice;
+
+                // Hard set the spring to starting value (no animation)
+                selectedPrice.set(startPrice, { hard: true });
             } else if (startHandY !== null && startHandX !== null) {
                 // Dragging Logic
                 const dy = startHandY - $gestureState.handPosition.y;
@@ -39,25 +47,33 @@
                 if (dx < -0.1) {
                     if (!isLocked) {
                         isLocked = true;
-                        confirmedPrice = selectedPrice; // Lock it in
+                        confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
                     }
                 } else if (dx > -0.05) {
                     // Unlock if we slide back
                     if (isLocked) {
                         isLocked = false;
-                        // Optional: revert count? Nah, just continue adjusting
                     }
                 }
 
                 if (!isLocked) {
-                    const percentChange = dy * 0.2;
-                    selectedPrice = startPrice * (1 + percentChange);
+                    // Sensitivity: Reduced to 0.08 (was 0.2) for finer control
+                    const percentChange = dy * 0.08;
+                    const target = startPrice * (1 + percentChange);
+                    selectedPrice.set(target); // Spring animates to this
                 }
             }
         } else {
             // Released Pinch
             if (isVisible) {
-                isVisible = false;
+                if (isLocked) {
+                    // Sticky: KEEP visible if locked
+                    isVisible = true;
+                } else {
+                    // Hide only if NOT locked
+                    isVisible = false;
+                }
+                // Always reset hand tracking on release
                 startHandY = null;
                 startHandX = null;
             }
@@ -65,7 +81,7 @@
     }
 
     // Visual Helpers
-    $: priceDiff = selectedPrice - startPrice;
+    $: priceDiff = $selectedPrice - startPrice;
     $: percentDiff = ((priceDiff / startPrice) * 100).toFixed(2);
     $: isPositive = priceDiff >= 0;
 </script>
@@ -85,26 +101,28 @@
                 <div
                     class="absolute top-1/2 left-0 right-0 h-0.5 bg-white/60 shadow-[0_0_5px_white]"
                 ></div>
+                <!-- Use $selectedPrice for reactive reads -->
                 <div
                     class={`absolute w-full left-0 right-0 transition-all duration-75 ${isPositive ? "bottom-1/2 bg-emerald-400" : "top-1/2 bg-rose-400"}`}
-                    style={`height: ${Math.min(Math.abs(((selectedPrice - startPrice) / (startPrice * 0.1)) * 50), 50)}%`}
+                    style={`height: ${Math.min(Math.abs((($selectedPrice - startPrice) / (startPrice * 0.1)) * 50), 50)}%`}
                 ></div>
             </div>
 
             <!-- Rectangular High-Contrast Card -->
             <div
                 class="absolute right-8 p-3 bg-[#E8E8E8] border border-white shadow-xl text-right min-w-[140px] transition-all duration-100 ease-out rounded-sm"
-                style={`top: ${50 - ((selectedPrice - startPrice) / (startPrice * 0.1)) * 40}%; transform: translateY(-50%)`}
+                style={`top: ${50 - (($selectedPrice - startPrice) / (startPrice * 0.1)) * 40}%; transform: translateY(-50%)`}
             >
                 <div
                     class="text-[9px] uppercase text-zinc-500 font-bold tracking-widest mb-0.5"
                 >
                     SET PRICE
                 </div>
+                <!-- Use $selectedPrice -->
                 <div
                     class="text-2xl font-mono text-zinc-900 font-bold tracking-tight"
                 >
-                    {selectedPrice.toFixed(2)}
+                    {$selectedPrice.toFixed(2)}
                 </div>
                 <div
                     class={`text-xs font-bold mt-0.5 flex justify-end items-center gap-1 ${isPositive ? "text-emerald-600" : "text-rose-600"}`}
