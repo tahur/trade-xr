@@ -6,12 +6,53 @@
     import { tradingStore } from "$lib/stores/trading";
 
     export let currentPrice: number = 0;
-    export let gestureSensitivity: number = 0.08; // Configurable sensitivity
+    export let gestureSensitivity: number = 0.08;
+    export let soundEnabled: boolean = true;
+
+    // Audio Context
+    let audioCtx: AudioContext | null = null;
 
     // Slider State
     let startHandY: number | null = null;
     let startHandX: number | null = null;
     let startPrice: number = 0;
+    let lastSoundPrice: number = 0; // Track for sound triggers
+
+    function initAudio() {
+        if (!audioCtx && typeof window !== "undefined") {
+            audioCtx = new (window.AudioContext ||
+                (window as any).webkitAudioContext)();
+        }
+    }
+
+    function playClick(velocity: number) {
+        if (!soundEnabled) return;
+        if (!audioCtx) initAudio();
+        if (audioCtx?.state === "suspended") audioCtx.resume();
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        // Map velocity to pitch (higher speed = higher pitch)
+        // Velocity (dy) ranges roughly 0.0 to 0.5+
+        const baseFreq = 800;
+        const pitchMod = Math.min(Math.abs(velocity) * 2000, 1200);
+        osc.frequency.setValueAtTime(baseFreq + pitchMod, audioCtx.currentTime);
+
+        // Short "tick" envelope
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            audioCtx.currentTime + 0.05,
+        );
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    }
 
     // Smooth Price Store (Spring Physics)
     const selectedPrice = spring(0, {
@@ -112,6 +153,7 @@
 
                         // Start from existing confirmed price if it exists, otherwise current
                         startPrice = confirmedPrice ?? currentPrice;
+                        lastSoundPrice = startPrice;
 
                         // Hard set the spring to starting value (no animation)
                         selectedPrice.set(startPrice, { hard: true });
@@ -147,6 +189,12 @@
 
                             const target = startPrice * (1 + percentChange);
                             selectedPrice.set(target);
+
+                            // Audio
+                            if (Math.abs(target - lastSoundPrice) > 0.25) {
+                                playClick(dy);
+                                lastSoundPrice = target;
+                            }
                         }
                     }
                 }
