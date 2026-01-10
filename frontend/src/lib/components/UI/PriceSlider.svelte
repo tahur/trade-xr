@@ -16,10 +16,10 @@
     // Reactivity
     $: {
         if ($gestureState.isPinching) {
-            // Start Pinching (Logic fixed to allow re-edit)
+            // Start Pinching
             if (startHandY === null) {
                 isVisible = true;
-                isLocked = false; // Reset lock to allow adjustment
+                isLocked = false;
                 startHandY = $gestureState.handPosition.y;
                 startHandX = $gestureState.handPosition.x;
                 startPrice = currentPrice;
@@ -29,11 +29,11 @@
                 const dy = startHandY - $gestureState.handPosition.y;
                 const dx = $gestureState.handPosition.x - startHandX;
 
-                // 1. Check for Lock (Slide RIGHT)
-                if (dx > 0.1) {
+                // 1. Check for Lock (Slide LEFT based on user feedback "camera left")
+                if (dx < -0.1) {
                     isLocked = true;
-                } else if (dx < 0.05) {
-                    // Slide back left to unlock
+                } else if (dx > -0.05) {
+                    // Slide back right to unlock
                     isLocked = false;
                 }
 
@@ -45,11 +45,9 @@
         } else {
             // Released Pinch
             if (isVisible) {
-                // Sticky: Only hide if NOT locked
                 if (!isLocked) {
                     isVisible = false;
                 }
-                // Always reset hand tracking on release
                 startHandY = null;
                 startHandX = null;
             }
@@ -82,9 +80,9 @@
                 ></div>
             </div>
 
-            <!-- Compact High-Contrast Card -->
+            <!-- Rectangular High-Contrast Card -->
             <div
-                class="absolute right-8 p-3 rounded-xl bg-[#E8E8E8] border border-white shadow-xl text-right min-w-[140px] transition-all duration-100 ease-out"
+                class="absolute right-8 p-3 bg-[#E8E8E8] border border-white shadow-xl text-right min-w-[140px] transition-all duration-100 ease-out rounded-sm"
                 style={`top: ${50 - ((selectedPrice - startPrice) / (startPrice * 0.1)) * 40}%; transform: translateY(-50%)`}
             >
                 <div
@@ -107,7 +105,7 @@
                 <div
                     class="mt-2 text-[9px] uppercase font-bold text-zinc-400 flex items-center justify-end gap-1"
                 >
-                    <span>SWIPE RIGHT TO LOCK →</span>
+                    <span>← SWIPE LEFT TO LOCK</span>
                 </div>
             </div>
         </div>
@@ -117,7 +115,7 @@
             class={`absolute top-16 left-1/2 -translate-x-1/2 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) transform ${isLocked ? "translate-y-0 opacity-100 scale-100" : "-translate-y-20 opacity-0 scale-90"}`}
         >
             <div
-                class="px-6 py-3 rounded-2xl bg-[#F0F0F0] border-2 border-white/80 shadow-2xl text-center min-w-[180px]"
+                class="px-6 py-3 rounded-sm bg-[#F0F0F0] border-2 border-white/80 shadow-2xl text-center min-w-[180px]"
             >
                 <div
                     class="text-[10px] uppercase text-zinc-500 font-bold tracking-[0.2em] mb-1"
