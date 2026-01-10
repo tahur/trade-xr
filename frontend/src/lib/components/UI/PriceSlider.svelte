@@ -45,9 +45,14 @@
         } else {
             // Released Pinch
             if (isVisible) {
-                if (!isLocked) {
+                if (isLocked) {
+                    // Sticky: KEEP visible if locked
+                    isVisible = true;
+                } else {
+                    // Hide only if NOT locked
                     isVisible = false;
                 }
+                // Always reset hand tracking on release
                 startHandY = null;
                 startHandX = null;
             }
