@@ -10,6 +10,10 @@
     let startHandX: number | null = null;
     let startPrice: number = 0;
     let selectedPrice: number = 0;
+
+    // Peristent State
+    let confirmedPrice: number | null = null;
+
     let isVisible = false;
     let isLocked = false;
 
@@ -22,19 +26,27 @@
                 isLocked = false;
                 startHandY = $gestureState.handPosition.y;
                 startHandX = $gestureState.handPosition.x;
-                startPrice = currentPrice;
-                selectedPrice = currentPrice;
+
+                // Start from existing confirmed price if it exists, otherwise current
+                startPrice = confirmedPrice ?? currentPrice;
+                selectedPrice = startPrice;
             } else if (startHandY !== null && startHandX !== null) {
                 // Dragging Logic
                 const dy = startHandY - $gestureState.handPosition.y;
                 const dx = $gestureState.handPosition.x - startHandX;
 
-                // 1. Check for Lock (Slide LEFT based on user feedback "camera left")
+                // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
                 if (dx < -0.1) {
-                    isLocked = true;
+                    if (!isLocked) {
+                        isLocked = true;
+                        confirmedPrice = selectedPrice; // Lock it in
+                    }
                 } else if (dx > -0.05) {
-                    // Slide back right to unlock
-                    isLocked = false;
+                    // Unlock if we slide back
+                    if (isLocked) {
+                        isLocked = false;
+                        // Optional: revert count? Nah, just continue adjusting
+                    }
                 }
 
                 if (!isLocked) {
@@ -45,14 +57,7 @@
         } else {
             // Released Pinch
             if (isVisible) {
-                if (isLocked) {
-                    // Sticky: KEEP visible if locked
-                    isVisible = true;
-                } else {
-                    // Hide only if NOT locked
-                    isVisible = false;
-                }
-                // Always reset hand tracking on release
+                isVisible = false;
                 startHandY = null;
                 startHandX = null;
             }
@@ -65,12 +70,13 @@
     $: isPositive = priceDiff >= 0;
 </script>
 
-{#if isVisible || isLocked}
+{#if isVisible || confirmedPrice !== null}
     <!-- Container -->
     <div class="fixed inset-0 pointer-events-none z-50">
         <!-- 1. ADJUST MODE: Side Slider -->
+        <!-- Visible when adjusting and NOT locked yet -->
         <div
-            class={`absolute top-0 right-32 bottom-0 w-32 flex items-center transition-all duration-300 ${isLocked ? "opacity-0 translate-x-10" : "opacity-100 translate-x-0"}`}
+            class={`absolute top-0 right-32 bottom-0 w-32 flex items-center transition-all duration-300 ${isVisible && !isLocked ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"}`}
         >
             <!-- Track -->
             <div
@@ -116,11 +122,12 @@
         </div>
 
         <!-- 2. LOCKED MODE: Sticky Top Tile -->
+        <!-- Always visible if confirmedPrice exists -->
         <div
-            class={`absolute top-16 left-1/2 -translate-x-1/2 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) transform ${isLocked ? "translate-y-0 opacity-100 scale-100" : "-translate-y-20 opacity-0 scale-90"}`}
+            class={`absolute top-16 left-1/2 -translate-x-1/2 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) transform ${confirmedPrice !== null ? "translate-y-0 opacity-100 scale-100" : "-translate-y-20 opacity-0 scale-90"}`}
         >
             <div
-                class="px-6 py-3 rounded-sm bg-[#F0F0F0] border-2 border-white/80 shadow-2xl text-center min-w-[180px]"
+                class={`px-6 py-3 rounded-sm bg-[#F0F0F0] border-2 border-white/80 shadow-2xl text-center min-w-[180px] transition-opacity duration-300 ${isVisible && !isLocked ? "opacity-50" : "opacity-100"}`}
             >
                 <div
                     class="text-[10px] uppercase text-zinc-500 font-bold tracking-[0.2em] mb-1"
@@ -130,7 +137,7 @@
                 <div
                     class="text-3xl font-mono text-zinc-900 font-extrabold tracking-tighter"
                 >
-                    {selectedPrice.toFixed(2)}
+                    {(confirmedPrice ?? 0).toFixed(2)}
                 </div>
             </div>
         </div>
