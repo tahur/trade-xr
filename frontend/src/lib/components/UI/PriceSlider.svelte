@@ -5,6 +5,7 @@
     import { tradingStore } from "$lib/stores/trading";
 
     export let currentPrice: number = 0;
+    export let gestureSensitivity: number = 0.08; // Configurable sensitivity
 
     // Slider State
     let startHandY: number | null = null;
@@ -57,8 +58,8 @@
                 }
 
                 if (!isLocked) {
-                    // Sensitivity: Reduced to 0.08 (was 0.2) for finer control
-                    const percentChange = dy * 0.08;
+                    // Sensitivity: Configurable via prop (default 0.08)
+                    const percentChange = dy * gestureSensitivity;
                     const target = startPrice * (1 + percentChange);
                     selectedPrice.set(target); // Spring animates to this
                 }

@@ -31,6 +31,9 @@
     let baseCamZ = 250; // Far back
 
     // Spring for smooth camera motion
+    // UI Local State
+    let gestureSens = 0.08;
+
     const camPos = spring(
         { x: baseCamX, y: baseCamY, z: baseCamZ },
         {
@@ -127,28 +130,56 @@
 
             <!-- Controls (Minimal) -->
             <div
-                class="bg-black/40 p-4 rounded-lg backdrop-blur-md border border-white/10 text-white w-64 mb-1"
+                class="bg-black/40 p-4 rounded-lg backdrop-blur-md border border-white/10 text-white w-64 mb-1 space-y-4"
             >
-                <label
-                    for="sensitivity"
-                    class="block text-xs uppercase tracking-wider mb-2 opacity-90"
-                >
-                    Parallax Sensitivity
-                </label>
-                <input
-                    id="sensitivity"
-                    type="range"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    bind:value={$sensitivity}
-                    class="w-full h-1 bg-slate-700/50 rounded-lg appearance-none cursor-pointer"
-                />
+                <!-- 1. Parallax Sensitivity -->
+                <div>
+                    <label
+                        for="sensitivity"
+                        class="block text-xs uppercase tracking-wider mb-2 opacity-90"
+                    >
+                        Parallax Sensitivity
+                    </label>
+                    <input
+                        id="sensitivity"
+                        type="range"
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        bind:value={$sensitivity}
+                        class="w-full h-1 bg-slate-700/50 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                </div>
+
+                <!-- 2. Gesture Sensitivity -->
+                <div>
+                    <label
+                        for="gestureSens"
+                        class="block text-xs uppercase tracking-wider mb-2 opacity-90"
+                    >
+                        Gesture Sensitivity
+                    </label>
+                    <input
+                        id="gestureSens"
+                        type="range"
+                        min="0.01"
+                        max="0.5"
+                        step="0.01"
+                        bind:value={gestureSens}
+                        class="w-full h-1 bg-slate-700/50 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                    />
+                    <div class="text-[10px] text-zinc-500 text-right mt-1">
+                        {gestureSens.toFixed(2)}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <PriceSlider currentPrice={lastCandlePrice} />
+    <PriceSlider
+        currentPrice={lastCandlePrice}
+        gestureSensitivity={gestureSens}
+    />
     <!-- Tracker (Invisible/Minimised) -->
     <FaceTracker />
 </div>
