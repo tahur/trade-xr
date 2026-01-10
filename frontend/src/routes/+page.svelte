@@ -33,7 +33,6 @@
     // Spring for smooth camera motion
     // UI Local State
     let gestureSens = 0.08;
-    let soundEnabled = true;
 
     const camPos = spring(
         { x: baseCamX, y: baseCamY, z: baseCamZ },
