@@ -1,0 +1,11 @@
+# Defaults
+node_modules
+.DS_Store
+.env
+.python-version
+__pycache__
+.pytest_cache
+venv/
+.venv/
+dist/
+.svelte-kit/
