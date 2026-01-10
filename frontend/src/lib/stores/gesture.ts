@@ -6,10 +6,13 @@ export interface GestureState {
     isHandDetected: boolean;
     handPosition: { x: number, y: number }; // Normalized 0-1
     isPinching: boolean;
-    pinchDistance: number; // Normalized 0-1 usually, but here likely raw distance
+    pinchDistance: number;
     targetPrice: number | null;
     mode: GestureMode;
-    holdProgress: number; // 0 to 100 for confirmation
+    holdProgress: number;
+    // New Fields for Order Flow
+    detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm';
+    fingerCount: number;
 }
 
 export const gestureState = writable<GestureState>({
@@ -19,7 +22,9 @@ export const gestureState = writable<GestureState>({
     pinchDistance: 0,
     targetPrice: null,
     mode: 'IDLE',
-    holdProgress: 0
+    holdProgress: 0,
+    detectedGesture: 'None',
+    fingerCount: 0
 });
 
 // Helper to reset state
@@ -31,6 +36,8 @@ export const resetGesture = () => {
         pinchDistance: 0,
         targetPrice: null,
         mode: 'IDLE',
-        holdProgress: 0
+        holdProgress: 0,
+        detectedGesture: 'None',
+        fingerCount: 0
     });
 };
