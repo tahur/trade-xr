@@ -105,7 +105,7 @@
                 <div
                     class="mt-2 text-[9px] uppercase font-bold text-zinc-400 flex items-center justify-end gap-1"
                 >
-                    <span>← SWIPE LEFT TO LOCK</span>
+                    <span>SWIPE RIGHT TO LOCK →</span>
                 </div>
             </div>
         </div>
