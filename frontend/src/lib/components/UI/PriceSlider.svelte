@@ -23,6 +23,11 @@
     let isOrderWindowOpen = false;
     let orderPlaced = false;
 
+    // Quantity State (Scrubbing)
+    const selectedQty = spring(1, { stiffness: 0.1, damping: 0.5 });
+    let startQty: number = 1;
+    let startQtyHandX: number | null = null;
+
     // Peristent State
     let confirmedPrice: number | null = null;
 
@@ -36,6 +41,8 @@
         if (confirmedPrice !== null && !isOrderWindowOpen && !orderPlaced) {
             if ($gestureState.detectedGesture === "Pointing_Up") {
                 isOrderWindowOpen = true;
+                // Initialize Qty
+                selectedQty.set(1, { hard: true });
             }
             // CANCEL/RESET: Closed Fist clears confirmed price
             if ($gestureState.detectedGesture === "Closed_Fist") {
@@ -48,10 +55,29 @@
 
         // 2. INSIDE ORDER WINDOW
         if (isOrderWindowOpen) {
-            // CONFIRM: Thumbs Up
+            // A) QUANTITY ADJUSTMENT (Pinch & Drag)
+            if ($gestureState.isPinching) {
+                if (startQtyHandX === null) {
+                    // Start Scrubbing
+                    startQtyHandX = $gestureState.handPosition.x;
+                    startQty = $selectedQty;
+                } else {
+                    // Dragging
+                    const dx = $gestureState.handPosition.x - startQtyHandX;
+                    // Sensitivity: 1.0 movement = +100 units? Adjust as needed
+                    // Let's say full screen width (1.0) = 50 units change
+                    const change = dx * 100;
+                    const target = Math.max(1, Math.round(startQty + change));
+                    selectedQty.set(target);
+                }
+            } else {
+                startQtyHandX = null;
+            }
+
+            // B) CONFIRM: Thumbs Up
             if ($gestureState.detectedGesture === "Thumbs_Up") {
                 console.log(
-                    `[ORDER] Placed Limit Order: Price ${confirmedPrice}, Qty ${$gestureState.fingerCount}`,
+                    `[ORDER] Placed Limit Order: Price ${confirmedPrice}, Qty ${Math.round($selectedQty)}`,
                 );
                 orderPlaced = true;
                 // Close window after delay?
@@ -62,7 +88,7 @@
                 }, 2000);
             }
 
-            // CANCEL: Closed Fist
+            // C) CANCEL: Closed Fist
             if ($gestureState.detectedGesture === "Closed_Fist") {
                 isOrderWindowOpen = false;
                 confirmedPrice = null; // Clear everything
@@ -70,63 +96,65 @@
         }
     }
 
-    // Slider Logic (existing)
+    // Slider Logic (Price Adjustment - Only when window CLOSED)
     $: {
-        if ($gestureState.isPinching) {
-            // ... (Keep existing pinch logic, but maybe disable if Order Window is open?)
-            // Disable pinch adjustment if Order Window is open!
-            if (!isOrderWindowOpen && !orderPlaced) {
-                // Start Pinching
-                if (startHandY === null) {
-                    isVisible = true;
-                    isLocked = false;
-                    startHandY = $gestureState.handPosition.y;
-                    startHandX = $gestureState.handPosition.x;
+        if (!isOrderWindowOpen && !orderPlaced) {
+            if ($gestureState.isPinching) {
+                // ... (Keep existing pinch logic, but maybe disable if Order Window is open?)
+                // Disable pinch adjustment if Order Window is open!
+                if (!isOrderWindowOpen && !orderPlaced) {
+                    // Start Pinching
+                    if (startHandY === null) {
+                        isVisible = true;
+                        isLocked = false;
+                        startHandY = $gestureState.handPosition.y;
+                        startHandX = $gestureState.handPosition.x;
 
-                    // Start from existing confirmed price if it exists, otherwise current
-                    startPrice = confirmedPrice ?? currentPrice;
+                        // Start from existing confirmed price if it exists, otherwise current
+                        startPrice = confirmedPrice ?? currentPrice;
 
-                    // Hard set the spring to starting value (no animation)
-                    selectedPrice.set(startPrice, { hard: true });
-                } else if (startHandY !== null && startHandX !== null) {
-                    // Dragging Logic
-                    const dy = startHandY - $gestureState.handPosition.y;
-                    const dx = $gestureState.handPosition.x - startHandX;
+                        // Hard set the spring to starting value (no animation)
+                        selectedPrice.set(startPrice, { hard: true });
+                    } else if (startHandY !== null && startHandX !== null) {
+                        // Dragging Logic
+                        const dy = startHandY - $gestureState.handPosition.y;
+                        const dx = $gestureState.handPosition.x - startHandX;
 
-                    // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
-                    if (dx < -0.1) {
+                        // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
+                        if (dx < -0.1) {
+                            if (!isLocked) {
+                                isLocked = true;
+                                confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
+                            }
+                        } else if (dx > -0.05) {
+                            // Unlock if we slide back
+                            if (isLocked) {
+                                isLocked = false;
+                            }
+                        }
+
                         if (!isLocked) {
-                            isLocked = true;
-                            confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
-                        }
-                    } else if (dx > -0.05) {
-                        // Unlock if we slide back
-                        if (isLocked) {
-                            isLocked = false;
+                            // Sensitivity: Configurable via prop (default 0.08)
+                            const percentChange = dy * gestureSensitivity;
+                            const target = startPrice * (1 + percentChange);
+                            selectedPrice.set(target); // Spring animates to this
                         }
                     }
-
-                    if (!isLocked) {
-                        // Sensitivity: Configurable via prop (default 0.08)
-                        const percentChange = dy * gestureSensitivity;
-                        const target = startPrice * (1 + percentChange);
-                        selectedPrice.set(target); // Spring animates to this
+                }
+            } else {
+                // Released Pinch
+                if (isVisible) {
+                    if (isLocked) {
+                        // Sticky: KEEP visible if locked
+                        isVisible = true;
+                    } else {
+                        // Hide only if NOT locked
+                        isVisible = false;
                     }
+                    // Always reset hand tracking on release
+                    startHandY = null;
+                    startHandX = null;
                 }
-            }
-        } else {
-            // Released Pinch
-            if (isVisible) {
-                if (isLocked) {
-                    // Sticky: KEEP visible if locked
-                    isVisible = true;
-                } else {
-                    // Hide only if NOT locked
-                    isVisible = false;
-                }
-                // Always reset hand tracking on release
-                startHandY = null;
-                startHandX = null;
             }
         }
     }
@@ -242,20 +270,33 @@
                     </div>
 
                     <div
-                        class="mb-8 p-4 bg-emerald-50 rounded-lg border border-emerald-100"
+                        class="mb-8 p-6 bg-emerald-50 rounded-lg border border-emerald-100"
                     >
                         <div
                             class="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-2"
                         >
                             QUANTITY
                         </div>
-                        <div class="text-6xl font-bold text-emerald-600">
-                            {Math.min($gestureState.fingerCount, 10)}
+                        <div
+                            class="text-5xl font-mono font-bold text-emerald-600 mb-2"
+                        >
+                            {Math.round($selectedQty)}
+                        </div>
+
+                        <!-- Visual Scrubber Track -->
+                        <div
+                            class="h-1.5 w-full bg-emerald-200 rounded-full overflow-hidden relative mt-4"
+                        >
+                            <!-- Indication of "infinite" roll? Or just a center pip? -->
+                            <div
+                                class="absolute top-0 bottom-0 bg-emerald-500 w-1/3 left-1/2 -translate-x-1/2 transition-transform duration-75"
+                                style={`transform: translateX(${startQtyHandX && $gestureState.handPosition.x ? ($gestureState.handPosition.x - startQtyHandX) * 200 : 0}px) translateX(-50%)`}
+                            ></div>
                         </div>
                         <div
-                            class="text-[10px] text-emerald-400 mt-2 font-bold uppercase"
+                            class="text-[10px] text-emerald-400 mt-2 font-bold uppercase flex items-center justify-center gap-2"
                         >
-                            Showing {$gestureState.fingerCount} Fingers (Max 10)
+                            <span>← PINCH & DRAG →</span>
                         </div>
                     </div>
 
@@ -286,9 +327,8 @@
                         ORDER PLACED!
                     </div>
                     <div class="text-emerald-100 font-mono mt-1">
-                        {(confirmedPrice ?? 0).toFixed(2)} x {Math.min(
-                            $gestureState.fingerCount,
-                            10,
+                        {(confirmedPrice ?? 0).toFixed(2)} x {Math.round(
+                            $selectedQty,
                         )}
                     </div>
                 </div>
