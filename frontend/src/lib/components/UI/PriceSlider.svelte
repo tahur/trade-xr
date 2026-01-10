@@ -134,10 +134,19 @@
                         }
 
                         if (!isLocked) {
-                            // Sensitivity: Configurable via prop (default 0.08)
-                            const percentChange = dy * gestureSensitivity;
+                            // Option 2: Dynamic Velocity (Non-Linear)
+                            const sign = Math.sign(dy);
+                            const mag = Math.abs(dy);
+
+                            // Power of 1.5 for exponential feel
+                            const nonLinearDy = sign * Math.pow(mag, 1.5);
+
+                            // Re-calibrated sensitivity (approx 5x base due to small numbers)
+                            const percentChange =
+                                nonLinearDy * (gestureSensitivity * 5);
+
                             const target = startPrice * (1 + percentChange);
-                            selectedPrice.set(target); // Spring animates to this
+                            selectedPrice.set(target);
                         }
                     }
                 }
@@ -193,9 +202,10 @@
                 style={`top: ${50 - (($selectedPrice - startPrice) / (startPrice * 0.1)) * 40}%; transform: translateY(-50%)`}
             >
                 <div
-                    class="text-[9px] uppercase text-zinc-500 font-bold tracking-widest mb-0.5"
+                    class="text-[9px] uppercase text-zinc-500 font-bold tracking-widest mb-0.5 flex justify-between"
                 >
-                    SET PRICE
+                    <span>SET PRICE</span>
+                    <span class="text-emerald-500">⚡️ DYNAMIC</span>
                 </div>
                 <!-- Use $selectedPrice -->
                 <div
