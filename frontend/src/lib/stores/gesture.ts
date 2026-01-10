@@ -11,7 +11,7 @@ export interface GestureState {
     mode: GestureMode;
     holdProgress: number;
     // New Fields for Order Flow
-    detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm';
+    detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm' | 'Thumbs_Up';
     fingerCount: number;
 }
 

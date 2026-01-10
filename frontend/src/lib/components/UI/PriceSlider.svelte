@@ -48,8 +48,8 @@
 
         // 2. INSIDE ORDER WINDOW
         if (isOrderWindowOpen) {
-            // CONFIRM: Victory Sign
-            if ($gestureState.detectedGesture === "Victory") {
+            // CONFIRM: Thumbs Up
+            if ($gestureState.detectedGesture === "Thumbs_Up") {
                 console.log(
                     `[ORDER] Placed Limit Order: Price ${confirmedPrice}, Qty ${$gestureState.fingerCount}`,
                 );
@@ -266,7 +266,7 @@
                             <span class="text-xl">✊</span> CANCEL
                         </div>
                         <div class="flex items-center gap-1">
-                            <span class="text-xl">✌️</span> CONFIRM
+                            <span class="text-xl">👍</span> CONFIRM
                         </div>
                     </div>
                 </div>

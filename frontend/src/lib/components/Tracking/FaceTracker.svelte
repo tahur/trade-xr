@@ -108,7 +108,15 @@
                 ].filter(Boolean).length;
 
                 if (fingersUp === 0) {
-                    primaryGesture = "Closed_Fist";
+                    // Check for Thumbs Up vs Fist
+                    // Thumb Tip Y < Thumb IP Y (Thumb is pointing UP)
+                    // And checking if thumb is actually extended upward significantly
+                    const thumbIsUp = primaryHand[4].y < primaryHand[3].y;
+                    if (thumbIsUp) {
+                        primaryGesture = "Thumbs_Up";
+                    } else {
+                        primaryGesture = "Closed_Fist";
+                    }
                 } else if (fingersUp === 1 && idxOpen) {
                     primaryGesture = "Pointing_Up";
                 } else if (fingersUp === 2 && idxOpen && midOpen) {
