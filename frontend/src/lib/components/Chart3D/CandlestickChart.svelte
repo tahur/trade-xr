@@ -13,6 +13,6 @@
 <T.Group position={[-centerOffset, 0, 0]}>
     <!-- Iterate over data to render candles -->
     {#each data as candle, i}
-        <Candle data={candle} index={i} />
+        <Candle data={candle} index={i} isLatest={i === data.length - 1} />
     {/each}
 </T.Group>

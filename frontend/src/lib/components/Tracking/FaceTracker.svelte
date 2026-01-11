@@ -3,13 +3,27 @@
     import { FaceMesh } from "@mediapipe/face_mesh";
     import { Hands } from "@mediapipe/hands";
     import { Camera } from "@mediapipe/camera_utils";
-    import { headPosition, isTracking } from "$lib/stores/tracking";
-    import { gestureState } from "$lib/stores/gesture";
+    import {
+        headPosition,
+        isTracking,
+        twoHandPinch,
+        zoomLevel,
+    } from "$lib/stores/tracking";
+    import { gestureState, zoomCooldownActive } from "$lib/stores/gesture";
 
     let videoElement: HTMLVideoElement;
     let faceMesh: FaceMesh;
     let hands: Hands;
     let camera: Camera | null = null;
+
+    // Two-hand zoom state
+    let wasZooming = false;
+    let zoomStartDistance = 0;
+    let baseZoom = 1.0;
+
+    // Cooldown timer after zoom ends
+    let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
+    const ZOOM_COOLDOWN_MS = 300; // 0.3 seconds cooldown after zoom
 
     onMount(async () => {
         // --- Face Mesh Setup ---
@@ -64,15 +78,90 @@
         });
 
         hands.onResults((results) => {
+            // ============ TWO-HAND PINCH ZOOM ============
+            if (
+                results.multiHandLandmarks &&
+                results.multiHandLandmarks.length === 2
+            ) {
+                // Calculate center of each hand (using wrist landmark 0)
+                const hand1Center = {
+                    x: results.multiHandLandmarks[0][9].x,
+                    y: results.multiHandLandmarks[0][9].y,
+                };
+                const hand2Center = {
+                    x: results.multiHandLandmarks[1][9].x,
+                    y: results.multiHandLandmarks[1][9].y,
+                };
+
+                // Distance between hand centers
+                const handDist = Math.sqrt(
+                    Math.pow(hand1Center.x - hand2Center.x, 2) +
+                        Math.pow(hand1Center.y - hand2Center.y, 2),
+                );
+
+                if (!wasZooming) {
+                    // Start zoom gesture
+                    wasZooming = true;
+                    zoomStartDistance = handDist;
+                    baseZoom = $zoomLevel;
+                }
+
+                // Calculate zoom factor: spread = zoom in (smaller value), pinch = zoom out (larger value)
+                // handDist of ~0.3 is close, ~0.8 is spread wide
+                const zoomDelta = (zoomStartDistance - handDist) * 2.5;
+                const newZoom = Math.max(
+                    0.4,
+                    Math.min(2.5, baseZoom + zoomDelta),
+                );
+
+                zoomLevel.set(newZoom);
+                twoHandPinch.set({
+                    isActive: true,
+                    handDistance: handDist,
+                    initialDistance: zoomStartDistance,
+                });
+            } else {
+                // Less than 2 hands - end zoom gesture
+                if (wasZooming) {
+                    wasZooming = false;
+                    // Start cooldown to prevent accidental trading triggers
+                    zoomCooldownActive.set(true);
+                    if (cooldownTimer) clearTimeout(cooldownTimer);
+                    cooldownTimer = setTimeout(() => {
+                        zoomCooldownActive.set(false);
+                    }, ZOOM_COOLDOWN_MS);
+                }
+                twoHandPinch.set({
+                    isActive: false,
+                    handDistance: 0,
+                    initialDistance: 0,
+                });
+            }
+
+            // ============ SINGLE HAND GESTURES ============
             if (
                 results.multiHandLandmarks &&
                 results.multiHandLandmarks.length > 0
             ) {
+                const numHands = results.multiHandLandmarks.length;
+
                 // Use first hand for main interactions (pinch/drag)
                 const primaryHand = results.multiHandLandmarks[0];
                 const thumbTip = primaryHand[4];
                 const indexTip = primaryHand[8];
                 const handY = primaryHand[9].y;
+
+                // Get handedness from MediaPipe (note: it's mirrored in webcam)
+                // MediaPipe labels it from the camera's perspective, so we flip it
+                const rawHandedness =
+                    results.multiHandedness?.[0]?.label || "Unknown";
+                // Flip: MediaPipe "Left" from camera = user's Right hand
+                const primaryHandSide =
+                    rawHandedness === "Left"
+                        ? "Right"
+                        : rawHandedness === "Right"
+                          ? "Left"
+                          : "Unknown";
 
                 // Pinch Logic (Primary Hand)
                 const distance = Math.sqrt(
@@ -155,6 +244,8 @@
                     pinchDistance: distance,
                     detectedGesture: primaryGesture as any,
                     fingerCount: totalFingers,
+                    primaryHandSide: primaryHandSide as any,
+                    numHandsDetected: numHands,
                 }));
             } else {
                 gestureState.update((s) => ({
@@ -163,6 +254,8 @@
                     isPinching: false,
                     detectedGesture: "None",
                     fingerCount: 0,
+                    primaryHandSide: "Unknown",
+                    numHandsDetected: 0,
                 }));
             }
         });

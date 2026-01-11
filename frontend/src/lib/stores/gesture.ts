@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 
 export type GestureMode = 'IDLE' | 'TRADING' | 'CONFIRMING' | 'PLACED';
+export type HandSide = 'Left' | 'Right' | 'Unknown';
 
 export interface GestureState {
     isHandDetected: boolean;
@@ -13,6 +14,9 @@ export interface GestureState {
     // New Fields for Order Flow
     detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm' | 'Thumbs_Up';
     fingerCount: number;
+    // NEW: Hand identification
+    primaryHandSide: HandSide;
+    numHandsDetected: number;
 }
 
 export const gestureState = writable<GestureState>({
@@ -24,8 +28,16 @@ export const gestureState = writable<GestureState>({
     mode: 'IDLE',
     holdProgress: 0,
     detectedGesture: 'None',
-    fingerCount: 0
+    fingerCount: 0,
+    primaryHandSide: 'Unknown',
+    numHandsDetected: 0
 });
+
+// NEW: User preference for which hand triggers trading
+export const tradingHandPreference = writable<'Left' | 'Right'>('Right');
+
+// NEW: Cooldown state after zoom ends (prevents accidental triggers)
+export const zoomCooldownActive = writable<boolean>(false);
 
 // Helper to reset state
 export const resetGesture = () => {
@@ -38,6 +50,8 @@ export const resetGesture = () => {
         mode: 'IDLE',
         holdProgress: 0,
         detectedGesture: 'None',
-        fingerCount: 0
+        fingerCount: 0,
+        primaryHandSide: 'Unknown',
+        numHandsDetected: 0
     });
 };

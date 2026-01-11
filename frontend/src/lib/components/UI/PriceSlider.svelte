@@ -2,8 +2,13 @@
     import { onMount } from "svelte";
     import { spring } from "svelte/motion";
     import { fade } from "svelte/transition";
-    import { gestureState } from "$lib/stores/gesture";
+    import {
+        gestureState,
+        tradingHandPreference,
+        zoomCooldownActive,
+    } from "$lib/stores/gesture";
     import { tradingStore } from "$lib/stores/trading";
+    import { twoHandPinch } from "$lib/stores/tracking";
 
     export let currentPrice: number = 0;
     export let gestureSensitivity: number = 0.08;
@@ -12,8 +17,6 @@
     let startHandY: number | null = null;
     let startHandX: number | null = null;
     let startPrice: number = 0;
-
-    // Smooth Price Store (Spring Physics)
 
     // Smooth Price Store (Spring Physics)
     const selectedPrice = spring(0, {
@@ -35,6 +38,13 @@
 
     let isVisible = false;
     let isLocked = false;
+
+    // NEW: Guard for trading pinch (only works when conditions are right)
+    $: canTrade =
+        $gestureState.numHandsDetected === 1 && // Only 1 hand visible
+        $gestureState.primaryHandSide === $tradingHandPreference && // Correct hand (user preference)
+        !$twoHandPinch.isActive && // Not currently zooming
+        !$zoomCooldownActive; // Not in cooldown after zoom
 
     // Reactivity
     // Reactivity for Gestures
@@ -98,74 +108,66 @@
         }
     }
 
-    // Slider Logic (Price Adjustment - Only when window CLOSED)
+    // Slider Logic (Price Adjustment - Only when window CLOSED and canTrade is true)
     $: {
         if (!isOrderWindowOpen && !orderPlaced) {
-            if ($gestureState.isPinching) {
-                // ... (Keep existing pinch logic, but maybe disable if Order Window is open?)
-                // Disable pinch adjustment if Order Window is open!
-                if (!isOrderWindowOpen && !orderPlaced) {
-                    // Start Pinching
-                    if (startHandY === null) {
-                        isVisible = true;
-                        isLocked = false;
-                        startHandY = $gestureState.handPosition.y;
-                        startHandX = $gestureState.handPosition.x;
+            // NEW: Only process trading pinch when canTrade conditions are met
+            if ($gestureState.isPinching && canTrade) {
+                // Start Pinching
+                if (startHandY === null) {
+                    isVisible = true;
+                    isLocked = false;
+                    startHandY = $gestureState.handPosition.y;
+                    startHandX = $gestureState.handPosition.x;
 
-                        // Start from existing confirmed price if it exists, otherwise current
-                        startPrice = confirmedPrice ?? currentPrice;
+                    // Start from existing confirmed price if it exists, otherwise current
+                    startPrice = confirmedPrice ?? currentPrice;
 
-                        // Hard set the spring to starting value (no animation)
-                        selectedPrice.set(startPrice, { hard: true });
-                    } else if (startHandY !== null && startHandX !== null) {
-                        // Dragging Logic
-                        const dy = startHandY - $gestureState.handPosition.y;
-                        const dx = $gestureState.handPosition.x - startHandX;
+                    // Hard set the spring to starting value (no animation)
+                    selectedPrice.set(startPrice, { hard: true });
+                } else if (startHandY !== null && startHandX !== null) {
+                    // Dragging Logic
+                    const dy = startHandY - $gestureState.handPosition.y;
+                    const dx = $gestureState.handPosition.x - startHandX;
 
-                        // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
-                        if (dx < -0.1) {
-                            if (!isLocked) {
-                                isLocked = true;
-                                confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
-                            }
-                        } else if (dx > -0.05) {
-                            // Unlock if we slide back
-                            if (isLocked) {
-                                isLocked = false;
-                            }
-                        }
-
+                    // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
+                    if (dx < -0.1) {
                         if (!isLocked) {
-                            // Option 2: Dynamic Velocity (Non-Linear)
-                            const sign = Math.sign(dy);
-                            const mag = Math.abs(dy);
-
-                            // Power of 1.5 for exponential feel
-                            const nonLinearDy = sign * Math.pow(mag, 1.5);
-
-                            // Re-calibrated sensitivity (approx 5x base due to small numbers)
-                            const percentChange =
-                                nonLinearDy * (gestureSensitivity * 5);
-
-                            const target = startPrice * (1 + percentChange);
-                            selectedPrice.set(target);
+                            isLocked = true;
+                            confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
+                        }
+                    } else if (dx > -0.05) {
+                        // Unlock if we slide back
+                        if (isLocked) {
+                            isLocked = false;
                         }
                     }
-                }
-            } else {
-                // Released Pinch
-                if (isVisible) {
-                    if (isLocked) {
-                        // Sticky: KEEP visible if locked
-                        isVisible = true;
-                    } else {
-                        // Hide only if NOT locked
-                        isVisible = false;
+
+                    if (!isLocked) {
+                        // Option 2: Dynamic Velocity (Non-Linear)
+                        const sign = Math.sign(dy);
+                        const mag = Math.abs(dy);
+
+                        // Power of 1.5 for exponential feel
+                        const nonLinearDy = sign * Math.pow(mag, 1.5);
+
+                        // Re-calibrated sensitivity (approx 5x base due to small numbers)
+                        const percentChange =
+                            nonLinearDy * (gestureSensitivity * 5);
+
+                        const target = startPrice * (1 + percentChange);
+                        selectedPrice.set(target);
                     }
-                    // Always reset hand tracking on release
-                    startHandY = null;
-                    startHandX = null;
                 }
+            } else if (!$gestureState.isPinching || !canTrade) {
+                // Released Pinch OR conditions no longer met (e.g., second hand appeared)
+                if (isVisible && !isLocked) {
+                    // Hide only if NOT locked
+                    isVisible = false;
+                }
+                // Always reset hand tracking on release
+                startHandY = null;
+                startHandX = null;
             }
         }
     }

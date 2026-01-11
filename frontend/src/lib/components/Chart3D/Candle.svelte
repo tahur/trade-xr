@@ -7,14 +7,18 @@
      * Position index in the chart (used for Z-axis placement)
      */
     export let index: number;
+    export let isLatest: boolean = false;
 
     $: isBullish = data.close > data.open;
-    // TradingView Official Colors
-    $: color = isBullish ? "#089981" : "#F23645";
 
-    // Dimensions
-    const candleWidth = 0.8;
-    const wickWidth = 0.15;
+    // Premium Trading Terminal Colors - richer, more saturated
+    $: baseColor = isBullish ? "#00C853" : "#FF1744"; // Vibrant green/red
+    $: glowColor = isBullish ? "#00E676" : "#FF5252"; // Lighter for emissive
+    $: wickColor = isBullish ? "#00A844" : "#D50000"; // Slightly darker wick
+
+    // Dimensions - slightly chunkier for better 3D presence
+    const candleWidth = 0.85;
+    const wickWidth = 0.12;
 
     // Calculate body dimensions and position
     $: bodyHeight = Math.abs(data.close - data.open);
@@ -27,23 +31,41 @@
     // Spacing between candles
     const spacing = 1.2;
     $: xPos = index * spacing; // Time on X-axis
+
+    // Emissive intensity for latest candle (pulsing effect simulated via static glow)
+    $: emissiveIntensity = isLatest ? 0.4 : 0.08;
 </script>
 
-<!-- Candle Body -->
+<!-- Candle Body - Premium glass-like material -->
 <T.Mesh position={[xPos, bodyY, 0]} castShadow receiveShadow>
-    <T.CylinderGeometry
-        args={[
-            candleWidth / 2,
-            candleWidth / 2,
-            Math.max(0.01, bodyHeight),
-            16,
-        ]}
+    <T.BoxGeometry
+        args={[candleWidth, Math.max(0.05, bodyHeight), candleWidth * 0.6]}
     />
-    <T.MeshStandardMaterial {color} roughness={0.3} metalness={0.2} />
+    <T.MeshStandardMaterial
+        color={baseColor}
+        emissive={glowColor}
+        {emissiveIntensity}
+        roughness={0.15}
+        metalness={0.6}
+        transparent={true}
+        opacity={0.92}
+    />
 </T.Mesh>
 
-<!-- Wick -->
-<T.Mesh position={[xPos, wickY, 0]} castShadow receiveShadow>
-    <T.CylinderGeometry args={[wickWidth, wickWidth, wickHeight, 8]} />
-    <T.MeshStandardMaterial {color} />
+<!-- Inner glow core for depth effect -->
+<T.Mesh position={[xPos, bodyY, 0]}>
+    <T.BoxGeometry
+        args={[
+            candleWidth * 0.7,
+            Math.max(0.03, bodyHeight * 0.8),
+            candleWidth * 0.4,
+        ]}
+    />
+    <T.MeshBasicMaterial color={glowColor} transparent={true} opacity={0.3} />
+</T.Mesh>
+
+<!-- Wick - thinner, metallic -->
+<T.Mesh position={[xPos, wickY, 0]} castShadow>
+    <T.CylinderGeometry args={[wickWidth, wickWidth, wickHeight, 6]} />
+    <T.MeshStandardMaterial color={wickColor} roughness={0.4} metalness={0.3} />
 </T.Mesh>
