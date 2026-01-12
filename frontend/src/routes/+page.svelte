@@ -10,6 +10,7 @@
     // Components
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
     import PriceTargetOverlay from "$lib/components/UI/PriceTargetOverlay.svelte";
+    import PriceCard from "$lib/components/UI/PriceCard.svelte";
 
     // Stores
     import {
@@ -212,13 +213,8 @@
             </div>
 
             <!-- Price Display -->
-            <div class="text-right">
-                <p class="text-[10px] text-slate-500 uppercase tracking-widest">
-                    Last Price
-                </p>
-                <p class="text-2xl font-mono text-white/90">
-                    ₹{lastCandlePrice.toFixed(2)}
-                </p>
+            <div class="pointer-events-auto">
+                <PriceCard price={lastCandlePrice} />
             </div>
         </div>
 
