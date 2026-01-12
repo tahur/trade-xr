@@ -12,7 +12,7 @@
 | 1 | 3D Chart with Mock Data | 5 days | ⬜ Not Started |
 | 2 | Face Tracking | 4 days | ⬜ Not Started |
 | 3 | Gesture Controls | 5 days | ⬜ Not Started |
-| 4 | Trading UI (Mock) | 3 days | ⬜ Not Started |
+| 4 | Trading UI (Mock) | 3 days | ✅ Complete |
 | 5 | Kite API Integration | 4 days | ⬜ Not Started |
 | 6 | Real-time Streaming | 3 days | ⬜ Not Started |
 | 7 | Polish & Safety | 3 days | ⬜ Not Started |
@@ -318,21 +318,21 @@
 ### Tasks
 
 #### Order Panel
-- [ ] **4.1** Create `<OrderPanel>` component
+- [x] **4.1** Create `<OrderPanel>` component
   - Show: Symbol, LTP, Quantity, Price
   - Buy/Sell buttons
   - Order type: Market/Limit
 
-- [ ] **4.2** Create quantity selector
+- [x] **4.2** Create quantity selector
   - +/- buttons or slider
   - Lot size awareness
 
-- [ ] **4.3** Create order preview
+- [x] **4.3** Create order preview
   - Estimated total (price × quantity)
   - Margin required (mock)
 
 #### Mock Order Service
-- [ ] **4.4** Create mock order service
+- [x] **4.4** Create mock order service
   ```javascript
   // lib/services/mockOrders.js
   export function placeMockOrder(order) {
@@ -344,23 +344,23 @@
   }
   ```
 
-- [ ] **4.5** Create positions store
+- [x] **4.5** Create positions store
   ```javascript
   export const positions = writable([]);
   export const orders = writable([]);
   ```
 
 #### Frontend Order Flow
-- [ ] **4.6** Implement order placement
+- [x] **4.6** Implement order placement
   - Gesture trigger → Open panel
   - Adjust price → Update preview
   - Confirm → Place mock order
 
-- [ ] **4.7** Show order confirmation
+- [x] **4.7** Show order confirmation
   - Success/failure toast
   - Order ID display
 
-- [ ] **4.8** Create positions panel
+- [x] **4.8** Create positions panel
   - Current holdings (mock)
   - Unrealized P&L (mock)
 

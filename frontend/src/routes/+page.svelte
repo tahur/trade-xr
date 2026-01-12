@@ -9,7 +9,7 @@
 
     // Components
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
-    import PriceSlider from "$lib/components/UI/PriceSlider.svelte";
+    import PriceTargetOverlay from "$lib/components/UI/PriceTargetOverlay.svelte";
 
     // Stores
     import {
@@ -330,10 +330,8 @@
         </div>
     </div>
 
-    <PriceSlider
-        currentPrice={lastCandlePrice}
-        gestureSensitivity={gestureSens}
-    />
+    <!-- Hover-to-Target Price Selector -->
+    <PriceTargetOverlay minPrice={minLow} maxPrice={maxHigh} />
 
     <!-- Face Tracker -->
     <FaceTracker />

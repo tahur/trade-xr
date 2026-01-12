@@ -17,6 +17,9 @@ export interface GestureState {
     // NEW: Hand identification
     primaryHandSide: HandSide;
     numHandsDetected: number;
+    // NEW: Velocity tracking for robust gestures
+    handVelocity: { x: number, y: number };
+    isHandStable: boolean;
 }
 
 export const gestureState = writable<GestureState>({
@@ -30,7 +33,9 @@ export const gestureState = writable<GestureState>({
     detectedGesture: 'None',
     fingerCount: 0,
     primaryHandSide: 'Unknown',
-    numHandsDetected: 0
+    numHandsDetected: 0,
+    handVelocity: { x: 0, y: 0 },
+    isHandStable: true
 });
 
 // NEW: User preference for which hand triggers trading
@@ -52,6 +57,8 @@ export const resetGesture = () => {
         detectedGesture: 'None',
         fingerCount: 0,
         primaryHandSide: 'Unknown',
-        numHandsDetected: 0
+        numHandsDetected: 0,
+        handVelocity: { x: 0, y: 0 },
+        isHandStable: true
     });
 };

@@ -25,6 +25,32 @@
     let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
     const ZOOM_COOLDOWN_MS = 300; // 0.3 seconds cooldown after zoom
 
+    // === SIGNAL PROCESSING LAYER ===
+    // EMA Smoothing State
+    const EMA_ALPHA = 0.5; // Higher = faster response (0.5 = more responsive, 0.3 = smoother)
+    let smoothedPinchDistance = 0.1; // Start closer to pinch range
+    let smoothedHandX = 0.5;
+    let smoothedHandY = 0.5;
+
+    // Velocity Tracking
+    let lastHandX = 0.5;
+    let lastHandY = 0.5;
+    let lastFrameTime = 0;
+    let velocityX = 0;
+    let velocityY = 0;
+
+    // Hysteresis for Pinch Detection (more lenient thresholds)
+    let isPinchingState = false;
+    const PINCH_ENTER_THRESHOLD = 0.06; // Was 0.045 - now easier to trigger
+    const PINCH_EXIT_THRESHOLD = 0.09; // Was 0.08 - more tolerance before release
+
+    // EMA helper function
+    const ema = (
+        current: number,
+        previous: number,
+        alpha: number = EMA_ALPHA,
+    ) => alpha * current + (1 - alpha) * previous;
+
     onMount(async () => {
         // --- Face Mesh Setup ---
         faceMesh = new FaceMesh({
@@ -163,12 +189,47 @@
                           ? "Left"
                           : "Unknown";
 
-                // Pinch Logic (Primary Hand)
-                const distance = Math.sqrt(
+                // === SMOOTHED PINCH DETECTION ===
+                const rawDistance = Math.sqrt(
                     Math.pow(thumbTip.x - indexTip.x, 2) +
                         Math.pow(thumbTip.y - indexTip.y, 2),
                 );
-                const isPinching = distance < 0.05;
+
+                // Apply EMA smoothing to reduce jitter
+                smoothedPinchDistance = ema(rawDistance, smoothedPinchDistance);
+
+                // Smooth hand position
+                const rawHandX = primaryHand[9].x;
+                const rawHandY = primaryHand[9].y;
+                smoothedHandX = ema(rawHandX, smoothedHandX);
+                smoothedHandY = ema(rawHandY, smoothedHandY);
+
+                // === VELOCITY TRACKING ===
+                const now = performance.now();
+                const dt = (now - lastFrameTime) / 1000;
+                if (dt > 0 && dt < 0.5) {
+                    // Ignore large gaps
+                    velocityX = (smoothedHandX - lastHandX) / dt;
+                    velocityY = (smoothedHandY - lastHandY) / dt;
+                }
+                lastFrameTime = now;
+                lastHandX = smoothedHandX;
+                lastHandY = smoothedHandY;
+
+                // === HYSTERESIS FOR PINCH STATE ===
+                if (isPinchingState) {
+                    // Currently pinching - need larger release to exit
+                    isPinchingState =
+                        smoothedPinchDistance < PINCH_EXIT_THRESHOLD;
+                } else {
+                    // Not pinching - need tighter pinch to enter
+                    isPinchingState =
+                        smoothedPinchDistance < PINCH_ENTER_THRESHOLD;
+                }
+
+                // Determine if hand is stable (low velocity)
+                const isHandStable =
+                    Math.abs(velocityX) < 0.5 && Math.abs(velocityY) < 0.5;
 
                 // --- Gesture & Finger Counting Logic (All Hands) ---
                 let totalFingers = 0;
@@ -236,16 +297,19 @@
                     if (thumbDist > 0.15) totalFingers++; // Heuristic
                 });
 
+                // Update store with SMOOTHED values
                 gestureState.update((s) => ({
                     ...s,
                     isHandDetected: true,
-                    handPosition: { x: primaryHand[9].x, y: handY },
-                    isPinching,
-                    pinchDistance: distance,
+                    handPosition: { x: smoothedHandX, y: smoothedHandY },
+                    isPinching: isPinchingState,
+                    pinchDistance: smoothedPinchDistance,
                     detectedGesture: primaryGesture as any,
                     fingerCount: totalFingers,
                     primaryHandSide: primaryHandSide as any,
                     numHandsDetected: numHands,
+                    handVelocity: { x: velocityX, y: velocityY },
+                    isHandStable,
                 }));
             } else {
                 gestureState.update((s) => ({
@@ -280,14 +344,47 @@
 </script>
 
 <div
-    class="fixed bottom-4 right-4 z-50 overflow-hidden rounded-lg border border-slate-700 bg-black/50 w-32 h-24 shadow-lg pointer-events-auto"
+    class="fixed bottom-4 right-4 z-50 overflow-hidden rounded-lg border border-slate-700 bg-black/50 w-40 shadow-lg pointer-events-auto"
 >
     <!-- svelte-ignore a11y-media-has-caption -->
     <video
         bind:this={videoElement}
-        class="w-full h-full object-cover opacity-50"
+        class="w-full h-24 object-cover opacity-50"
         playsinline
     ></video>
+
+    <!-- Debug Info Overlay -->
+    <div
+        class="p-1.5 text-[9px] font-mono text-white/80 space-y-0.5 bg-black/60"
+    >
+        <div class="flex justify-between">
+            <span>Hand:</span>
+            <span
+                class={$gestureState.isHandDetected
+                    ? "text-green-400"
+                    : "text-red-400"}
+            >
+                {$gestureState.isHandDetected
+                    ? $gestureState.primaryHandSide
+                    : "None"}
+            </span>
+        </div>
+        <div class="flex justify-between">
+            <span>Pinch:</span>
+            <span
+                class={$gestureState.isPinching
+                    ? "text-yellow-400"
+                    : "text-slate-400"}
+            >
+                {$gestureState.pinchDistance.toFixed(3)}
+                {$gestureState.isPinching ? "✓" : ""}
+            </span>
+        </div>
+        <div class="flex justify-between">
+            <span>Hands#:</span>
+            <span>{$gestureState.numHandsDetected}</span>
+        </div>
+    </div>
 
     <div class="absolute top-1 right-1">
         <div

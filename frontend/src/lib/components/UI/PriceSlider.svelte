@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { spring } from "svelte/motion";
     import { fade } from "svelte/transition";
     import {
@@ -39,14 +39,6 @@
     let isVisible = false;
     let isLocked = false;
 
-    // NEW: Guard for trading pinch (only works when conditions are right)
-    $: canTrade =
-        $gestureState.numHandsDetected === 1 && // Only 1 hand visible
-        $gestureState.primaryHandSide === $tradingHandPreference && // Correct hand (user preference)
-        !$twoHandPinch.isActive && // Not currently zooming
-        !$zoomCooldownActive; // Not in cooldown after zoom
-
-    // Reactivity
     // Reactivity for Gestures
     $: {
         // 1. OPEN ORDER WINDOW: Point Up when Price Confirmed
@@ -108,66 +100,160 @@
         }
     }
 
-    // Slider Logic (Price Adjustment - Only when window CLOSED and canTrade is true)
+    // State Machine for Stability
+    type SliderState = "HIDDEN" | "PRE_ACTIVE" | "ACTIVE" | "LOCKED";
+    let currentState: SliderState = "HIDDEN";
+
+    // Constants
+    const HIDE_DELAY_MS = 200; // Prevent flickering on quick release
+    const HAND_LOSS_GRACE_MS = 300; // Keep active if hand tracking briefly fails
+
+    // Timers
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    let graceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Helper to clear timers
+    const clearTimers = () => {
+        if (hideTimer) clearTimeout(hideTimer);
+        if (graceTimer) clearTimeout(graceTimer);
+        hideTimer = null;
+        graceTimer = null;
+    };
+
+    onDestroy(() => clearTimers());
+
+    // Main Logic Loop
     $: {
+        // 1. Check conditions
+        const isHandValid =
+            $gestureState.numHandsDetected === 1 &&
+            $gestureState.primaryHandSide === $tradingHandPreference;
+
+        const isZooming = $twoHandPinch.isActive || $zoomCooldownActive;
+
+        // Use isPinching directly from FaceTracker (already has hysteresis applied)
+        // BUT exclude closed fist - it looks like pinch but isn't intentional
+        const isPinching =
+            $gestureState.isPinching &&
+            $gestureState.detectedGesture !== "Closed_Fist" &&
+            $gestureState.detectedGesture !== "Thumbs_Up"; // These gestures shouldn't trigger slider
+
+        // 2. State Transitions
         if (!isOrderWindowOpen && !orderPlaced) {
-            // NEW: Only process trading pinch when canTrade conditions are met
-            if ($gestureState.isPinching && canTrade) {
-                // Start Pinching
-                if (startHandY === null) {
-                    isVisible = true;
-                    isLocked = false;
+            // ENTRY: Valid Hand + Pinch + Not Zooming
+            if (isHandValid && isPinching && !isZooming) {
+                // RECOVERY: If we were in grace period, reset anchors to prevent jump
+                if (hideTimer) {
                     startHandY = $gestureState.handPosition.y;
                     startHandX = $gestureState.handPosition.x;
+                    startPrice = $selectedPrice; // Resume from current smoothed price
+                }
 
-                    // Start from existing confirmed price if it exists, otherwise current
-                    startPrice = confirmedPrice ?? currentPrice;
+                clearTimers(); // Valid signal, clear any hide timers
 
-                    // Hard set the spring to starting value (no animation)
-                    selectedPrice.set(startPrice, { hard: true });
-                } else if (startHandY !== null && startHandX !== null) {
-                    // Dragging Logic
-                    const dy = startHandY - $gestureState.handPosition.y;
-                    const dx = $gestureState.handPosition.x - startHandX;
+                if (
+                    currentState === "HIDDEN" ||
+                    currentState === "PRE_ACTIVE"
+                ) {
+                    currentState = "ACTIVE";
 
-                    // 1. Check for Lock (Swipe Right => Camera Left => dx < -0.1)
-                    if (dx < -0.1) {
-                        if (!isLocked) {
-                            isLocked = true;
-                            confirmedPrice = $selectedPrice; // Lock the SMOOTHED value
-                        }
-                    } else if (dx > -0.05) {
-                        // Unlock if we slide back
-                        if (isLocked) {
-                            isLocked = false;
+                    // Initialize Slider Positions
+                    if (startHandY === null) {
+                        isVisible = true;
+                        isLocked = false;
+                        startHandY = $gestureState.handPosition.y;
+                        startHandX = $gestureState.handPosition.x;
+                        startPrice = confirmedPrice ?? currentPrice;
+                        selectedPrice.set(startPrice, { hard: true });
+                    }
+                }
+            }
+
+            // EXIT / GRACE: Signal Lost
+            else {
+                // If we were active/locked, handle graceful exit
+                if (currentState === "ACTIVE" || currentState === "LOCKED") {
+                    // If locked, we stay locked until explicit release or cancel
+                    if (currentState === "LOCKED") {
+                        // Keep visible
+                    } else {
+                        // Not locked, check why we lost signal
+                        if (isZooming) {
+                            // Immediate hide on zoom capability
+                            currentState = "HIDDEN";
+                            isVisible = false;
+                            clearTimers();
+                            startHandY = null;
+                            startHandX = null;
+                        } else if (!hideTimer) {
+                            // Determine delay: Longer grace for hand loss vs pinch release
+                            const delay = !isHandValid
+                                ? HAND_LOSS_GRACE_MS
+                                : HIDE_DELAY_MS;
+
+                            hideTimer = setTimeout(() => {
+                                currentState = "HIDDEN";
+                                isVisible = false;
+                                startHandY = null;
+                                startHandX = null;
+                            }, delay);
                         }
                     }
+                }
+            }
 
-                    if (!isLocked) {
-                        // Option 2: Dynamic Velocity (Non-Linear)
-                        const sign = Math.sign(dy);
-                        const mag = Math.abs(dy);
+            // 3. Active State Logic (Dragging)
+            if (
+                (currentState === "ACTIVE" || currentState === "LOCKED") &&
+                startHandY !== null &&
+                startHandX !== null &&
+                // Only update position if hand is valid (freeze during grace period)
+                isHandValid
+            ) {
+                // Dragging Logic
+                const dy = startHandY - $gestureState.handPosition.y;
+                const dx = $gestureState.handPosition.x - startHandX;
 
-                        // Power of 1.5 for exponential feel
+                // === VELOCITY-CONFIRMED SWIPE RIGHT TO LOCK ===
+                if (currentState !== "LOCKED") {
+                    // Require CLEAR intentional swipe: more displacement AND more velocity
+                    const isSwipingRight =
+                        dx > 0.18 && $gestureState.handVelocity.x > 0.6;
+
+                    if (isSwipingRight) {
+                        currentState = "LOCKED";
+                        isLocked = true;
+                        confirmedPrice = $selectedPrice;
+                    }
+                } else {
+                    // Unlock check - swipe back left to unlock
+                    const isSwipingLeft =
+                        dx < 0.05 && $gestureState.handVelocity.x < -0.2;
+                    if (isSwipingLeft) {
+                        currentState = "ACTIVE";
+                        isLocked = false;
+                        // Reset anchor to current position for smooth continuation
+                        startHandX = $gestureState.handPosition.x;
+                    }
+                }
+
+                // === DEAD ZONE FOR PRICE UPDATES ===
+                if (currentState !== "LOCKED") {
+                    const DEAD_ZONE = 0.015; // Ignore tiny movements
+
+                    if (Math.abs(dy) > DEAD_ZONE) {
+                        // Apply dead zone offset for smooth entry
+                        const adjustedDy = dy - Math.sign(dy) * DEAD_ZONE;
+                        const sign = Math.sign(adjustedDy);
+                        const mag = Math.abs(adjustedDy);
                         const nonLinearDy = sign * Math.pow(mag, 1.5);
-
-                        // Re-calibrated sensitivity (approx 5x base due to small numbers)
                         const percentChange =
                             nonLinearDy * (gestureSensitivity * 5);
-
                         const target = startPrice * (1 + percentChange);
                         selectedPrice.set(target);
                     }
+                    // If within dead zone, price stays stable (no update needed)
                 }
-            } else if (!$gestureState.isPinching || !canTrade) {
-                // Released Pinch OR conditions no longer met (e.g., second hand appeared)
-                if (isVisible && !isLocked) {
-                    // Hide only if NOT locked
-                    isVisible = false;
-                }
-                // Always reset hand tracking on release
-                startHandY = null;
-                startHandX = null;
             }
         }
     }
