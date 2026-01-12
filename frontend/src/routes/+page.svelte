@@ -8,9 +8,12 @@
     import CandlestickChart from "$lib/components/Chart3D/CandlestickChart.svelte";
 
     // Components
+    import BrandCard from "$lib/components/UI/BrandCard.svelte";
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
     import PriceTargetOverlay from "$lib/components/UI/PriceTargetOverlay.svelte";
+    import CameraStatus from "$lib/components/UI/CameraStatus.svelte";
     import PriceCard from "$lib/components/UI/PriceCard.svelte";
+    import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
 
     // Stores
     import {
@@ -35,7 +38,7 @@
     const baseCamZ = 120;
 
     // UI State
-    let gestureSens = 0.08;
+    // UI State
 
     // Spring for smooth camera motion
     const camPos = spring(
@@ -192,137 +195,41 @@
     <div
         class="absolute inset-0 z-10 pointer-events-none p-6 flex flex-col justify-between"
     >
-        <!-- Top Bar -->
-        <div class="flex justify-between items-start">
-            <div>
-                <h1
-                    class="text-2xl font-bold tracking-widest text-cyan-400/70 uppercase"
-                >
-                    HoloTrade
-                </h1>
-                <div class="flex items-center gap-2 mt-1">
-                    <div
-                        class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
-                    ></div>
-                    <p
-                        class="text-[10px] text-slate-500 uppercase tracking-widest"
-                    >
-                        Live Tracking
-                    </p>
-                </div>
+        <!-- Top Row -->
+        <div class="flex justify-between items-start pointer-events-auto">
+            <!-- Left Column: Brand + Settings -->
+            <div class="flex flex-col gap-4">
+                <!-- 3D Brand Card -->
+                <BrandCard />
+
+                <!-- Camera Status -->
+                <CameraStatus />
+
+                <!-- Settings Card -->
+                <SettingsCard />
             </div>
 
-            <!-- Price Display -->
-            <div class="pointer-events-auto">
+            <!-- Right Column: Price Display -->
+            <div>
                 <PriceCard price={lastCandlePrice} />
             </div>
         </div>
 
-        <!-- Bottom: Controls -->
-        <div class="flex items-end justify-between gap-6 pointer-events-auto">
-            <div
-                class="bg-black/40 p-4 rounded-lg backdrop-blur-md border border-cyan-500/10 text-white w-56 space-y-3"
+        <!-- Zoom indicator -->
+        <div class="text-right mb-2">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest">
+                Zoom
+            </p>
+            <p
+                class={`text-sm font-mono transition-colors ${$twoHandPinch.isActive ? "text-yellow-400" : "text-cyan-400/70"}`}
             >
-                <!-- Sensitivity -->
-                <div>
-                    <label
-                        for="sensitivity"
-                        class="block text-[10px] uppercase tracking-widest mb-2 text-cyan-400/60"
-                    >
-                        Parallax
-                    </label>
-                    <input
-                        id="sensitivity"
-                        type="range"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        bind:value={$sensitivity}
-                        class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                </div>
-
-                <!-- Gesture Sensitivity -->
-                <div>
-                    <label
-                        for="gestureSens"
-                        class="block text-[10px] uppercase tracking-widest mb-2 text-cyan-400/60"
-                    >
-                        Gesture
-                    </label>
-                    <input
-                        id="gestureSens"
-                        type="range"
-                        min="0.01"
-                        max="0.5"
-                        step="0.01"
-                        bind:value={gestureSens}
-                        class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                </div>
-
-                <!-- Trading Hand Selector -->
-                <div>
-                    <label
-                        class="block text-[10px] uppercase tracking-widest mb-2 text-cyan-400/60"
-                    >
-                        Trading Hand
-                    </label>
-                    <div class="flex gap-1">
-                        <button
-                            on:click={() => tradingHandPreference.set("Left")}
-                            class={`flex-1 py-1.5 text-xs font-bold uppercase rounded transition-all ${
-                                $tradingHandPreference === "Left"
-                                    ? "bg-cyan-500 text-slate-900"
-                                    : "bg-slate-700/50 text-slate-400 hover:bg-slate-600/50"
-                            }`}
-                        >
-                            ✋ Left
-                        </button>
-                        <button
-                            on:click={() => tradingHandPreference.set("Right")}
-                            class={`flex-1 py-1.5 text-xs font-bold uppercase rounded transition-all ${
-                                $tradingHandPreference === "Right"
-                                    ? "bg-cyan-500 text-slate-900"
-                                    : "bg-slate-700/50 text-slate-400 hover:bg-slate-600/50"
-                            }`}
-                        >
-                            Right 🤚
-                        </button>
-                    </div>
-                    <!-- Current detected hand indicator -->
-                    {#if $gestureState.isHandDetected && $gestureState.numHandsDetected === 1}
-                        <p
-                            class="text-[9px] mt-1.5 text-center {$gestureState.primaryHandSide ===
-                            $tradingHandPreference
-                                ? 'text-emerald-400'
-                                : 'text-slate-500'}"
-                        >
-                            {$gestureState.primaryHandSide ===
-                            $tradingHandPreference
-                                ? "✓ Ready"
-                                : `${$gestureState.primaryHandSide} hand detected`}
-                        </p>
-                    {/if}
-                </div>
-            </div>
-
-            <!-- Zoom indicator -->
-            <div class="text-right mb-2">
-                <p class="text-[10px] text-slate-500 uppercase tracking-widest">
-                    Zoom
+                {(100 / $zoomLevel).toFixed(0)}%
+            </p>
+            {#if $twoHandPinch.isActive}
+                <p class="text-[9px] text-yellow-400/60 mt-1 animate-pulse">
+                    ✋ PINCH ZOOM ✋
                 </p>
-                <p
-                    class={`text-sm font-mono transition-colors ${$twoHandPinch.isActive ? "text-yellow-400" : "text-cyan-400/70"}`}
-                >
-                    {(100 / $zoomLevel).toFixed(0)}%
-                </p>
-                {#if $twoHandPinch.isActive}
-                    <p class="text-[9px] text-yellow-400/60 mt-1 animate-pulse">
-                        ✋ PINCH ZOOM ✋
-                    </p>
-                {/if}
-            </div>
+            {/if}
         </div>
     </div>
 

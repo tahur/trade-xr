@@ -2,7 +2,15 @@
 export default {
     content: ['./src/**/*.{html,js,svelte,ts}'],
     theme: {
-        extend: {},
+        extend: {
+            fontFamily: {
+                sans: ['Space Grotesk', 'sans-serif'],
+            },
+            colors: {
+                'xr-blue': '#0B1C2D',
+                'neon-cyan': '#00E5FF',
+            }
+        },
     },
     plugins: [],
 }

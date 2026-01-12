@@ -41,6 +41,9 @@ export const gestureState = writable<GestureState>({
 // NEW: User preference for which hand triggers trading
 export const tradingHandPreference = writable<'Left' | 'Right'>('Right');
 
+// NEW: Sensitivity for gesture detection (0-1)
+export const gestureSensitivity = writable<number>(0.08);
+
 // NEW: Cooldown state after zoom ends (prevents accidental triggers)
 export const zoomCooldownActive = writable<boolean>(false);
 

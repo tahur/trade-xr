@@ -8,6 +8,7 @@
         isTracking,
         twoHandPinch,
         zoomLevel,
+        cameraLabel,
     } from "$lib/stores/tracking";
     import { gestureState, zoomCooldownActive } from "$lib/stores/gesture";
 
@@ -335,6 +336,36 @@
                 height: 480,
             });
             await camera.start();
+
+            // Extract Camera Label
+            setTimeout(async () => {
+                try {
+                    // Method 1: Try from video element stream
+                    const stream = videoElement.srcObject as MediaStream;
+                    if (stream) {
+                        const track = stream.getVideoTracks()[0];
+                        if (track && track.label) {
+                            cameraLabel.set(track.label);
+                            return;
+                        }
+                    }
+
+                    // Method 2: Fallback to enumerateDevices (likely the first videoinput)
+                    const devices =
+                        await navigator.mediaDevices.enumerateDevices();
+                    const videoInput = devices.find(
+                        (d) => d.kind === "videoinput",
+                    );
+                    if (videoInput) {
+                        cameraLabel.set(videoInput.label || "Webcam");
+                    } else {
+                        cameraLabel.set("Webcam");
+                    }
+                } catch (e) {
+                    console.error("Error getting camera label:", e);
+                    cameraLabel.set("Camera");
+                }
+            }, 1000); // Wait a bit for stream to init
         }
     });
 

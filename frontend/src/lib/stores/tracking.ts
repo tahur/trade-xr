@@ -15,6 +15,7 @@ export interface TwoHandPinch {
 // Stores
 export const headPosition = writable<HeadPosition>({ x: 0, y: 0, z: 0 });
 export const isTracking = writable<boolean>(false);
+export const cameraLabel = writable<string>(""); // Active camera name
 export const sensitivity = writable<number>(5); // Default sensitivity multiplier
 
 // Two-hand zoom state
