@@ -1,58 +1,62 @@
 <script lang="ts">
     import { spring } from "svelte/motion";
-    import { fade, slide } from "svelte/transition";
-    import {
-        headPosition,
-        isTracking,
-        sensitivity,
-        zoomLevel,
-        twoHandPinch,
-    } from "$lib/stores/tracking";
-    import {
-        gestureSensitivity,
-        tradingHandPreference,
-        gestureState,
-    } from "$lib/stores/gesture";
+    import { headPosition, isTracking } from "$lib/stores/tracking";
 
     export let price: number = 0;
     export let symbol: string = "SILVERCASE";
     export let trend: "up" | "down" = "up";
 
-    let showSettings = false;
-
-    // Reactive trend check
-    $: isPositive = trend === "up";
-    // Mock change percent for display
-    $: changePercent = isPositive ? 1.25 : -0.85;
-
-    // Physics State
+    // Physics State - INCREASED REACTIVITY (Stiffness 0.05 -> 0.15)
+    // We map head position (-1 to 1) to tilt and shine coordinates
     const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.15, damping: 0.4 });
     const shine = spring({ x: 50, y: 50 }, { stiffness: 0.15, damping: 0.4 });
 
     $: {
         if ($isTracking) {
+            // Head moves Right (positive X) -> look from right -> card tilts left (negative Y rot)
+            // Head moves Up (positive Y) -> look from top -> card tilts down (positive X rot)
+
+            // Map head X (-1 to 1) to Tilt Y (-15deg to 15deg)
+            // Map head Y (-1 to 1) to Tilt X (15deg to -15deg)
+            // INCREASED MULTIPLIER (12 -> 25 for dramatic tilt)
             const targetRotateY = $headPosition.x * 25;
             const targetRotateX = -$headPosition.y * 25;
+
             tilt.set({ x: targetRotateX, y: targetRotateY });
 
-            const targetShineX = 50 + $headPosition.x * 60;
+            // Shine follows the "reflection" logic
+            // Head Right -> Shine moves Right
+            // Head Up -> Shine moves Up
+            const targetShineX = 50 + $headPosition.x * 60; // Wider shine range
             const targetShineY = 50 + $headPosition.y * 60;
+
             shine.set({ x: targetShineX, y: targetShineY });
         } else {
+            // Reset to center if not tracking
             tilt.set({ x: 0, y: 0 });
             shine.set({ x: 50, y: 50 });
         }
     }
 
+    // Mouse Interaction ( Fallback / Additive )
     function handleMouseMove(e: MouseEvent) {
-        if ($isTracking) return;
+        if ($isTracking) return; // Ignore mouse if facial tracking is active
+
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+
+        // Calculate percentages
         const xPct = x / rect.width;
-        const yPct = y / rect.height;
+        const yPct = y / rect.height; // 0 to 1
+
+        // Tilt logic:
+        // Mouse Left -> Tilt Left (neg Y rot) ?? No, usually looks towards mouse
+        // Let's copy standard 3D tilt: mouse at top-left -> tilts top-left towards viewer
+        // Increased Mouse Sensitivity too
         const rotateY = (xPct - 0.5) * 2 * 20;
         const rotateX = -((yPct - 0.5) * 2) * 20;
+
         tilt.set({ x: rotateX, y: rotateY });
         shine.set({ x: xPct * 100, y: yPct * 100 });
     }
@@ -65,91 +69,81 @@
     }
 </script>
 
-<!-- Outer Container -->
 <div
     class="card-perspective"
     on:mousemove={handleMouseMove}
     on:mouseleave={handleMouseLeave}
     role="group"
 >
-    <!-- Main Card -->
     <div
-        class="glass-panel active-card"
+        class="active-card glass-panel"
         style="
-            transform: perspective(1000px) rotateX({$tilt.x}deg) rotateY({$tilt.y}deg);
+            transform: perspective(800px) rotateX({$tilt.x}deg) rotateY({$tilt.y}deg);
             --shine-x: {$shine.x}%;
             --shine-y: {$shine.y}%;
             --shine-opacity: {$isTracking ? 0.9 : 0.6};
-            z-index: {showSettings ? 50 : 1};
         "
     >
+        <!-- 1. Gradient Border -->
         <div class="gradient-border"></div>
+
+        <!-- 2. Interactive Overlays -->
         <div class="card-shine-overlay"></div>
 
-        <!-- Content -->
-        <div class="relative z-10 flex flex-col gap-2 h-full justify-center">
-            <!-- Header Row -->
-            <div class="w-full flex justify-end items-start mb-1">
-                <h3
-                    class="text-sm font-bold text-slate-500 tracking-wider lowercase drop-shadow-sm text-right"
-                >
-                    {symbol}
-                </h3>
-            </div>
+        <!-- 3. Content -->
+        <div
+            class="card-content relative z-30 flex flex-col items-end justify-center h-full"
+        >
+            <h3
+                class="text-sm font-black text-slate-700 tracking-wider uppercase mb-1 drop-shadow-sm"
+            >
+                {symbol}
+            </h3>
 
-            <!-- Price & Trend -->
             <div class="flex items-center gap-2">
                 <p
-                    class="text-2xl font-mono font-black text-slate-800 tracking-tight leading-none"
+                    class="text-2xl font-mono font-black text-gray-900 tracking-tight leading-none"
                 >
                     ₹{price.toFixed(2)}
                 </p>
-                <div
-                    class={`flex items-center ${isPositive ? "text-emerald-500" : "text-orange-500"}`}
-                >
-                    {#if isPositive}
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            class="w-5 h-5"
-                        >
-                            <path
-                                fill-rule="evenodd"
-                                d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z"
-                                clip-rule="evenodd"
-                            />
-                        </svg>
-                    {:else}
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            class="w-5 h-5"
-                        >
-                            <path
-                                fill-rule="evenodd"
-                                d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z"
-                                clip-rule="evenodd"
-                            />
-                        </svg>
-                    {/if}
-                    <span class="text-sm font-bold font-mono tracking-wide">
-                        {Math.abs(changePercent).toFixed(2)}%
-                    </span>
-                </div>
-            </div>
 
-            <!-- Mini Chart Placeholder -->
-            <div
-                class="h-8 w-full flex items-end justify-between gap-1 mt-1 opacity-50"
-            >
-                {#each Array(12) as _, i}
+                {#if trend === "up"}
+                    <!-- Up Arrow (Green Squircle) -->
                     <div
-                        class={`w-1 rounded-full ${isPositive ? "bg-emerald-400" : "bg-orange-400"}`}
-                        style="height: {20 + Math.random() * 60}%"
-                    ></div>
-                {/each}
+                        class="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-100/80 text-emerald-600 shadow-sm backdrop-blur-sm border border-white/20"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            class="w-3.5 h-3.5"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </div>
+                {:else}
+                    <!-- Down Arrow (Red Squircle) -->
+                    <div
+                        class="flex items-center justify-center w-6 h-6 rounded-lg bg-red-100/80 text-red-600 shadow-sm backdrop-blur-sm border border-white/20"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            class="w-3.5 h-3.5"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </div>
+                {/if}
             </div>
         </div>
     </div>
@@ -157,39 +151,51 @@
 
 <style>
     .card-perspective {
-        width: 250px;
-        height: 140px;
-        perspective: 1000px;
+        width: 200px; /* Slightly wider to fit text */
+        height: 90px;
+        perspective: 800px; /* Stronger perspective */
         position: relative;
     }
 
     .active-card {
         width: 100%;
         height: 100%;
-        border-radius: 1rem;
+        border-radius: 0.5rem; /* subtle 8px corner */
         padding: 1.25rem;
         transform-style: preserve-3d;
         position: relative;
+        /* background: rgba(20, 25, 40, 0.4); Base dark tint */
     }
 
-    /* Light Glass Body */
+    /* Milky Glass Effect (High Opacity Light) */
     .glass-panel {
-        background: rgba(255, 255, 255, 0.65); /* Light Glass */
+        background: rgba(
+            230,
+            235,
+            240,
+            0.85
+        ); /* Reduced Transparency (High Opacity) */
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow:
-            0 20px 40px -10px rgba(0, 0, 0, 0.1),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-        transition: transform 0.1s;
+            0 20px 40px -10px rgba(0, 0, 0, 0.6),
+            /* Deeper shadow for pop */ 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+        transition: transform 0.1s; /* Spring handles smoothness, this is just fail-safe */
     }
 
-    /* Dynamic Rim Light Border - Cyan */
+    /* Dynamic Accent Border - Reacts to Light */
     .gradient-border {
         position: absolute;
         inset: -1px;
-        border-radius: 1rem;
+        border-radius: 0.55rem;
         padding: 1px;
+        background: radial-gradient(
+            circle 120px at var(--shine-x) var(--shine-y),
+            rgba(0, 229, 255, 0.8) 0%,
+            /* Neon Cyan Accent */ rgba(0, 229, 255, 0.1) 40%,
+            transparent 80%
+        );
         -webkit-mask:
             linear-gradient(#fff 0 0) content-box,
             linear-gradient(#fff 0 0);
@@ -198,30 +204,35 @@
             linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask-composite: exclude;
-        background: radial-gradient(
-            circle 100px at var(--shine-x) var(--shine-y),
-            rgba(0, 229, 255, 0.8) 0%,
-            rgba(0, 229, 255, 0.1) 50%,
-            transparent 80%
-        );
         z-index: 10;
+        opacity: 0.8;
         pointer-events: none;
-        opacity: 0.6;
     }
 
-    /* Surface Shine */
+    /* Dynamic Shine - Brighter */
     .card-shine-overlay {
         position: absolute;
         inset: 0;
-        border-radius: 1rem;
+        border-radius: 0.5rem;
         background: radial-gradient(
             circle at var(--shine-x) var(--shine-y),
             rgba(255, 255, 255, 0.8),
-            transparent 60%
+            transparent 50%
         );
-        opacity: var(--shine-opacity, 0.5);
+        opacity: var(--shine-opacity, 0.6);
         pointer-events: none;
-        mix-blend-mode: overlay;
+        mix-blend-mode: soft-light;
         z-index: 20;
+    }
+
+    /* Inner Glow for depth */
+    .active-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 0.5rem;
+        box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.5);
+        pointer-events: none;
+        z-index: 10;
     }
 </style>

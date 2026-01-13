@@ -6,6 +6,7 @@
     import { spring } from "svelte/motion";
     import { generateCandles } from "$lib/services/mockData";
     import CandlestickChart from "$lib/components/Chart3D/CandlestickChart.svelte";
+    import { kite } from "$lib/services/kite";
 
     // Components
     import BrandCard from "$lib/components/UI/BrandCard.svelte";
@@ -25,6 +26,40 @@
     import { tradingStore } from "$lib/stores/trading";
     import { tradingHandPreference, gestureState } from "$lib/stores/gesture";
 
+    // Kite Logic
+    let kiteStatus = "Not Connected";
+    const KITE_API_KEY = "4o72jub8tyqey769";
+
+    onMount(async () => {
+        // Handle Zerodha Redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestToken = urlParams.get("request_token");
+
+        if (requestToken) {
+            kiteStatus = "Connecting...";
+            try {
+                await kite.login(requestToken);
+                kiteStatus = "Connected";
+                window.history.replaceState(
+                    {},
+                    document.title,
+                    window.location.pathname,
+                );
+            } catch (e) {
+                console.error("Kite Login Error:", e);
+                kiteStatus = "Connection Failed";
+            }
+        }
+    });
+
+    function loginToZerodha() {
+        if (!KITE_API_KEY || KITE_API_KEY === "your_api_key_here") {
+            alert("Please set your KITE_API_KEY in +page.svelte code!");
+            return;
+        }
+        window.location.href = `https://kite.trade/connect/login?v=3&api_key=${KITE_API_KEY}`;
+    }
+
     // Data
     const candles = generateCandles(50);
     const lastCandlePrice = candles[candles.length - 1].close;
@@ -32,13 +67,10 @@
     const maxHigh = Math.max(...candles.map((c) => c.high));
     const centerPrice = (minLow + maxHigh) / 2;
 
-    // Base camera position (isometric view - slightly from right and above)
+    // Base camera position
     const baseCamX = 60;
     const baseCamY = centerPrice + 40;
     const baseCamZ = 120;
-
-    // UI State
-    // UI State
 
     // Spring for smooth camera motion
     const camPos = spring(
@@ -46,20 +78,11 @@
         { stiffness: 0.08, damping: 0.6 },
     );
 
-    // Reactive camera updates based on head tracking + two-hand zoom
+    // Reactive camera updates
     $: {
-        // Head left/right = camera orbits around chart (perspective shift)
         const xOffset = $headPosition.x * $sensitivity * 50;
-
-        // Head up/down = subtle Y movement
         const yOffset = $headPosition.y * $sensitivity * 20;
-
-        // Head forward/back = ZOOM (lean in = closer, lean back = further)
-        // headPosition.z decreases when leaning forward
         const zOffset = ($headPosition.z - 0.45) * -300;
-
-        // Apply two-hand pinch zoom (zoomLevel: 0.4-2.5, where 1.0 = normal)
-        // Smaller zoomLevel = zoomed in (camera closer), larger = zoomed out
         const zoomMultiplier = $zoomLevel;
 
         camPos.set({
@@ -71,8 +94,6 @@
             ),
         });
     }
-
-    onMount(() => {});
 </script>
 
 <div
@@ -204,6 +225,26 @@
 
                 <!-- Camera Status -->
                 <CameraStatus />
+
+                <!-- Kite Status -->
+                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                <div
+                    class="mt-2 glass-panel p-2 rounded-lg text-center cursor-pointer hover:bg-white/10 transition-colors"
+                    on:click={loginToZerodha}
+                    role="button"
+                    tabindex="0"
+                >
+                    <p
+                        class="text-[10px] font-mono text-slate-400 uppercase tracking-widest"
+                    >
+                        KITE API
+                    </p>
+                    <p
+                        class={`text-xs font-bold ${kiteStatus === "Connected" ? "text-emerald-400" : "text-slate-500"}`}
+                    >
+                        {kiteStatus}
+                    </p>
+                </div>
 
                 <!-- Settings Card -->
                 <SettingsCard />

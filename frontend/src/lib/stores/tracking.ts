@@ -34,3 +34,5 @@ export const resetTracking = () => {
     zoomLevel.set(1.0);
     twoHandPinch.set({ isActive: false, handDistance: 0, initialDistance: 0 });
 };
+
+export const isCameraEnabled = writable<boolean>(true);

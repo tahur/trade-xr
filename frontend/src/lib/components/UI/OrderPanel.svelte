@@ -3,8 +3,8 @@
 
     export let currentPrice: number;
 
-    let quantity = 50;
-    let price = 0;
+    let quantity = 1;
+    let price = 27;
     let side: "BUY" | "SELL" = "BUY";
 
     // Update limit price default when market price changes (if not modified)
@@ -44,7 +44,7 @@
         <!-- Symbol Info -->
         <div class="flex justify-between text-sm">
             <span class="text-slate-400">Instrument</span>
-            <span class="font-mono">NIFTY 50</span>
+            <span class="font-mono">SILVERCASE</span>
         </div>
 
         <!-- Quantity -->

@@ -9,6 +9,7 @@
         twoHandPinch,
         zoomLevel,
         cameraLabel,
+        isCameraEnabled,
     } from "$lib/stores/tracking";
     import { gestureState, zoomCooldownActive } from "$lib/stores/gesture";
 
@@ -16,6 +17,7 @@
     let faceMesh: FaceMesh;
     let hands: Hands;
     let camera: Camera | null = null;
+    let isCameraRunning = false;
 
     // Two-hand zoom state
     let wasZooming = false;
@@ -335,7 +337,7 @@
                 width: 640,
                 height: 480,
             });
-            await camera.start();
+            // Camera start handled by reactive statement below
 
             // Extract Camera Label
             setTimeout(async () => {
@@ -372,6 +374,18 @@
     onDestroy(() => {
         if (camera) camera.stop();
     });
+
+    // Reactive Camera Control
+    $: if (camera) {
+        if ($isCameraEnabled && !isCameraRunning) {
+            camera.start();
+            isCameraRunning = true;
+        } else if (!$isCameraEnabled && isCameraRunning) {
+            camera.stop();
+            isCameraRunning = false;
+            $isTracking = false;
+        }
+    }
 </script>
 
 <div

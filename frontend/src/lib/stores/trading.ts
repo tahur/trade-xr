@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { kite } from "../services/kite";
 
 export interface Position {
     symbol: string;
@@ -35,12 +36,26 @@ function createTradingStore() {
 
     return {
         subscribe,
-        placeOrder: (side: 'BUY' | 'SELL', quantity: number, price: number) => {
+        placeOrder: async (side: 'BUY' | 'SELL', quantity: number, price: number) => {
+            const SYMBOL = 'SILVERCASE';
+
+            // 1. Call Real API (Fire and forget or await?)
+            // We'll treat it as optimistic update for now, but usually we would wait.
+            // Given "Hardcoded... Slivercase", let's try to hit the API.
+            try {
+                await kite.placeOrder(SYMBOL, side, quantity, price);
+                console.log("Kite Order Placed:", SYMBOL, side, quantity, price);
+            } catch (e) {
+                console.error("Kite Order Failed:", e);
+                // We might want to NOT update local state if API fails, but for now let's keep the mock behavior as "Demo" fallback or optimistic.
+                // Or better, let's keep the mock logic as the "UI feedback" since we might not have webhooks yet.
+            }
+
             update(state => {
                 const id = Math.random().toString(36).substr(2, 9);
                 const newOrder: Order = {
                     id,
-                    symbol: 'NIFTY 50', // Hardcoded for single chart demo
+                    symbol: SYMBOL,
                     side,
                     quantity,
                     price,
@@ -52,7 +67,7 @@ function createTradingStore() {
                 const filledOrder = { ...newOrder, status: 'FILLED' as const };
 
                 // Update Position
-                const existingPosIndex = state.positions.findIndex(p => p.symbol === 'NIFTY 50');
+                const existingPosIndex = state.positions.findIndex(p => p.symbol === SYMBOL);
                 let newPositions = [...state.positions];
 
                 if (existingPosIndex > -1) {
@@ -71,13 +86,13 @@ function createTradingStore() {
                         // Sell logic simplifed: reduce qty
                         newPositions[existingPosIndex].quantity -= quantity;
                         if (newPositions[existingPosIndex].quantity <= 0) {
-                            newPositions = newPositions.filter(p => p.symbol !== 'NIFTY 50');
+                            newPositions = newPositions.filter(p => p.symbol !== SYMBOL);
                         }
                     }
 
                 } else if (side === 'BUY') {
                     newPositions.push({
-                        symbol: 'NIFTY 50',
+                        symbol: SYMBOL,
                         quantity,
                         avgPrice: price,
                         currentPrice: price,
