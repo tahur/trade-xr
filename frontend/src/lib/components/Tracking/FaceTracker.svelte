@@ -31,7 +31,7 @@
 
     // === SIGNAL PROCESSING LAYER ===
     // EMA Smoothing State
-    const EMA_ALPHA = 0.5; // Higher = faster response (0.5 = more responsive, 0.3 = smoother)
+    const EMA_ALPHA = 0.7; // Higher = faster response (0.7 = snappy, 0.5 = balanced)
     let smoothedPinchDistance = 0.1; // Start closer to pinch range
     let smoothedHandX = 0.5;
     let smoothedHandY = 0.5;
@@ -43,10 +43,15 @@
     let velocityX = 0;
     let velocityY = 0;
 
-    // Hysteresis for Pinch Detection (more lenient thresholds)
+    // Hysteresis for Pinch Detection - TIGHTER thresholds to prevent false positives
     let isPinchingState = false;
-    const PINCH_ENTER_THRESHOLD = 0.06; // Was 0.045 - now easier to trigger
-    const PINCH_EXIT_THRESHOLD = 0.09; // Was 0.08 - more tolerance before release
+    const PINCH_ENTER_THRESHOLD = 0.045; // Tighter - require clear pinch
+    const PINCH_EXIT_THRESHOLD = 0.07; // Less tolerance - quicker release detection
+
+    // Pinch confirmation - require sustained pinch to prevent accidental triggers
+    let pinchStartTime: number | null = null;
+    const PINCH_CONFIRM_MS = 80; // Must hold pinch for 80ms to confirm
+    let confirmedPinch = false;
 
     // EMA helper function
     const ema = (
@@ -191,16 +196,18 @@
                 const handY = primaryHand[9].y;
 
                 // Get handedness from MediaPipe (note: it's mirrored in webcam)
-                // MediaPipe labels it from the camera's perspective, so we flip it
+                // MediaPipe's handedness is unreliable, so we combine with position
                 const rawHandedness =
                     results.multiHandedness?.[0]?.label || "Unknown";
-                // Flip: MediaPipe "Left" from camera = user's Right hand
-                const primaryHandSide =
-                    rawHandedness === "Left"
-                        ? "Right"
-                        : rawHandedness === "Right"
-                          ? "Left"
-                          : "Unknown";
+
+                // More reliable: Use hand position in mirrored view
+                // In mirrored webcam: user's RIGHT hand appears on LEFT side (x < 0.5)
+                // We prioritize position over MediaPipe's label for reliability
+                const handCenterX = primaryHand[9].x;
+                const positionBasedSide = handCenterX < 0.5 ? "Right" : "Left";
+
+                // Use position-based detection (more reliable in mirrored view)
+                const primaryHandSide = positionBasedSide;
 
                 // === SMOOTHED PINCH DETECTION ===
                 const rawDistance = Math.sqrt(
@@ -230,19 +237,39 @@
                 lastHandY = smoothedHandY;
 
                 // === HYSTERESIS FOR PINCH STATE ===
-                if (isPinchingState) {
-                    // Currently pinching - need larger release to exit
-                    isPinchingState =
-                        smoothedPinchDistance < PINCH_EXIT_THRESHOLD;
+                const rawPinching =
+                    smoothedPinchDistance <
+                    (isPinchingState
+                        ? PINCH_EXIT_THRESHOLD
+                        : PINCH_ENTER_THRESHOLD);
+
+                if (rawPinching) {
+                    if (!isPinchingState) {
+                        // Starting a new pinch - track start time
+                        if (pinchStartTime === null) {
+                            pinchStartTime = performance.now();
+                        }
+                        // Check if pinch has been held long enough
+                        const pinchDuration =
+                            performance.now() - pinchStartTime;
+                        if (pinchDuration >= PINCH_CONFIRM_MS) {
+                            isPinchingState = true;
+                            confirmedPinch = true;
+                        }
+                    } else {
+                        // Already pinching, keep confirmed
+                        confirmedPinch = true;
+                    }
                 } else {
-                    // Not pinching - need tighter pinch to enter
-                    isPinchingState =
-                        smoothedPinchDistance < PINCH_ENTER_THRESHOLD;
+                    // Not pinching - reset
+                    isPinchingState = false;
+                    confirmedPinch = false;
+                    pinchStartTime = null;
                 }
 
-                // Determine if hand is stable (low velocity)
+                // Determine if hand is stable (STRICTER velocity check)
                 const isHandStable =
-                    Math.abs(velocityX) < 0.5 && Math.abs(velocityY) < 0.5;
+                    Math.abs(velocityX) < 0.3 && Math.abs(velocityY) < 0.3;
 
                 // --- Gesture & Finger Counting Logic (All Hands) ---
                 let totalFingers = 0;

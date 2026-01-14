@@ -18,10 +18,10 @@
     let startHandX: number | null = null;
     let startPrice: number = 0;
 
-    // Smooth Price Store (Spring Physics)
+    // Smooth Price Store (Spring Physics) - Snappy response
     const selectedPrice = spring(0, {
-        stiffness: 0.1, // Lower stiffness = smoother/slower follow
-        damping: 0.8, // Higher damping = less oscillation
+        stiffness: 0.4, // Higher stiffness = faster response
+        damping: 0.7, // Balanced damping
     });
 
     // Order Flow State
@@ -104,9 +104,9 @@
     type SliderState = "HIDDEN" | "PRE_ACTIVE" | "ACTIVE" | "LOCKED";
     let currentState: SliderState = "HIDDEN";
 
-    // Constants
-    const HIDE_DELAY_MS = 200; // Prevent flickering on quick release
-    const HAND_LOSS_GRACE_MS = 300; // Keep active if hand tracking briefly fails
+    // Constants - Minimal delays for instant response
+    const HIDE_DELAY_MS = 50; // Quick hide, minimal flicker prevention
+    const HAND_LOSS_GRACE_MS = 100; // Brief grace period
 
     // Timers
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -125,23 +125,45 @@
     // Main Logic Loop
     $: {
         // 1. Check conditions
-        const isHandValid =
-            $gestureState.numHandsDetected === 1 &&
+        const isPreferredHand =
             $gestureState.primaryHandSide === $tradingHandPreference;
+
+        const isSingleHand = $gestureState.numHandsDetected === 1;
+
+        // NEW: Trading Zone Check - hand must be in lower portion of screen
+        // Prevents triggers when hand is near face (scratching head, etc.)
+        // Y < 0.35 means hand is too high (near face area)
+        const isInTradingZone = $gestureState.handPosition.y > 0.35;
+
+        // NEW: Stability check - hand must not be moving too fast (TIGHTER)
+        const isStableEnough =
+            Math.abs($gestureState.handVelocity.x) < 0.8 &&
+            Math.abs($gestureState.handVelocity.y) < 0.8;
+
+        // Use the FaceTracker's stable flag for additional confirmation
+        const isHandStable = $gestureState.isHandStable;
+
+        // Combined valid hand check - require stability for ENTRY
+        const isHandValid =
+            isPreferredHand &&
+            isSingleHand &&
+            isInTradingZone &&
+            isStableEnough &&
+            isHandStable; // FaceTracker stability check
 
         const isZooming = $twoHandPinch.isActive || $zoomCooldownActive;
 
-        // Use isPinching directly from FaceTracker (already has hysteresis applied)
-        // BUT exclude closed fist - it looks like pinch but isn't intentional
-        const isPinching =
+        // Use isPinching directly from FaceTracker (has confirmation timer now)
+        // Stricter gesture filtering - only allow pinch when hand is in neutral state
+        const allowedGestures = ["None", "Open_Palm"]; // Removed Pointing_Up - too easy to falsely trigger
+        const isIntentionalPinch =
             $gestureState.isPinching &&
-            $gestureState.detectedGesture !== "Closed_Fist" &&
-            $gestureState.detectedGesture !== "Thumbs_Up"; // These gestures shouldn't trigger slider
+            allowedGestures.includes($gestureState.detectedGesture);
 
         // 2. State Transitions
         if (!isOrderWindowOpen && !orderPlaced) {
-            // ENTRY: Valid Hand + Pinch + Not Zooming
-            if (isHandValid && isPinching && !isZooming) {
+            // ENTRY: Valid Hand + Intentional Pinch + Not Zooming
+            if (isHandValid && isIntentionalPinch && !isZooming) {
                 // RECOVERY: If we were in grace period, reset anchors to prevent jump
                 if (hideTimer) {
                     startHandY = $gestureState.handPosition.y;

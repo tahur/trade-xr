@@ -1,9 +1,12 @@
 <script lang="ts">
     import { fade, scale, fly } from "svelte/transition";
     import { dynamicIsland } from "$lib/stores/dynamicIsland";
-    import { quintOut } from "svelte/easing";
+    import { cubicOut } from "svelte/easing";
     import { spring } from "svelte/motion";
     import { headPosition, isTracking } from "$lib/stores/tracking";
+
+    // Snappy easing for quick, responsive feel
+    const snappyEase = cubicOut;
 
     $: mode = $dynamicIsland.mode;
     $: content = $dynamicIsland.content;
@@ -20,9 +23,9 @@
 
     $: {
         if ($isTracking) {
-            // Reduced intensity for subtle effect
-            const targetRotateY = $headPosition.x * 15;
-            const targetRotateX = -$headPosition.y * 12;
+            // Increased intensity for more noticeable tilt
+            const targetRotateY = $headPosition.x * 25;
+            const targetRotateX = -$headPosition.y * 20;
             tilt.set({ x: targetRotateX, y: targetRotateY });
         } else {
             tilt.set({ x: 0, y: 0 });
@@ -73,8 +76,8 @@
         <div
             class="dynamic-island"
             style="width: {width}; height: {height}; transform: rotateX({$tilt.x}deg) rotateY({$tilt.y}deg);"
-            in:fly={{ y: -20, duration: 400, easing: quintOut }}
-            out:fade={{ duration: 200 }}
+            in:fly={{ y: -12, duration: 150, easing: snappyEase }}
+            out:fade={{ duration: 100 }}
         >
             {#key mode + content.type}
                 <!-- Compact Mode - Ticker -->
@@ -122,7 +125,11 @@
                     {#if content.type === "order"}
                         <div
                             class="flex flex-col items-center justify-center px-6 w-full h-full gap-2"
-                            in:scale={{ duration: 300, easing: quintOut }}
+                            in:scale={{
+                                start: 0.95,
+                                duration: 150,
+                                easing: snappyEase,
+                            }}
                         >
                             <div class="flex items-center gap-2">
                                 <span
@@ -235,7 +242,11 @@
                 {:else if mode === "live" && content.type === "pnl"}
                     <div
                         class="flex flex-col items-center justify-center px-5 w-full h-full gap-1"
-                        in:scale={{ duration: 300, easing: quintOut }}
+                        in:scale={{
+                            start: 0.95,
+                            duration: 150,
+                            easing: snappyEase,
+                        }}
                     >
                         <!-- Top row: Symbol and indicator -->
                         <div class="flex items-center justify-between w-full">
@@ -313,10 +324,10 @@
         /* Rounded corners */
         border-radius: 16px;
 
-        /* Subtle CSS-only transition for size changes */
+        /* Quick, smooth CSS-only transition for size changes */
         transition:
-            width 0.3s ease-out,
-            height 0.3s ease-out;
+            width 0.15s cubic-bezier(0.2, 0, 0, 1),
+            height 0.15s cubic-bezier(0.2, 0, 0, 1);
 
         /* Prevent text selection */
         user-select: none;
