@@ -16,6 +16,7 @@
     import CameraStatus from "$lib/components/UI/CameraStatus.svelte";
     import PriceCard from "$lib/components/UI/PriceCard.svelte";
     import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
+    import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
 
     // Stores
     import {
@@ -26,6 +27,7 @@
     } from "$lib/stores/tracking";
     import { tradingStore } from "$lib/stores/trading";
     import { tradingHandPreference, gestureState } from "$lib/stores/gesture";
+    import { dynamicIsland } from "$lib/stores/dynamicIsland";
 
     // Kite Logic
     let kiteStatus = "Not Connected";
@@ -58,9 +60,27 @@
 
         if (requestToken) {
             kiteStatus = "Connecting...";
+            dynamicIsland.show(
+                {
+                    type: "api",
+                    message: "Connecting to Kite API...",
+                    severity: "info",
+                },
+                2000,
+            );
+
             try {
                 await kite.login(requestToken);
                 kiteStatus = "Connected";
+                dynamicIsland.show(
+                    {
+                        type: "api",
+                        message: "Connected to Kite API ✓",
+                        severity: "success",
+                    },
+                    2500,
+                );
+
                 window.history.replaceState(
                     {},
                     document.title,
@@ -69,6 +89,14 @@
             } catch (e) {
                 console.error("Kite Login Error:", e);
                 kiteStatus = "Connection Failed";
+                dynamicIsland.show(
+                    {
+                        type: "api",
+                        message: "Kite API Connection Failed",
+                        severity: "error",
+                    },
+                    3000,
+                );
             }
         }
     });
@@ -97,6 +125,18 @@
     $: maxHigh =
         candles.length > 0 ? Math.max(...candles.map((c) => c.high)) : 30;
     $: centerPrice = (minLow + maxHigh) / 2;
+
+    // Sync Dynamic Island with ETF data
+    $: {
+        if ($etfStore.ltp > 0) {
+            dynamicIsland.updateTicker({
+                symbol: selectedETF.symbol,
+                price: $etfStore.ltp,
+                change: $etfStore.change,
+                changePercent: $etfStore.changePercent,
+            });
+        }
+    }
 
     // Start polling on mount
     onMount(() => {
@@ -139,14 +179,14 @@
         }
     }
 
-    // Base camera position - now centered around Y=0 (normalized prices)
+    // Base camera position - trading desk perspective (looking at monitor)
     const baseCamX = 25; // Center X to see all 50 candles
-    $: baseCamY = 5; // Slightly above chart center
-    const baseCamZ = 40; // Closer for better view
+    $: baseCamY = 8; // Lowered for larger chart view
+    const baseCamZ = 45; // Closer for bigger candles (was 60)
 
     // Spring for smooth camera motion
     const camPos = spring(
-        { x: baseCamX, y: 30, z: baseCamZ },
+        { x: baseCamX, y: 10, z: baseCamZ },
         { stiffness: 0.08, damping: 0.6 },
     );
 
@@ -172,8 +212,13 @@
 <svelte:window on:keydown={handleKeyDown} />
 
 <div
-    class="h-screen w-full bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] overflow-hidden relative font-sans"
-    style="background: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 40%), linear-gradient(to bottom right, #1a1a2e, #16213e, #0f0f23);"
+    class="h-screen w-full overflow-hidden relative font-sans"
+    style="background: 
+        radial-gradient(ellipse at 40% 20%, rgba(139, 92, 246, 0.18) 0%, transparent 45%),
+        radial-gradient(ellipse at 80% 70%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(ellipse at 20% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 35%),
+        linear-gradient(135deg, #1e1b2e 0%, #181526 35%, #13111f 70%, #0e0c18 100%);
+    "
     on:wheel={handleWheel}
 >
     <!-- 3D Scene Layer -->
@@ -183,7 +228,7 @@
             <T.PerspectiveCamera
                 makeDefault
                 position={[$camPos.x, $camPos.y, $camPos.z]}
-                fov={45}
+                fov={55}
             >
                 <OrbitControls
                     target={[25, 0, 0]}
@@ -193,40 +238,68 @@
                 />
             </T.PerspectiveCamera>
 
-            <!-- Ambient lighting - soft lavender for visionOS feel -->
-            <T.AmbientLight intensity={0.35} color="#c4b5fd" />
+            <!-- Professional Trading Terminal Lighting -->
 
-            <!-- Key light (main) - cool white with slight blue tint -->
+            <!-- Ambient - warm terminal glow (INCREASED) -->
+            <T.AmbientLight intensity={0.65} color="#e8ddff" />
+
+            <!-- Main monitor backlight (from behind screen) -->
+            <T.PointLight
+                position={[25, 10, -25]}
+                intensity={1.5}
+                color="#9d8aff"
+                distance={150}
+            />
+
+            <!-- Key light (simulating overhead office lighting) - BRIGHTER -->
             <T.DirectionalLight
-                position={[50, 100, 80]}
-                intensity={0.7}
-                color="#f0f4ff"
+                position={[40, 80, 60]}
+                intensity={1.2}
+                color="#ffffff"
                 castShadow
                 shadow.mapSize={[2048, 2048]}
             />
 
-            <!-- Purple accent light from left - visionOS spatial -->
+            <!-- Warm desk lamp from right - BRIGHTER -->
+            <T.SpotLight
+                position={[70, 30, 40]}
+                intensity={0.9}
+                color="#ffd89b"
+                angle={0.4}
+                penumbra={0.5}
+                distance={120}
+            />
+
+            <!-- Cool accent from left (screen reflection) -->
             <T.PointLight
-                position={[-10, 10, 20]}
-                intensity={0.6}
+                position={[-10, 15, 30]}
+                intensity={0.9}
+                color="#6ee7f9"
+                distance={100}
+            />
+
+            <!-- Subtle rim light for depth -->
+            <T.PointLight
+                position={[25, 5, -35]}
+                intensity={0.7}
                 color="#a78bfa"
                 distance={100}
             />
 
-            <!-- Cyan accent from right - for spatial depth -->
+            <!-- Additional fill light from front for better visibility -->
             <T.PointLight
-                position={[60, 5, 15]}
-                intensity={0.5}
-                color="#67e8f9"
-                distance={100}
+                position={[25, 20, 80]}
+                intensity={0.8}
+                color="#f0e6ff"
+                distance={150}
             />
 
-            <!-- Rim light from behind - soft pink glow -->
+            <!-- Soft side fill from right -->
             <T.PointLight
-                position={[25, 0, -40]}
-                intensity={0.4}
-                color="#f472b6"
-                distance={100}
+                position={[80, 10, 0]}
+                intensity={0.5}
+                color="#fff5e1"
+                distance={120}
             />
 
             <!-- The Chart - only render when data is loaded -->
@@ -234,27 +307,71 @@
                 <CandlestickChart data={candles} />
             {/if}
 
-            <!-- Glass floor under candles -->
+            <!-- Professional trading floor/desk -->
             <T.Mesh
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[25, -10, 0]}
+                position={[25, -12, 40]}
                 receiveShadow
             >
-                <T.PlaneGeometry args={[80, 80]} />
+                <T.PlaneGeometry args={[220, 220]} />
                 <T.MeshStandardMaterial
-                    color="#1e1b4b"
-                    roughness={0.2}
-                    metalness={0.6}
+                    color="#1a1625"
+                    roughness={0.4}
+                    metalness={0.3}
                     transparent
-                    opacity={0.5}
+                    opacity={0.95}
                 />
             </T.Mesh>
 
-            <!-- Subtle grid on floor -->
+            <!-- Premium grid (subtle, professional) -->
             <T.GridHelper
-                args={[70, 20, 0x6366f1, 0x312e81]}
-                position={[25, -9.9, 0]}
+                args={[200, 50, 0x5b4d9d, 0x2d2540]}
+                position={[25, -11.8, 40]}
             />
+
+            <!-- Monitor bezel/frame effect -->
+            <T.Mesh position={[25, 25, -32]}>
+                <T.PlaneGeometry args={[220, 90]} />
+                <T.MeshStandardMaterial
+                    color="#0d0a1a"
+                    roughness={0.6}
+                    metalness={0.4}
+                    transparent
+                    opacity={0.85}
+                />
+            </T.Mesh>
+
+            <!-- Vertical grid on back (monitor screen effect) -->
+            <T.GridHelper
+                args={[180, 35, 0x4a3d7a, 0x1e1830]}
+                rotation={[Math.PI / 2, 0, 0]}
+                position={[25, 25, -31]}
+            />
+
+            <!-- Side panels for depth (trading terminal walls) -->
+            <!-- Left panel -->
+            <T.Mesh position={[-65, 10, 0]} rotation={[0, Math.PI / 2, 0]}>
+                <T.PlaneGeometry args={[150, 60]} />
+                <T.MeshStandardMaterial
+                    color="#12101d"
+                    roughness={0.7}
+                    metalness={0.2}
+                    transparent
+                    opacity={0.7}
+                />
+            </T.Mesh>
+
+            <!-- Right panel -->
+            <T.Mesh position={[115, 10, 0]} rotation={[0, -Math.PI / 2, 0]}>
+                <T.PlaneGeometry args={[150, 60]} />
+                <T.MeshStandardMaterial
+                    color="#12101d"
+                    roughness={0.7}
+                    metalness={0.2}
+                    transparent
+                    opacity={0.7}
+                />
+            </T.Mesh>
         </Canvas>
     </div>
 
@@ -331,6 +448,7 @@
             </div>
 
             <!-- Right Column: Price Display -->
+            <!-- Replaced by Dynamic Island
             <div>
                 <PriceCard
                     price={livePrice}
@@ -339,6 +457,7 @@
                     changePercent={priceChangePercent}
                 />
             </div>
+            -->
         </div>
 
         <!-- Zoom indicator -->
@@ -358,6 +477,9 @@
             {/if}
         </div>
     </div>
+
+    <!-- Dynamic Island Notification Center -->
+    <DynamicIsland />
 
     <!-- Hover-to-Target Price Selector -->
     <PriceTargetOverlay minPrice={minLow} maxPrice={maxHigh} />

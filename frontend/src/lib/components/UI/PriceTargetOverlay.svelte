@@ -2,6 +2,7 @@
     import { gestureState } from "$lib/stores/gesture";
     import { tradingStore } from "$lib/stores/trading";
     import { twoHandPinch } from "$lib/stores/tracking";
+    import { dynamicIsland } from "$lib/stores/dynamicIsland";
     import { fade, scale } from "svelte/transition";
     import { onDestroy } from "svelte";
 
@@ -167,6 +168,18 @@
                     ) {
                         if (lockedPrice) {
                             tradingStore.placeOrder("BUY", 1, lockedPrice);
+
+                            // Show order confirmation in Dynamic Island
+                            dynamicIsland.show(
+                                {
+                                    type: "order",
+                                    action: "BUY",
+                                    quantity: 1,
+                                    price: lockedPrice,
+                                    status: "SUCCESS",
+                                },
+                                3000,
+                            );
                         }
                         state = "ORDER_PLACED";
                         setTimeout(resetState, 2500);
