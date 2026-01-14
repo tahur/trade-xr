@@ -13,7 +13,7 @@
     import BrandCard from "$lib/components/UI/BrandCard.svelte";
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
     import PriceTargetOverlay from "$lib/components/UI/PriceTargetOverlay.svelte";
-    import CameraStatus from "$lib/components/UI/CameraStatus.svelte";
+    import StatusBar from "$lib/components/UI/StatusBar.svelte";
     import PriceCard from "$lib/components/UI/PriceCard.svelte";
     import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
@@ -25,6 +25,7 @@
         sensitivity,
         smoothZoom,
         twoHandPinch,
+        isTracking,
     } from "$lib/stores/tracking";
     import { tradingStore } from "$lib/stores/trading";
     import { tradingHandPreference, gestureState } from "$lib/stores/gesture";
@@ -174,8 +175,30 @@
 
     // Function to switch ETF
     function switchToETF(etf: typeof selectedETF) {
+        // Don't do anything if selecting the same ETF
+        if (etf.symbol === selectedETF.symbol) return;
+
         selectedETF = etf;
         etfStore.switchETF(etf);
+
+        // Immediately update ticker with new symbol (price will update when data arrives)
+        // This ensures the correct symbol is saved for when the notification collapses
+        dynamicIsland.updateTicker({
+            symbol: etf.symbol,
+            price: $etfStore.ltp || 0,
+            change: $etfStore.change || 0,
+            changePercent: $etfStore.changePercent || 0,
+        });
+
+        // Show confirmation in Dynamic Island
+        dynamicIsland.show(
+            {
+                type: "api",
+                message: `Switched to ${etf.name}`,
+                severity: "success",
+            },
+            1500,
+        );
     }
 
     // Import zoomLevel for scroll wheel control
@@ -440,33 +463,10 @@
     >
         <!-- Top Row -->
         <div class="flex justify-between items-start pointer-events-auto">
-            <!-- Left Column: Brand + Settings -->
-            <div class="flex flex-col gap-4">
+            <!-- Left Column: Brand + Settings (Simplified) -->
+            <div class="flex flex-col justify-between h-full">
                 <!-- 3D Brand Card -->
                 <BrandCard />
-
-                <!-- Camera Status -->
-                <CameraStatus />
-
-                <!-- Kite Status -->
-                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                <div
-                    class="mt-2 glass-panel p-2 rounded-lg text-center cursor-pointer hover:bg-white/10 transition-colors"
-                    on:click={loginToZerodha}
-                    role="button"
-                    tabindex="0"
-                >
-                    <p
-                        class="text-[10px] font-mono text-slate-400 uppercase tracking-widest"
-                    >
-                        KITE API
-                    </p>
-                    <p
-                        class={`text-xs font-bold ${kiteStatus === "Connected" ? "text-emerald-400" : "text-slate-500"}`}
-                    >
-                        {kiteStatus}
-                    </p>
-                </div>
 
                 <!-- Settings Card -->
                 <SettingsCard />
@@ -514,6 +514,13 @@
         minPrice={minLow}
         maxPrice={maxHigh}
         symbol={selectedETF.symbol}
+    />
+
+    <!-- Consolidated Status Bar (bottom-left) -->
+    <StatusBar
+        isLive={$isTracking}
+        cameraName="FaceTime HD Camera"
+        apiStatus={kiteStatus}
     />
 
     <!-- Face Tracker -->

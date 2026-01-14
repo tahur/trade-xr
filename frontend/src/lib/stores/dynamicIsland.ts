@@ -65,20 +65,27 @@ function createDynamicIslandStore() {
     let collapseTimer: ReturnType<typeof setTimeout> | null = null;
     let liveActivityTimeout: ReturnType<typeof setTimeout> | null = null;
 
+    // Store the last ticker content so we can restore it after notifications
+    let lastTickerContent: TickerContent = defaultTickerContent;
+
     return {
         subscribe,
 
         // Update ticker (compact mode)
         updateTicker: (ticker: Omit<TickerContent, 'type'>) => {
+            // Always save the latest ticker data
+            lastTickerContent = { type: 'ticker', ...ticker };
+
             update(state => {
-                // Only update if we're in compact mode or ticker content
-                if (state.mode === 'compact' || state.content.type === 'ticker') {
+                // Only update display if we're in compact mode
+                if (state.mode === 'compact') {
                     return {
                         ...state,
                         mode: 'compact',
-                        content: { type: 'ticker', ...ticker }
+                        content: lastTickerContent
                     };
                 }
+                // If not in compact mode, just save it for later (already done above)
                 return state;
             });
         },
@@ -93,12 +100,13 @@ function createDynamicIslandStore() {
                 isVisible: true
             });
 
-            // Auto-collapse back to ticker
+            // Auto-collapse back to ticker - restore saved ticker content
             collapseTimer = setTimeout(() => {
-                update(state => ({
-                    ...state,
-                    mode: 'compact'
-                }));
+                set({
+                    mode: 'compact',
+                    content: lastTickerContent,
+                    isVisible: true
+                });
             }, duration);
         },
 
@@ -113,24 +121,26 @@ function createDynamicIslandStore() {
                 isVisible: true
             });
 
-            // Auto-hide if position is closed
+            // Auto-hide if position is closed - restore ticker
             if (pnl.position === 'CLOSED') {
                 liveActivityTimeout = setTimeout(() => {
-                    update(state => ({
-                        ...state,
-                        mode: 'compact'
-                    }));
+                    set({
+                        mode: 'compact',
+                        content: lastTickerContent,
+                        isVisible: true
+                    });
                 }, 5000);
             }
         },
 
-        // Manually collapse to compact
+        // Manually collapse to compact - restore ticker
         collapse: () => {
             if (collapseTimer) clearTimeout(collapseTimer);
-            update(state => ({
-                ...state,
-                mode: 'compact'
-            }));
+            set({
+                mode: 'compact',
+                content: lastTickerContent,
+                isVisible: true
+            });
         },
 
         // Hide completely
