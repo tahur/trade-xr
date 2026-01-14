@@ -1,0 +1,159 @@
+/**
+ * Lightweight polling service for ETF data.
+ * Simple HTTP-based solution for the 5 fixed ETFs.
+ */
+import { writable, derived } from 'svelte/store';
+import type { ETFConfig } from '$lib/config/etfs';
+
+export interface CandleData {
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    timestamp: number;
+}
+
+export interface ETFData {
+    symbol: string;
+    ltp: number;
+    change: number;
+    changePercent: number;
+    candles: CandleData[];
+    lastUpdate: number;
+    isLoading: boolean;
+    error: string | null;
+}
+
+const API_BASE = 'http://127.0.0.1:8000';
+
+function createETFStore() {
+    const { subscribe, set, update } = writable<ETFData>({
+        symbol: '',
+        ltp: 0,
+        change: 0,
+        changePercent: 0,
+        candles: [],
+        lastUpdate: 0,
+        isLoading: true,
+        error: null
+    });
+
+    let priceIntervalId: ReturnType<typeof setInterval> | null = null;
+    let candleIntervalId: ReturnType<typeof setInterval> | null = null;
+    let currentSymbol = '';
+    let currentExchange = 'NSE';
+
+    async function fetchLTP() {
+        if (!currentSymbol) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/quote/${currentSymbol}?exchange=${currentExchange}`);
+            if (res.ok) {
+                const data = await res.json();
+                update(state => ({
+                    ...state,
+                    ltp: data.ltp,
+                    change: data.change || 0,
+                    changePercent: data.change_percent || 0,
+                    lastUpdate: Date.now(),
+                    error: null
+                }));
+            }
+        } catch (e) {
+            console.error('[ETF] LTP fetch error:', e);
+        }
+    }
+
+    async function fetchCandles() {
+        if (!currentSymbol) return;
+
+        try {
+            const res = await fetch(
+                `${API_BASE}/candles/${currentSymbol}?exchange=${currentExchange}&interval=minute&days=1`
+            );
+            if (res.ok) {
+                const data = await res.json();
+                if (data.candles && data.candles.length > 0) {
+                    const candles: CandleData[] = data.candles.slice(-50).map((c: any) => ({
+                        open: c.open,
+                        high: c.high,
+                        low: c.low,
+                        close: c.close,
+                        volume: c.volume,
+                        timestamp: new Date(c.date).getTime()
+                    }));
+
+                    update(state => ({
+                        ...state,
+                        candles,
+                        ltp: candles[candles.length - 1].close,
+                        isLoading: false,
+                        error: null
+                    }));
+
+                    console.log(`[ETF] Loaded ${candles.length} candles for ${currentSymbol}`);
+                }
+            }
+        } catch (e) {
+            console.error('[ETF] Candle fetch error:', e);
+            update(state => ({ ...state, error: 'Failed to fetch data' }));
+        }
+    }
+
+    function startPolling(etf: ETFConfig) {
+        stopPolling();
+
+        currentSymbol = etf.symbol;
+        currentExchange = etf.exchange;
+
+        update(state => ({
+            ...state,
+            symbol: etf.symbol,
+            isLoading: true,
+            candles: []
+        }));
+
+        // Fetch immediately
+        fetchCandles();
+        fetchLTP();
+
+        // Poll LTP every 5 seconds
+        priceIntervalId = setInterval(fetchLTP, 5000);
+
+        // Poll candles every 60 seconds
+        candleIntervalId = setInterval(fetchCandles, 60000);
+
+        console.log(`[ETF] Started polling for ${etf.symbol}`);
+    }
+
+    function stopPolling() {
+        if (priceIntervalId) {
+            clearInterval(priceIntervalId);
+            priceIntervalId = null;
+        }
+        if (candleIntervalId) {
+            clearInterval(candleIntervalId);
+            candleIntervalId = null;
+        }
+    }
+
+    function switchETF(etf: ETFConfig) {
+        startPolling(etf);
+    }
+
+    return {
+        subscribe,
+        startPolling,
+        stopPolling,
+        switchETF,
+        refresh: fetchCandles
+    };
+}
+
+export const etfStore = createETFStore();
+
+// Derived stores for convenience
+export const currentLTP = derived(etfStore, $etf => $etf.ltp);
+export const currentCandles = derived(etfStore, $etf => $etf.candles);
+export const isLoading = derived(etfStore, $etf => $etf.isLoading);

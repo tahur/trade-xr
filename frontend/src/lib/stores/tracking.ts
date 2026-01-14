@@ -1,4 +1,5 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
+import { spring } from 'svelte/motion';
 
 export interface HeadPosition {
     x: number;
@@ -10,6 +11,7 @@ export interface TwoHandPinch {
     isActive: boolean;           // Both hands detected
     handDistance: number;        // Distance between hand centers (0-1)
     initialDistance: number;     // Distance when pinch started (for relative zoom)
+    velocity: number;            // Rate of change for momentum
 }
 
 // Stores
@@ -22,17 +24,40 @@ export const sensitivity = writable<number>(5); // Default sensitivity multiplie
 export const twoHandPinch = writable<TwoHandPinch>({
     isActive: false,
     handDistance: 0,
-    initialDistance: 0
+    initialDistance: 0,
+    velocity: 0
 });
 
-// Zoom level (1.0 = normal, <1 = zoomed in, >1 = zoomed out)
+// Raw zoom level (1.0 = normal, <1 = zoomed in, >1 = zoomed out)
 export const zoomLevel = writable<number>(1.0);
+
+// Smooth zoom with spring interpolation for butter-smooth transitions
+export const smoothZoom = spring(1.0, {
+    stiffness: 0.1,  // Lower = smoother but slower
+    damping: 0.7     // Higher = less oscillation
+});
+
+// Keep smooth zoom synced with raw zoom
+zoomLevel.subscribe(value => {
+    smoothZoom.set(value);
+});
+
+// Zoom bounds
+export const ZOOM_MIN = 0.3;  // Maximum zoom in
+export const ZOOM_MAX = 3.0;  // Maximum zoom out
+
+// Clamp zoom to bounds
+export function clampZoom(value: number): number {
+    return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
+}
 
 // Reset function
 export const resetTracking = () => {
     headPosition.set({ x: 0, y: 0, z: 0 });
     zoomLevel.set(1.0);
-    twoHandPinch.set({ isActive: false, handDistance: 0, initialDistance: 0 });
+    smoothZoom.set(1.0, { hard: true }); // Instant reset
+    twoHandPinch.set({ isActive: false, handDistance: 0, initialDistance: 0, velocity: 0 });
 };
 
 export const isCameraEnabled = writable<boolean>(true);
+

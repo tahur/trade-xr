@@ -2,45 +2,49 @@
     import { T } from "@threlte/core";
     import type { CandleData } from "$lib/services/mockData";
 
-    export let data: CandleData;
-    /**
-     * Position index in the chart (used for Z-axis placement)
-     */
+    // Candle data
+    export let candle: CandleData;
     export let index: number;
     export let isLatest: boolean = false;
 
-    $: isBullish = data.close > data.open;
+    // Dynamic scaling props from parent
+    export let centerPrice: number;
+    export let scaleFactor: number;
 
-    // High-contrast colors for visionOS background - bright and emissive
-    $: baseColor = isBullish ? "#22c55e" : "#ef4444"; // Tailwind green-500/red-500
-    $: glowColor = isBullish ? "#4ade80" : "#f87171"; // Tailwind green-400/red-400
-    $: wickColor = isBullish ? "#16a34a" : "#dc2626"; // Tailwind green-600/red-600
+    $: isBullish = candle.close > candle.open;
 
-    // Dimensions - slightly chunkier for better 3D presence
-    const candleWidth = 0.85;
-    const wickWidth = 0.12;
+    // High-contrast colors
+    $: baseColor = isBullish ? "#22c55e" : "#ef4444";
+    $: glowColor = isBullish ? "#4ade80" : "#f87171";
+    $: wickColor = isBullish ? "#16a34a" : "#dc2626";
 
-    // Calculate body dimensions and position
-    $: bodyHeight = Math.abs(data.close - data.open);
-    $: bodyY = (data.open + data.close) / 2;
+    // Dimensions
+    const candleWidth = 0.6;
+    const wickWidth = 0.08;
 
-    // Calculate wick dimensions and position
-    $: wickHeight = data.high - data.low;
-    $: wickY = (data.high + data.low) / 2;
+    // Calculate body dimensions with dynamic scaling
+    // Normalize Y position: subtract centerPrice then apply scale
+    $: bodyHeight = Math.max(
+        0.15,
+        Math.abs(candle.close - candle.open) * scaleFactor,
+    );
+    $: bodyY = ((candle.open + candle.close) / 2 - centerPrice) * scaleFactor;
+
+    // Calculate wick dimensions
+    $: wickHeight = Math.max(0.1, (candle.high - candle.low) * scaleFactor);
+    $: wickY = ((candle.high + candle.low) / 2 - centerPrice) * scaleFactor;
 
     // Spacing between candles
-    const spacing = 1.2;
-    $: xPos = index * spacing; // Time on X-axis
+    const spacing = 1;
+    $: xPos = index * spacing;
 
-    // Emissive intensity - BOOSTED for visibility
-    $: emissiveIntensity = isLatest ? 0.8 : 0.35;
+    // Emissive intensity
+    $: emissiveIntensity = isLatest ? 1.0 : 0.4;
 </script>
 
-<!-- Candle Body - Premium glass-like material -->
+<!-- Candle Body -->
 <T.Mesh position={[xPos, bodyY, 0]} castShadow receiveShadow>
-    <T.BoxGeometry
-        args={[candleWidth, Math.max(0.05, bodyHeight), candleWidth * 0.6]}
-    />
+    <T.BoxGeometry args={[candleWidth, bodyHeight, candleWidth * 0.6]} />
     <T.MeshStandardMaterial
         color={baseColor}
         emissive={glowColor}
@@ -48,23 +52,23 @@
         roughness={0.15}
         metalness={0.6}
         transparent={true}
-        opacity={0.92}
+        opacity={0.95}
     />
 </T.Mesh>
 
-<!-- Inner glow core for depth effect -->
+<!-- Inner glow core -->
 <T.Mesh position={[xPos, bodyY, 0]}>
     <T.BoxGeometry
         args={[
-            candleWidth * 0.7,
-            Math.max(0.03, bodyHeight * 0.8),
-            candleWidth * 0.4,
+            candleWidth * 0.6,
+            Math.max(0.08, bodyHeight * 0.7),
+            candleWidth * 0.35,
         ]}
     />
-    <T.MeshBasicMaterial color={glowColor} transparent={true} opacity={0.3} />
+    <T.MeshBasicMaterial color={glowColor} transparent={true} opacity={0.4} />
 </T.Mesh>
 
-<!-- Wick - thinner, metallic -->
+<!-- Wick -->
 <T.Mesh position={[xPos, wickY, 0]} castShadow>
     <T.CylinderGeometry args={[wickWidth, wickWidth, wickHeight, 6]} />
     <T.MeshStandardMaterial color={wickColor} roughness={0.4} metalness={0.3} />

@@ -4,9 +4,10 @@
     import { T } from "@threlte/core";
     import { OrbitControls } from "@threlte/extras";
     import { spring } from "svelte/motion";
-    import { generateCandles } from "$lib/services/mockData";
     import CandlestickChart from "$lib/components/Chart3D/CandlestickChart.svelte";
     import { kite } from "$lib/services/kite";
+    import { etfStore } from "$lib/services/etfService";
+    import { DEFAULT_ETF, SUPPORTED_ETFS } from "$lib/config/etfs";
 
     // Components
     import BrandCard from "$lib/components/UI/BrandCard.svelte";
@@ -20,7 +21,7 @@
     import {
         headPosition,
         sensitivity,
-        zoomLevel,
+        smoothZoom,
         twoHandPinch,
     } from "$lib/stores/tracking";
     import { tradingStore } from "$lib/stores/trading";
@@ -80,30 +81,81 @@
         window.location.href = `https://kite.trade/connect/login?v=3&api_key=${KITE_API_KEY}`;
     }
 
-    // Data
-    const candles = generateCandles(50);
-    const lastCandlePrice = candles[candles.length - 1].close;
-    const minLow = Math.min(...candles.map((c) => c.low));
-    const maxHigh = Math.max(...candles.map((c) => c.high));
-    const centerPrice = (minLow + maxHigh) / 2;
+    // Currently selected ETF
+    let selectedETF = DEFAULT_ETF;
 
-    // Base camera position
-    const baseCamX = 60;
-    const baseCamY = centerPrice + 40;
-    const baseCamZ = 120;
+    // Reactive values from store
+    $: candles = $etfStore.candles;
+    $: livePrice = $etfStore.ltp;
+    $: priceChangePercent = $etfStore.changePercent;
+    $: priceTrend = $etfStore.change >= 0 ? "up" : "down";
+    $: isChartLoading = $etfStore.isLoading;
+
+    // Reactive chart bounds - default to reasonable values if no data
+    $: minLow =
+        candles.length > 0 ? Math.min(...candles.map((c) => c.low)) : 25;
+    $: maxHigh =
+        candles.length > 0 ? Math.max(...candles.map((c) => c.high)) : 30;
+    $: centerPrice = (minLow + maxHigh) / 2;
+
+    // Start polling on mount
+    onMount(() => {
+        etfStore.startPolling(selectedETF);
+
+        return () => {
+            etfStore.stopPolling();
+        };
+    });
+
+    // Function to switch ETF
+    function switchToETF(etf: typeof selectedETF) {
+        selectedETF = etf;
+        etfStore.switchETF(etf);
+    }
+
+    // Import zoomLevel for scroll wheel control
+    import {
+        zoomLevel,
+        ZOOM_MIN,
+        ZOOM_MAX,
+        clampZoom,
+    } from "$lib/stores/tracking";
+
+    // Scroll wheel zoom handler
+    function handleWheel(event: WheelEvent) {
+        event.preventDefault();
+        const delta = event.deltaY * 0.003; // Increased sensitivity (3x)
+        zoomLevel.update((z) => clampZoom(z + delta));
+    }
+
+    // Keyboard zoom shortcuts (+ and -)
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === "+" || event.key === "=") {
+            zoomLevel.update((z) => clampZoom(z - 0.2)); // Zoom in (faster)
+        } else if (event.key === "-" || event.key === "_") {
+            zoomLevel.update((z) => clampZoom(z + 0.2)); // Zoom out (faster)
+        } else if (event.key === "0") {
+            zoomLevel.set(1.0); // Reset zoom
+        }
+    }
+
+    // Base camera position - now centered around Y=0 (normalized prices)
+    const baseCamX = 25; // Center X to see all 50 candles
+    $: baseCamY = 5; // Slightly above chart center
+    const baseCamZ = 40; // Closer for better view
 
     // Spring for smooth camera motion
     const camPos = spring(
-        { x: baseCamX, y: baseCamY, z: baseCamZ },
+        { x: baseCamX, y: 30, z: baseCamZ },
         { stiffness: 0.08, damping: 0.6 },
     );
 
-    // Reactive camera updates
+    // Reactive camera updates - responds to centerPrice changes
     $: {
         const xOffset = $headPosition.x * $sensitivity * 50;
         const yOffset = $headPosition.y * $sensitivity * 20;
         const zOffset = ($headPosition.z - 0.45) * -300;
-        const zoomMultiplier = $zoomLevel;
+        const zoomMultiplier = $smoothZoom; // Use smooth spring zoom
 
         camPos.set({
             x: baseCamX + xOffset,
@@ -116,21 +168,25 @@
     }
 </script>
 
+<!-- Keyboard handler -->
+<svelte:window on:keydown={handleKeyDown} />
+
 <div
     class="h-screen w-full bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] overflow-hidden relative font-sans"
     style="background: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 40%), linear-gradient(to bottom right, #1a1a2e, #16213e, #0f0f23);"
+    on:wheel={handleWheel}
 >
     <!-- 3D Scene Layer -->
     <div class="absolute inset-0 z-0">
         <Canvas shadows>
-            <!-- Isometric Camera -->
+            <!-- Camera pointing at chart -->
             <T.PerspectiveCamera
                 makeDefault
                 position={[$camPos.x, $camPos.y, $camPos.z]}
-                fov={30}
+                fov={45}
             >
                 <OrbitControls
-                    target={[0, centerPrice, 0]}
+                    target={[25, 0, 0]}
                     enableDamping
                     enablePan={false}
                     maxPolarAngle={Math.PI / 2.2}
@@ -151,52 +207,53 @@
 
             <!-- Purple accent light from left - visionOS spatial -->
             <T.PointLight
-                position={[-60, centerPrice, 40]}
-                intensity={0.5}
+                position={[-10, 10, 20]}
+                intensity={0.6}
                 color="#a78bfa"
-                distance={200}
+                distance={100}
             />
 
             <!-- Cyan accent from right - for spatial depth -->
             <T.PointLight
-                position={[60, centerPrice + 20, 30]}
-                intensity={0.4}
+                position={[60, 5, 15]}
+                intensity={0.5}
                 color="#67e8f9"
-                distance={150}
+                distance={100}
             />
 
             <!-- Rim light from behind - soft pink glow -->
             <T.PointLight
-                position={[0, centerPrice, -80]}
-                intensity={0.35}
+                position={[25, 0, -40]}
+                intensity={0.4}
                 color="#f472b6"
-                distance={200}
+                distance={100}
             />
 
-            <!-- The Chart -->
-            <CandlestickChart data={candles} />
+            <!-- The Chart - only render when data is loaded -->
+            {#if candles.length > 0}
+                <CandlestickChart data={candles} />
+            {/if}
 
-            <!-- Ethereal glass floor - visionOS spatial -->
+            <!-- Glass floor under candles -->
             <T.Mesh
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, minLow - 5, 0]}
+                position={[25, -10, 0]}
                 receiveShadow
             >
-                <T.PlaneGeometry args={[300, 300]} />
+                <T.PlaneGeometry args={[80, 80]} />
                 <T.MeshStandardMaterial
                     color="#1e1b4b"
                     roughness={0.2}
                     metalness={0.6}
-                    envMapIntensity={0.8}
                     transparent
-                    opacity={0.85}
+                    opacity={0.5}
                 />
             </T.Mesh>
 
-            <!-- Subtle grid on floor - soft purple lines -->
+            <!-- Subtle grid on floor -->
             <T.GridHelper
-                args={[200, 40, 0x6366f1, 0x312e81]}
-                position={[0, minLow - 4.9, 0]}
+                args={[70, 20, 0x6366f1, 0x312e81]}
+                position={[25, -9.9, 0]}
             />
         </Canvas>
     </div>
@@ -275,7 +332,12 @@
 
             <!-- Right Column: Price Display -->
             <div>
-                <PriceCard price={lastCandlePrice} />
+                <PriceCard
+                    price={livePrice}
+                    symbol={selectedETF.symbol}
+                    trend={priceTrend}
+                    changePercent={priceChangePercent}
+                />
             </div>
         </div>
 

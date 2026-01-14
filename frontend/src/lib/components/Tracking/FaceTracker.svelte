@@ -23,6 +23,7 @@
     let wasZooming = false;
     let zoomStartDistance = 0;
     let baseZoom = 1.0;
+    let lastHandDist = 0; // For velocity calculation
 
     // Cooldown timer after zoom ends
     let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
@@ -112,7 +113,7 @@
                 results.multiHandLandmarks &&
                 results.multiHandLandmarks.length === 2
             ) {
-                // Calculate center of each hand (using wrist landmark 0)
+                // Calculate center of each hand (using middle finger MCP landmark 9)
                 const hand1Center = {
                     x: results.multiHandLandmarks[0][9].x,
                     y: results.multiHandLandmarks[0][9].y,
@@ -133,14 +134,21 @@
                     wasZooming = true;
                     zoomStartDistance = handDist;
                     baseZoom = $zoomLevel;
+                    lastHandDist = handDist;
                 }
 
-                // Calculate zoom factor: spread = zoom in (smaller value), pinch = zoom out (larger value)
-                // handDist of ~0.3 is close, ~0.8 is spread wide
-                const zoomDelta = (zoomStartDistance - handDist) * 2.5;
+                // Calculate velocity for momentum (smoothed)
+                const velocity = (handDist - (lastHandDist || handDist)) * 10;
+                lastHandDist = handDist;
+
+                // Calculate zoom factor with INCREASED sensitivity
+                // Amplify the ratio difference for faster zoom response
+                const distanceRatio = zoomStartDistance / handDist;
+                // Power of 1.5 makes small movements more impactful
+                const amplifiedRatio = Math.pow(distanceRatio, 1.5);
                 const newZoom = Math.max(
-                    0.4,
-                    Math.min(2.5, baseZoom + zoomDelta),
+                    0.3,
+                    Math.min(3.0, baseZoom * amplifiedRatio),
                 );
 
                 zoomLevel.set(newZoom);
@@ -148,6 +156,7 @@
                     isActive: true,
                     handDistance: handDist,
                     initialDistance: zoomStartDistance,
+                    velocity: velocity,
                 });
             } else {
                 // Less than 2 hands - end zoom gesture
@@ -164,6 +173,7 @@
                     isActive: false,
                     handDistance: 0,
                     initialDistance: 0,
+                    velocity: 0,
                 });
             }
 
@@ -262,29 +272,56 @@
 
                 if (fingersUp === 0) {
                     // Check for Thumbs Up vs Fist
-                    // More robust check for both hands:
-                    // 1. Thumb tip (4) is significantly above thumb IP (3)
-                    // 2. Thumb tip is above the wrist (0)
-                    // 3. Thumb is extended (distance from thumb tip to index base is significant)
+                    // === IMPROVED THUMBS UP DETECTION ===
+                    // Check multiple conditions for reliable thumbs up
                     const thumbTip = primaryHand[4];
                     const thumbIP = primaryHand[3];
+                    const thumbMCP = primaryHand[2];
                     const wrist = primaryHand[0];
                     const indexKnuckle = primaryHand[5];
+                    const indexTip = primaryHand[8];
+                    const pinkyTip = primaryHand[20];
 
-                    // Check if thumb is pointing up (tip is higher than IP)
-                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.02;
+                    // 1. Thumb tip is higher than thumb IP (thumb is pointing up)
+                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.015; // Slightly more lenient
 
-                    // Check if thumb is extended (far from palm)
+                    // 2. Thumb tip is higher than wrist (hand orientation)
+                    const thumbAboveWrist = thumbTip.y < wrist.y - 0.02;
+
+                    // 3. Thumb is extended outward from palm
                     const thumbExtended =
                         Math.hypot(
                             thumbTip.x - indexKnuckle.x,
                             thumbTip.y - indexKnuckle.y,
-                        ) > 0.1;
+                        ) > 0.08; // Slightly more lenient
 
-                    // Check if thumb tip is above wrist (hand is upright)
-                    const thumbAboveWrist = thumbTip.y < wrist.y;
+                    // 4. Other fingers are closed (curled into fist)
+                    // Index, middle, ring, pinky tips should be below their MCPs
+                    const otherFingersClosed =
+                        primaryHand[8].y > primaryHand[5].y && // Index
+                        primaryHand[12].y > primaryHand[9].y && // Middle
+                        primaryHand[16].y > primaryHand[13].y && // Ring
+                        primaryHand[20].y > primaryHand[17].y; // Pinky
 
-                    if ((thumbPointingUp || thumbAboveWrist) && thumbExtended) {
+                    // 5. Thumb is on the correct side (left/right hand aware)
+                    // For right hand: thumb should be to the left of index knuckle
+                    // For left hand: thumb should be to the right of index knuckle
+                    const thumbOnSide =
+                        Math.abs(thumbTip.x - indexKnuckle.x) > 0.05;
+
+                    // Combine checks - more lenient: only need 2-3 conditions
+                    const thumbsUpScore =
+                        (thumbPointingUp ? 1 : 0) +
+                        (thumbAboveWrist ? 1 : 0) +
+                        (thumbExtended ? 1 : 0) +
+                        (otherFingersClosed ? 1 : 0) +
+                        (thumbOnSide ? 0.5 : 0);
+
+                    // Score of 2.5+ = thumbs up (was requiring all conditions before)
+                    if (thumbsUpScore >= 2.5) {
+                        primaryGesture = "Thumbs_Up";
+                    } else if (otherFingersClosed && thumbExtended) {
+                        // Fallback: if fist is closed and thumb is out, likely thumbs up
                         primaryGesture = "Thumbs_Up";
                     } else {
                         primaryGesture = "Closed_Fist";

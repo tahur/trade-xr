@@ -32,9 +32,9 @@
     // === TIMING CONSTANTS ===
     const ENTRY_DELAY_MS = 200;
     const LOCK_DELAY_MS = 350;
-    const CONFIRM_DELAY_MS = 500;
-    const ORDER_DELAY_MS = 800;
-    const POST_LOCK_COOLDOWN = 500; // Wait 500ms after lock before Point_Up can trigger
+    const CONFIRM_DELAY_MS = 400; // Faster confirm transition
+    const ORDER_DELAY_MS = 500; // Faster thumbs up response (was 800ms)
+    const POST_LOCK_COOLDOWN = 400; // Reduced cooldown (was 500ms)
 
     function clearAllTimers() {
         if (entryDebounce) clearTimeout(entryDebounce);
