@@ -11,10 +11,10 @@
 
     $: isBullish = data.close > data.open;
 
-    // Premium Trading Terminal Colors - richer, more saturated
-    $: baseColor = isBullish ? "#00C853" : "#FF1744"; // Vibrant green/red
-    $: glowColor = isBullish ? "#00E676" : "#FF5252"; // Lighter for emissive
-    $: wickColor = isBullish ? "#00A844" : "#D50000"; // Slightly darker wick
+    // High-contrast colors for visionOS background - bright and emissive
+    $: baseColor = isBullish ? "#22c55e" : "#ef4444"; // Tailwind green-500/red-500
+    $: glowColor = isBullish ? "#4ade80" : "#f87171"; // Tailwind green-400/red-400
+    $: wickColor = isBullish ? "#16a34a" : "#dc2626"; // Tailwind green-600/red-600
 
     // Dimensions - slightly chunkier for better 3D presence
     const candleWidth = 0.85;
@@ -32,8 +32,8 @@
     const spacing = 1.2;
     $: xPos = index * spacing; // Time on X-axis
 
-    // Emissive intensity for latest candle (pulsing effect simulated via static glow)
-    $: emissiveIntensity = isLatest ? 0.4 : 0.08;
+    // Emissive intensity - BOOSTED for visibility
+    $: emissiveIntensity = isLatest ? 0.8 : 0.35;
 </script>
 
 <!-- Candle Body - Premium glass-like material -->

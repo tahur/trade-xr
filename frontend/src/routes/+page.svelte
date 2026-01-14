@@ -31,6 +31,26 @@
     const KITE_API_KEY = "4o72jub8tyqey769";
 
     onMount(async () => {
+        // --- BYOK: Auto-configure Backend ---
+        const storedKey = localStorage.getItem("kite_api_key");
+        const storedSecret = localStorage.getItem("kite_api_secret");
+
+        if (storedKey && storedSecret) {
+            try {
+                await fetch("http://127.0.0.1:8000/config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        api_key: storedKey,
+                        api_secret: storedSecret,
+                    }),
+                });
+                console.log("[BYOK] Backend configured from storage.");
+            } catch (e) {
+                console.error("[BYOK] Auto-config failed:", e);
+            }
+        }
+
         // Handle Zerodha Redirect
         const urlParams = new URLSearchParams(window.location.search);
         const requestToken = urlParams.get("request_token");
@@ -97,7 +117,8 @@
 </script>
 
 <div
-    class="h-screen w-full bg-gradient-to-br from-[#0a0a14] via-[#0d1117] to-[#161b22] overflow-hidden relative font-sans"
+    class="h-screen w-full bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] overflow-hidden relative font-sans"
+    style="background: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 40%), linear-gradient(to bottom right, #1a1a2e, #16213e, #0f0f23);"
 >
     <!-- 3D Scene Layer -->
     <div class="absolute inset-0 z-0">
@@ -116,46 +137,46 @@
                 />
             </T.PerspectiveCamera>
 
-            <!-- Ambient lighting - darker for contrast -->
-            <T.AmbientLight intensity={0.15} color="#4a5568" />
+            <!-- Ambient lighting - soft lavender for visionOS feel -->
+            <T.AmbientLight intensity={0.35} color="#c4b5fd" />
 
-            <!-- Key light (main) - warm white -->
+            <!-- Key light (main) - cool white with slight blue tint -->
             <T.DirectionalLight
                 position={[50, 100, 80]}
-                intensity={0.8}
-                color="#fef3e3"
+                intensity={0.7}
+                color="#f0f4ff"
                 castShadow
                 shadow.mapSize={[2048, 2048]}
             />
 
-            <!-- Blue accent light from left - stronger -->
+            <!-- Purple accent light from left - visionOS spatial -->
             <T.PointLight
                 position={[-60, centerPrice, 40]}
-                intensity={0.6}
-                color="#00a2ff"
+                intensity={0.5}
+                color="#a78bfa"
                 distance={200}
             />
 
-            <!-- Warm accent from right - for candle glow -->
+            <!-- Cyan accent from right - for spatial depth -->
             <T.PointLight
                 position={[60, centerPrice + 20, 30]}
                 intensity={0.4}
-                color="#ff6b00"
+                color="#67e8f9"
                 distance={150}
             />
 
-            <!-- Rim light from behind for depth -->
+            <!-- Rim light from behind - soft pink glow -->
             <T.PointLight
                 position={[0, centerPrice, -80]}
-                intensity={0.3}
-                color="#7c3aed"
+                intensity={0.35}
+                color="#f472b6"
                 distance={200}
             />
 
             <!-- The Chart -->
             <CandlestickChart data={candles} />
 
-            <!-- Dark reflective floor -->
+            <!-- Ethereal glass floor - visionOS spatial -->
             <T.Mesh
                 rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, minLow - 5, 0]}
@@ -163,16 +184,18 @@
             >
                 <T.PlaneGeometry args={[300, 300]} />
                 <T.MeshStandardMaterial
-                    color="#0d1117"
-                    roughness={0.1}
-                    metalness={0.8}
-                    envMapIntensity={0.5}
+                    color="#1e1b4b"
+                    roughness={0.2}
+                    metalness={0.6}
+                    envMapIntensity={0.8}
+                    transparent
+                    opacity={0.85}
                 />
             </T.Mesh>
 
-            <!-- Subtle grid on floor (cyberpunk trading terminal) -->
+            <!-- Subtle grid on floor - soft purple lines -->
             <T.GridHelper
-                args={[200, 40, 0x1e3a5f, 0x0f2744]}
+                args={[200, 40, 0x6366f1, 0x312e81]}
                 position={[0, minLow - 4.9, 0]}
             />
         </Canvas>

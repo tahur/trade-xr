@@ -1,121 +1,183 @@
 <script lang="ts">
-    import { slide } from "svelte/transition";
+    import { slide, scale } from "svelte/transition";
     import { sensitivity } from "$lib/stores/tracking";
     import {
         gestureSensitivity,
         tradingHandPreference,
     } from "$lib/stores/gesture";
 
+    import ApiKeyModal from "./ApiKeyModal.svelte";
+
     let showSettings = false;
+    let showApiModal = false;
 </script>
 
 <div class="relative z-50">
-    <!-- Gear Icon Button (Glassmorphic Pill) -->
+    <!-- Settings Toggle Button -->
     <button
-        class="flex items-center justify-center w-10 h-10 rounded-xl glass-panel text-slate-400 hover:text-cyan-400 hover:scale-105 active:scale-95 transition-all shadow-lg"
+        class="flex items-center justify-center w-10 h-10 rounded-xl backdrop-blur-xl
+            bg-gradient-to-br from-white/10 to-violet-500/5 border border-white/15
+            text-white/60 hover:text-white hover:border-white/25 hover:scale-105
+            active:scale-95 transition-all shadow-lg"
         on:click|stopPropagation={() => (showSettings = !showSettings)}
     >
         <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
             class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
         >
             <path
-                fill-rule="evenodd"
-                d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.992 6.992 0 0 1 7.51 3.456l.33-1.652ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-                clip-rule="evenodd"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"
+            />
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
             />
         </svg>
     </button>
 
-    <!-- Settings Dropdown -->
+    <!-- Settings Panel -->
     {#if showSettings}
         <div
-            class="absolute left-0 top-full mt-3 p-4 w-56 rounded-2xl glass-panel-dark backdrop-blur-xl z-50 text-left flex flex-col gap-4 shadow-2xl origin-top-left"
-            transition:slide={{ duration: 250 }}
+            class="absolute left-0 top-full mt-3 w-64 rounded-2xl backdrop-blur-2xl overflow-hidden
+                bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95
+                border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]"
+            transition:scale={{ duration: 200, start: 0.9 }}
         >
             <!-- Header -->
             <div
-                class="flex justify-between items-center border-b border-white/10 pb-2"
+                class="flex justify-between items-center px-4 py-3 border-b border-white/10 bg-white/5"
             >
                 <span
-                    class="text-xs font-bold text-slate-300 uppercase tracking-widest"
+                    class="text-xs font-bold text-white/80 uppercase tracking-widest"
                     >Settings</span
                 >
                 <button
-                    class="text-slate-500 hover:text-white"
+                    class="text-white/40 hover:text-white transition-colors"
                     on:click={() => (showSettings = false)}
                 >
                     <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
                         class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="2"
+                        stroke="currentColor"
                     >
                         <path
-                            d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
                         />
                     </svg>
                 </button>
             </div>
 
-            <!-- 1. Parallax -->
-            <div>
-                <div
-                    class="flex justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-2"
-                >
-                    <span>Parallax</span>
-                    <span class="text-cyan-400">{$sensitivity}</span>
-                </div>
-                <!-- Custom Range Slider -->
-                <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    bind:value={$sensitivity}
-                    class="w-full h-1 bg-slate-700/50 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
-                />
-            </div>
-
-            <!-- 2. Gesture -->
-            <div>
-                <div
-                    class="flex justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-2"
-                >
-                    <span>Gesture</span>
-                    <span class="text-purple-400">{$gestureSensitivity}</span>
-                </div>
-                <input
-                    type="range"
-                    min="0.01"
-                    max="0.5"
-                    step="0.01"
-                    bind:value={$gestureSensitivity}
-                    class="w-full h-1 bg-slate-700/50 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400"
-                />
-            </div>
-
-            <!-- 3. Hand Preference -->
-            <div>
-                <div
-                    class="flex justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-2"
-                >
-                    <span>Trading Hand</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button
-                        on:click={() => tradingHandPreference.set("Left")}
-                        class={`py-2 text-[10px] font-bold uppercase rounded-lg transition-all border border-transparent ${$tradingHandPreference === "Left" ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]" : "bg-slate-800/50 text-slate-500 hover:bg-slate-700"}`}
+            <div class="p-4 flex flex-col gap-5">
+                <!-- Parallax Slider -->
+                <div>
+                    <div
+                        class="flex justify-between text-[10px] text-white/50 uppercase tracking-wider mb-2"
                     >
-                        Left 🤚
-                    </button>
-                    <button
-                        on:click={() => tradingHandPreference.set("Right")}
-                        class={`py-2 text-[10px] font-bold uppercase rounded-lg transition-all border border-transparent ${$tradingHandPreference === "Right" ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]" : "bg-slate-800/50 text-slate-500 hover:bg-slate-700"}`}
+                        <span>Parallax Intensity</span>
+                        <span class="text-violet-400 font-bold"
+                            >{$sensitivity}</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        bind:value={$sensitivity}
+                        class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer
+                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-violet-500
+                            [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(139,92,246,0.5)] [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                </div>
+
+                <!-- Gesture Sensitivity Slider -->
+                <div>
+                    <div
+                        class="flex justify-between text-[10px] text-white/50 uppercase tracking-wider mb-2"
                     >
-                        ✋ Right
+                        <span>Gesture Sensitivity</span>
+                        <span class="text-emerald-400 font-bold"
+                            >{$gestureSensitivity.toFixed(2)}</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0.01"
+                        max="0.5"
+                        step="0.01"
+                        bind:value={$gestureSensitivity}
+                        class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer
+                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500
+                            [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(16,185,129,0.5)] [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                </div>
+
+                <!-- Hand Preference -->
+                <div>
+                    <div
+                        class="text-[10px] text-white/50 uppercase tracking-wider mb-2"
+                    >
+                        Preferred Hand
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button
+                            on:click={() => tradingHandPreference.set("Left")}
+                            class="py-2.5 text-[10px] font-bold uppercase rounded-xl transition-all border
+                                {$tradingHandPreference === 'Left'
+                                ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.3)]'
+                                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}"
+                        >
+                            🤚 Left
+                        </button>
+                        <button
+                            on:click={() => tradingHandPreference.set("Right")}
+                            class="py-2.5 text-[10px] font-bold uppercase rounded-xl transition-all border
+                                {$tradingHandPreference === 'Right'
+                                ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.3)]'
+                                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}"
+                        >
+                            Right ✋
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API Configuration -->
+                <div class="pt-3 border-t border-white/10">
+                    <button
+                        class="w-full py-3 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 hover:from-violet-500/30 hover:to-cyan-500/30
+                            text-xs text-white/80 font-bold uppercase tracking-wider rounded-xl transition-all
+                            border border-white/10 flex items-center justify-center gap-2"
+                        on:click={() => {
+                            showSettings = false;
+                            showApiModal = true;
+                        }}
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"
+                            />
+                        </svg>
+                        Configure API Keys
                     </button>
                 </div>
             </div>
@@ -123,22 +185,5 @@
     {/if}
 </div>
 
-<style>
-    /* Premium Glassmorphic Styles matching PriceCard vibes */
-    .glass-panel {
-        background: rgba(11, 28, 45, 0.6); /* Deep XR Blue */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(0, 229, 255, 0.2);
-    }
-
-    .glass-panel-dark {
-        background: rgba(11, 28, 45, 0.95); /* Deep XR Blue Opaque */
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 229, 255, 0.1);
-        box-shadow:
-            0 25px 50px -12px rgba(0, 0, 0, 0.5),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-    }
-</style>
+<!-- API Key Modal -->
+<ApiKeyModal isOpen={showApiModal} on:close={() => (showApiModal = false)} />

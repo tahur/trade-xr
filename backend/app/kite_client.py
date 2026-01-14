@@ -33,6 +33,20 @@ class KiteClient:
             except Exception as e:
                 logger.error(f"Failed to initialize KiteConnect: {e}")
 
+    def configure(self, api_key, api_secret):
+        """Re-configures the client with new credentials."""
+        self.api_key = api_key
+        self.api_secret = api_secret
+        logger.info("Re-configuring KiteClient with provided credentials.")
+        
+        try:
+            self.kite = KiteConnect(api_key=self.api_key)
+            logger.info("KiteConnect re-initialized.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to re-initialize KiteConnect: {e}")
+            return False
+
     def login(self, request_token):
         """Exchanges request_token for access_token."""
         if not self.kite:

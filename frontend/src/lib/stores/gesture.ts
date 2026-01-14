@@ -11,13 +11,15 @@ export interface GestureState {
     targetPrice: number | null;
     mode: GestureMode;
     holdProgress: number;
-    // New Fields for Order Flow
+    // Order Side (BUY/SELL based on hand)
+    orderSide: 'BUY' | 'SELL' | null;
+    // Gesture Recognition
     detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm' | 'Thumbs_Up';
     fingerCount: number;
-    // NEW: Hand identification
+    // Hand identification
     primaryHandSide: HandSide;
     numHandsDetected: number;
-    // NEW: Velocity tracking for robust gestures
+    // Velocity tracking for robust gestures
     handVelocity: { x: number, y: number };
     isHandStable: boolean;
 }
@@ -30,6 +32,7 @@ export const gestureState = writable<GestureState>({
     targetPrice: null,
     mode: 'IDLE',
     holdProgress: 0,
+    orderSide: null,
     detectedGesture: 'None',
     fingerCount: 0,
     primaryHandSide: 'Unknown',
@@ -57,6 +60,7 @@ export const resetGesture = () => {
         targetPrice: null,
         mode: 'IDLE',
         holdProgress: 0,
+        orderSide: null,
         detectedGesture: 'None',
         fingerCount: 0,
         primaryHandSide: 'Unknown',

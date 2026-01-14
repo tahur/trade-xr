@@ -262,10 +262,29 @@
 
                 if (fingersUp === 0) {
                     // Check for Thumbs Up vs Fist
-                    // Thumb Tip Y < Thumb IP Y (Thumb is pointing UP)
-                    // And checking if thumb is actually extended upward significantly
-                    const thumbIsUp = primaryHand[4].y < primaryHand[3].y;
-                    if (thumbIsUp) {
+                    // More robust check for both hands:
+                    // 1. Thumb tip (4) is significantly above thumb IP (3)
+                    // 2. Thumb tip is above the wrist (0)
+                    // 3. Thumb is extended (distance from thumb tip to index base is significant)
+                    const thumbTip = primaryHand[4];
+                    const thumbIP = primaryHand[3];
+                    const wrist = primaryHand[0];
+                    const indexKnuckle = primaryHand[5];
+
+                    // Check if thumb is pointing up (tip is higher than IP)
+                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.02;
+
+                    // Check if thumb is extended (far from palm)
+                    const thumbExtended =
+                        Math.hypot(
+                            thumbTip.x - indexKnuckle.x,
+                            thumbTip.y - indexKnuckle.y,
+                        ) > 0.1;
+
+                    // Check if thumb tip is above wrist (hand is upright)
+                    const thumbAboveWrist = thumbTip.y < wrist.y;
+
+                    if ((thumbPointingUp || thumbAboveWrist) && thumbExtended) {
                         primaryGesture = "Thumbs_Up";
                     } else {
                         primaryGesture = "Closed_Fist";
