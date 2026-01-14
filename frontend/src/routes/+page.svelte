@@ -17,6 +17,7 @@
     import PriceCard from "$lib/components/UI/PriceCard.svelte";
     import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
+    import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
 
     // Stores
     import {
@@ -118,6 +119,30 @@
     $: priceChangePercent = $etfStore.changePercent;
     $: priceTrend = $etfStore.change >= 0 ? "up" : "down";
     $: isChartLoading = $etfStore.isLoading;
+
+    // Update trading store with current price for P&L calculation
+    $: {
+        if (livePrice > 0) {
+            tradingStore.updatePrice(livePrice);
+        }
+    }
+
+    // Sync P&L to Dynamic Island when position exists
+    $: {
+        const positions = $tradingStore.positions;
+        if (positions.length > 0) {
+            const position = positions[0]; // Show first position
+            const pnlPercent =
+                (position.pnl / (position.avgPrice * position.quantity)) * 100;
+
+            dynamicIsland.setLiveActivity({
+                symbol: position.symbol,
+                pnl: position.pnl,
+                pnlPercent: pnlPercent,
+                position: "OPEN",
+            });
+        }
+    }
 
     // Reactive chart bounds - default to reasonable values if no data
     $: minLow =
@@ -481,8 +506,15 @@
     <!-- Dynamic Island Notification Center -->
     <DynamicIsland />
 
+    <!-- ETF Selector -->
+    <ETFSelector etfs={SUPPORTED_ETFS} {selectedETF} onSelect={switchToETF} />
+
     <!-- Hover-to-Target Price Selector -->
-    <PriceTargetOverlay minPrice={minLow} maxPrice={maxHigh} />
+    <PriceTargetOverlay
+        minPrice={minLow}
+        maxPrice={maxHigh}
+        symbol={selectedETF.symbol}
+    />
 
     <!-- Face Tracker -->
     <FaceTracker />

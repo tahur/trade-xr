@@ -77,23 +77,34 @@
         >
             <!-- Compact Mode - Ticker -->
             {#if mode === "compact" && content.type === "ticker"}
-                <div class="flex flex-col items-center justify-center px-4 w-full h-full gap-2">
+                <div
+                    class="flex flex-col items-center justify-center px-4 w-full h-full gap-2"
+                >
                     <!-- Symbol Name -->
-                    <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                    <span
+                        class="text-[10px] font-bold text-white/40 uppercase tracking-widest"
+                    >
                         {content.symbol}
                     </span>
-                    
+
                     <div class="flex items-center gap-3">
                         <!-- Price -->
-                        <span class="text-2xl font-mono font-black text-white tracking-tight">
+                        <span
+                            class="text-2xl font-mono font-black text-white tracking-tight"
+                        >
                             ₹{content.price.toFixed(2)}
                         </span>
-                        
+
                         <!-- Divider -->
                         <div class="h-6 w-px bg-white/10"></div>
-                        
+
                         <!-- Change Badge -->
-                        <div class="flex items-center gap-1 px-2 py-1 rounded-lg {content.change >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                        <div
+                            class="flex items-center gap-1 px-2 py-1 rounded-lg {content.change >=
+                            0
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-rose-500/20 text-rose-400'}"
+                        >
                             <span class="text-xs font-bold">
                                 {content.change >= 0 ? "▲" : "▼"}
                                 {Math.abs(content.changePercent).toFixed(2)}%
@@ -102,117 +113,121 @@
                     </div>
                 </div>
 
-            <!-- Expanded Mode - Order/API -->
-        {:else if mode === "expanded"}
-            {#if content.type === "order"}
-                <div
-                    class="flex flex-col items-center justify-center px-6 w-full h-full gap-2"
-                    in:scale={{ duration: 300, easing: quintOut }}
-                >
-                    <div class="flex items-center gap-2">
-                        <span
-                            class="text-2xl {content.status === 'SUCCESS'
-                                ? 'text-green-400'
-                                : content.status === 'FAILED'
-                                  ? 'text-red-400'
-                                  : 'text-yellow-400'}"
-                        >
-                            {getStatusIcon(content.status)}
-                        </span>
-                        <span
-                            class="text-sm font-semibold text-white uppercase tracking-wide"
-                        >
-                            Order {content.status === "SUCCESS"
-                                ? "Placed"
-                                : content.status === "FAILED"
-                                  ? "Failed"
-                                  : "Pending"}
-                        </span>
-                    </div>
-                    <div class="text-center">
-                        <span
-                            class="text-lg font-bold {content.action === 'BUY'
-                                ? 'text-green-400'
-                                : 'text-red-400'}"
-                        >
-                            {content.action}
-                        </span>
-                        <span class="text-white/80 mx-2"
-                            >{content.quantity}</span
-                        >
-                        <span class="text-white/60">@</span>
-                        <span class="text-white font-mono ml-2"
-                            >₹{content.price.toFixed(2)}</span
-                        >
-                    </div>
-                </div>
-            {:else if content.type === "api"}
-                <div
-                    class="flex items-center justify-center px-6 w-full h-full gap-3"
-                    in:scale={{ duration: 300, easing: quintOut }}
-                >
+                <!-- Expanded Mode - Order/API -->
+            {:else if mode === "expanded"}
+                {#if content.type === "order"}
                     <div
-                        class="w-2 h-2 rounded-full {getSeverityColor(
-                            content.severity,
-                        )}"
-                    />
-                    <span
-                        class="text-sm font-medium {getSeverityColor(
-                            content.severity,
-                        )}"
+                        class="flex flex-col items-center justify-center px-6 w-full h-full gap-2"
+                        in:scale={{ duration: 300, easing: quintOut }}
                     >
-                        {content.message}
-                    </span>
-                </div>
-            {/if}
-
-            <!-- Live Activity Mode - P&L -->
-        {:else if mode === "live" && content.type === "pnl"}
-            <div
-                class="flex flex-col items-center justify-center px-5 w-full h-full gap-1"
-                in:scale={{ duration: 300, easing: quintOut }}
-            >
-                <!-- Top row: Symbol and indicator -->
-                <div class="flex items-center justify-between w-full">
-                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="text-2xl {content.status === 'SUCCESS'
+                                    ? 'text-green-400'
+                                    : content.status === 'FAILED'
+                                      ? 'text-red-400'
+                                      : 'text-yellow-400'}"
+                            >
+                                {getStatusIcon(content.status)}
+                            </span>
+                            <span
+                                class="text-sm font-semibold text-white uppercase tracking-wide"
+                            >
+                                Order {content.status === "SUCCESS"
+                                    ? "Placed"
+                                    : content.status === "FAILED"
+                                      ? "Failed"
+                                      : "Pending"}
+                            </span>
+                        </div>
+                        <div class="text-center">
+                            <span
+                                class="text-lg font-bold {content.action ===
+                                'BUY'
+                                    ? 'text-green-400'
+                                    : 'text-red-400'}"
+                            >
+                                {content.action}
+                            </span>
+                            <span class="text-white/80 mx-2"
+                                >{content.quantity}</span
+                            >
+                            <span class="text-white/60">@</span>
+                            <span class="text-white font-mono ml-2"
+                                >₹{content.price.toFixed(2)}</span
+                            >
+                        </div>
+                    </div>
+                {:else if content.type === "api"}
+                    <div
+                        class="flex items-center justify-center px-6 w-full h-full gap-3"
+                        in:scale={{ duration: 300, easing: quintOut }}
+                    >
                         <div
-                            class="w-1.5 h-1.5 rounded-full {content.position ===
-                            'OPEN'
-                                ? 'bg-yellow-400 animate-pulse'
-                                : 'bg-gray-400'}"
+                            class="w-2 h-2 rounded-full {getSeverityColor(
+                                content.severity,
+                            )}"
                         />
                         <span
-                            class="text-xs font-medium text-white/90 uppercase"
-                            >{content.symbol}</span
+                            class="text-sm font-medium {getSeverityColor(
+                                content.severity,
+                            )}"
                         >
+                            {content.message}
+                        </span>
                     </div>
-                    <span class="text-xs text-white/60">
-                        {content.position}
-                    </span>
-                </div>
+                {/if}
 
-                <!-- Bottom row: P&L -->
-                <div class="flex items-center justify-center w-full">
-                    <span class="text-white/70 text-xs mr-2">P&L:</span>
-                    <span
-                        class="text-lg font-mono font-bold {getChangeColor(
-                            content.pnl,
-                        )}"
-                    >
-                        {content.pnl >= 0 ? "+" : ""}₹{content.pnl.toFixed(2)}
-                    </span>
-                    <span
-                        class="text-sm font-mono ml-2 {getChangeColor(
-                            content.pnl,
-                        )}"
-                    >
-                        ({content.pnl >= 0
-                            ? "+"
-                            : ""}{content.pnlPercent.toFixed(2)}%)
-                    </span>
+                <!-- Live Activity Mode - P&L -->
+            {:else if mode === "live" && content.type === "pnl"}
+                <div
+                    class="flex flex-col items-center justify-center px-5 w-full h-full gap-1"
+                    in:scale={{ duration: 300, easing: quintOut }}
+                >
+                    <!-- Top row: Symbol and indicator -->
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-1.5 h-1.5 rounded-full {content.position ===
+                                'OPEN'
+                                    ? 'bg-yellow-400 animate-pulse'
+                                    : 'bg-gray-400'}"
+                            />
+                            <span
+                                class="text-xs font-medium text-white/90 uppercase"
+                                >{content.symbol}</span
+                            >
+                        </div>
+                        <span class="text-xs text-white/60">
+                            {content.position}
+                        </span>
+                    </div>
+
+                    <!-- Bottom row: P&L -->
+                    <div class="flex items-center justify-center w-full">
+                        <span class="text-white/70 text-xs mr-2">P&L:</span>
+                        <span
+                            class="text-lg font-mono font-bold {getChangeColor(
+                                content.pnl,
+                            )}"
+                        >
+                            {content.pnl >= 0 ? "+" : ""}₹{content.pnl.toFixed(
+                                2,
+                            )}
+                        </span>
+                        <span
+                            class="text-sm font-mono ml-2 {getChangeColor(
+                                content.pnl,
+                            )}"
+                        >
+                            ({content.pnl >= 0
+                                ? "+"
+                                : ""}{content.pnlPercent.toFixed(2)}%)
+                        </span>
+                    </div>
                 </div>
-            </div>
-        {/if}
+            {/if}
+        </div>
     </div>
 {/if}
 
@@ -230,7 +245,7 @@
         background: linear-gradient(
             135deg,
             rgba(255, 255, 255, 0.15) 0%,
-            rgba(255, 255, 255, 0.10) 50%,
+            rgba(255, 255, 255, 0.1) 50%,
             rgba(139, 92, 246, 0.05) 100%
         );
         backdrop-filter: blur(24px) saturate(180%);

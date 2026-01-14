@@ -36,15 +36,12 @@ function createTradingStore() {
 
     return {
         subscribe,
-        placeOrder: async (side: 'BUY' | 'SELL', quantity: number, price: number) => {
-            const SYMBOL = 'SILVERCASE';
-
+        placeOrder: async (symbol: string, side: 'BUY' | 'SELL', quantity: number, price: number) => {
             // 1. Call Real API (Fire and forget or await?)
             // We'll treat it as optimistic update for now, but usually we would wait.
-            // Given "Hardcoded... Slivercase", let's try to hit the API.
             try {
-                await kite.placeOrder(SYMBOL, side, quantity, price);
-                console.log("Kite Order Placed:", SYMBOL, side, quantity, price);
+                await kite.placeOrder(symbol, side, quantity, price);
+                console.log("Kite Order Placed:", symbol, side, quantity, price);
             } catch (e) {
                 console.error("Kite Order Failed:", e);
                 // We might want to NOT update local state if API fails, but for now let's keep the mock behavior as "Demo" fallback or optimistic.
@@ -55,7 +52,7 @@ function createTradingStore() {
                 const id = Math.random().toString(36).substr(2, 9);
                 const newOrder: Order = {
                     id,
-                    symbol: SYMBOL,
+                    symbol,
                     side,
                     quantity,
                     price,
@@ -67,7 +64,7 @@ function createTradingStore() {
                 const filledOrder = { ...newOrder, status: 'FILLED' as const };
 
                 // Update Position
-                const existingPosIndex = state.positions.findIndex(p => p.symbol === SYMBOL);
+                const existingPosIndex = state.positions.findIndex(p => p.symbol === symbol);
                 let newPositions = [...state.positions];
 
                 if (existingPosIndex > -1) {
@@ -86,13 +83,13 @@ function createTradingStore() {
                         // Sell logic simplifed: reduce qty
                         newPositions[existingPosIndex].quantity -= quantity;
                         if (newPositions[existingPosIndex].quantity <= 0) {
-                            newPositions = newPositions.filter(p => p.symbol !== SYMBOL);
+                            newPositions = newPositions.filter(p => p.symbol !== symbol);
                         }
                     }
 
                 } else if (side === 'BUY') {
                     newPositions.push({
-                        symbol: SYMBOL,
+                        symbol,
                         quantity,
                         avgPrice: price,
                         currentPrice: price,

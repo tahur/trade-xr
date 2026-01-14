@@ -8,6 +8,7 @@
 
     export let minPrice: number;
     export let maxPrice: number;
+    export let symbol: string = "SILVERCASE"; // Current ETF symbol
 
     // === STATE MACHINE (BUY ONLY) ===
     type State =
@@ -167,7 +168,12 @@
                         state === "CONFIRMING"
                     ) {
                         if (lockedPrice) {
-                            tradingStore.placeOrder("BUY", 1, lockedPrice);
+                            tradingStore.placeOrder(
+                                symbol,
+                                "BUY",
+                                1,
+                                lockedPrice,
+                            );
 
                             // Show order confirmation in Dynamic Island
                             dynamicIsland.show(
