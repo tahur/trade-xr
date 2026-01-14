@@ -15,13 +15,14 @@
     $: height =
         mode === "compact" ? "80px" : mode === "live" ? "100px" : "100px";
 
-    // 3D Tilt for face tracking (like PriceCard)
-    const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.12, damping: 0.35 });
+    // Subtle 3D Tilt - high damping for efficiency
+    const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.1, damping: 0.8 });
 
     $: {
         if ($isTracking) {
-            const targetRotateY = $headPosition.x * 25;
-            const targetRotateX = -$headPosition.y * 20;
+            // Reduced intensity for subtle effect
+            const targetRotateY = $headPosition.x * 15;
+            const targetRotateX = -$headPosition.y * 12;
             tilt.set({ x: targetRotateX, y: targetRotateY });
         } else {
             tilt.set({ x: 0, y: 0 });
@@ -294,39 +295,35 @@
     }
 
     .dynamic-island {
-        /* Premium glassmorphic effect (same as PriceCard) */
+        /* Lighter glassmorphic effect - less GPU intensive */
         background: linear-gradient(
             135deg,
-            rgba(255, 255, 255, 0.15) 0%,
-            rgba(255, 255, 255, 0.1) 50%,
-            rgba(139, 92, 246, 0.05) 100%
+            rgba(255, 255, 255, 0.12) 0%,
+            rgba(255, 255, 255, 0.08) 50%,
+            rgba(139, 92, 246, 0.04) 100%
         );
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        /* Reduced blur for better performance */
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
 
-        /* Border and shadow (same as PriceCard) */
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+        /* Border and shadow */
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 
-        /* Square with subtle rounded corners */
+        /* Rounded corners */
         border-radius: 16px;
 
-        /* 3D transform */
-        transform-style: preserve-3d;
+        /* Subtle CSS-only transition for size changes */
         transition:
-            width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-            height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.3s ease;
-        transition-property: width, height, box-shadow;
+            width 0.3s ease-out,
+            height 0.3s ease-out;
 
         /* Prevent text selection */
         user-select: none;
-
-        /* Position relative for inner glow */
         position: relative;
     }
 
-    /* Inner glow overlay */
+    /* Subtle inner glow */
     .dynamic-island::before {
         content: "";
         position: absolute;
@@ -334,14 +331,14 @@
         border-radius: 16px;
         background: linear-gradient(
             135deg,
-            rgba(255, 255, 255, 0.1) 0%,
-            transparent 100%
+            rgba(255, 255, 255, 0.08) 0%,
+            transparent 60%
         );
         pointer-events: none;
     }
 
+    /* Very subtle hover effect */
     .dynamic-island-wrapper:hover .dynamic-island {
-        box-shadow: 0 8px 32px rgba(139, 92, 246, 0.25);
-        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
     }
 </style>
