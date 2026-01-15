@@ -10,15 +10,17 @@ This document provides detailed technical information about HoloTrade's implemen
 2. [Frontend Technical Details](#frontend-technical-details)
 3. [Face Tracking System](#face-tracking-system)
 4. [Hand Gesture System](#hand-gesture-system)
-5. [3D Rendering Pipeline](#3d-rendering-pipeline)
-6. [Signal Smoothing (EMA)](#signal-smoothing-ema)
-7. [Glassmorphism Styling](#glassmorphism-styling)
-8. [Floating Notification Center](#floating-notification-center)
-9. [State Management](#state-management)
-10. [Order Placement Flow](#order-placement-flow)
-11. [API Integration](#api-integration)
-12. [Data Storage](#data-storage)
-13. [Configuration Files](#configuration-files)
+5. [Gesture Engine](#gesture-engine)
+6. [Dynamic Zone Confirmation](#dynamic-zone-confirmation)
+7. [3D Rendering Pipeline](#3d-rendering-pipeline)
+8. [Signal Smoothing (EMA)](#signal-smoothing-ema)
+9. [Glassmorphism Styling](#glassmorphism-styling)
+10. [Floating Notification Center](#floating-notification-center)
+11. [State Management](#state-management)
+12. [Order Placement Flow](#order-placement-flow)
+13. [API Integration](#api-integration)
+14. [Data Storage](#data-storage)
+15. [Configuration Files](#configuration-files)
 
 ---
 
@@ -91,6 +93,7 @@ frontend/src/lib/
 │   │   └── FaceTracker.svelte       # MediaPipe integration
 │   └── UI/
 │       ├── DynamicIsland.svelte     # Notification center
+│       ├── DynamicConfirmZone.svelte # Gesture confirmation zone
 │       ├── PriceTargetOverlay.svelte # Gesture trading UI
 │       ├── SettingsCard.svelte      # Settings panel
 │       └── ...
@@ -100,6 +103,7 @@ frontend/src/lib/
 │   ├── trading.ts       # Orders and positions
 │   └── dynamicIsland.ts # Notification state
 ├── services/
+│   ├── gestureEngine.ts # Centralized gesture context management
 │   ├── kite.ts          # Kite API client
 │   ├── orderService.ts  # Order placement logic
 │   └── etfService.ts    # ETF data fetching
@@ -293,6 +297,109 @@ $: {
   smoothedHandY = ema(rawY, smoothedHandY, EMA_ALPHA);
 }
 ```
+
+---
+
+## Gesture Engine
+
+The Gesture Engine (`gestureEngine.ts`) provides centralized gesture context management to prevent conflicts between different features.
+
+### Context States
+
+```
+IDLE → TRADING → CONFIRMING
+         ↓
+      ZOOMING (highest priority)
+```
+
+| Context | Description | Priority |
+|---------|-------------|----------|
+| `IDLE` | No gesture active | 0 |
+| `TRADING` | Price selection active | 1 |
+| `CONFIRMING` | Order confirmation in progress | 2 |
+| `ZOOMING` | Two-hand zoom active | 3 (highest) |
+
+### Configuration
+
+```typescript
+export const ENGINE_CONFIG = {
+    ZOOM_COOLDOWN_MS: 300,      // Cooldown after zoom ends
+    TRADING_COOLDOWN_MS: 200,   // Cooldown after trading state change
+    MIN_LOCK_DURATION_MS: 100,  // Minimum time to hold a lock
+    CONFIRM_HOLD_MS: 3000,      // 3 seconds to confirm order
+    CONFIRM_ZONE_RADIUS: 0.12,  // 12% of viewport for confirm zone
+};
+```
+
+### API
+
+```typescript
+// Acquire a context lock
+gestureEngine.acquire(owner: string, ctx: GestureContext): boolean
+
+// Release a context lock with optional cooldown
+gestureEngine.release(owner: string, cooldownMs?: number): void
+
+// Check if context can be acquired
+gestureEngine.canAcquire(ctx: GestureContext): boolean
+
+// Convenience helpers
+acquireZoom()      // Acquire ZOOMING context
+releaseZoom()      // Release with cooldown
+acquireTrading()   // Acquire TRADING context
+acquireConfirming() // Upgrade to CONFIRMING
+releaseTrading()   // Release trading context
+```
+
+### Priority Rules
+
+1. **Zoom always wins** - Two-hand zoom can interrupt any other gesture
+2. **Cooldowns prevent conflicts** - 300ms cooldown after zoom prevents accidental triggers
+3. **Single owner** - Only one feature can hold a context at a time
+
+---
+
+## Dynamic Zone Confirmation
+
+The Dynamic Zone (`DynamicConfirmZone.svelte`) provides a deliberate, two-stage order confirmation.
+
+### How It Works
+
+```
+1. User shows thumbs up → Zone spawns at hand position
+2. Progress ring starts filling (3 seconds)
+3. If hand moves outside zone → Progress resets
+4. If hand stays 3s → Order confirmed with haptic feedback
+5. Closed fist → Cancels at any time
+```
+
+### Visual Design
+
+- **Glassmorphic ring** with subtle glow
+- **Progress ring** (SVG) fills clockwise
+- **Thumbs up emoji** center, changes to checkmark on complete
+- **Order details** shown below zone
+- **Status text** indicates current state
+
+### Position Locking
+
+The zone uses Svelte `spring` for smooth appearance, but position is **locked** on spawn:
+
+```typescript
+// Lock position instantly when zone spawns
+lockedCenter = { x: handPos.x, y: handPos.y };
+zonePosition.set({ x: handPos.x * 100, y: handPos.y * 100 }, { hard: true });
+```
+
+This prevents jitter - once the zone appears, it stays perfectly still.
+
+### Zone Radius
+
+```typescript
+CONFIRM_ZONE_RADIUS: 0.12  // 12% of viewport
+```
+
+User must keep their hand within 12% of the spawn position to continue progress.
 
 ---
 

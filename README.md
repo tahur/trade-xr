@@ -28,7 +28,7 @@ It's like having a holographic trading terminal on your screen.
 3. Show one hand → Price selector follows your hand position
 4. Pinch → Lock in a price
 5. Point up → Open order confirmation
-6. Thumbs up → Place order via Zerodha Kite API
+6. Thumbs up → Hold 3 seconds in the zone to confirm!
 7. Closed fist → Cancel anytime
 ```
 
@@ -39,15 +39,22 @@ It's like having a holographic trading terminal on your screen.
 ### 🎯 Face Tracking Perspective
 Your webcam tracks your face position. Move your head left/right/up/down in front of the screen, and the 3D chart adjusts its perspective accordingly—creating a "window into 3D space" effect.
 
-### ✋ Gesture-Based Trading
-No keyboard or mouse needed for order placement:
-| Gesture | Action |
-|---------|--------|
-| Open hand | Show price selector |
-| Pinch (thumb + index) | Lock price |
-| Point up (index finger) | Open confirmation |
-| Thumbs up | Place order |
-| Closed fist | Cancel |
+### 🎮 Gesture Engine
+Centralized gesture management prevents conflicts:
+- **Context locking** - Only one feature uses gestures at a time
+- **Priority system** - Zoom gestures always take priority over trading
+- **Cooldowns** - Prevents accidental triggers after gestures end
+
+### ✋ Dynamic Zone Confirmation
+Order confirmation uses a deliberate 3-second hold:
+| Step | Gesture | Action |
+|------|---------|--------|
+| 1 | Show hand | Show price selector |
+| 2 | Pinch | Lock price |
+| 3 | Point up | Open confirmation |
+| 4 | Thumbs up | Zone appears at your hand |
+| 5 | Hold 3s | Progress ring fills → Order placed! |
+| Cancel | Closed fist | Cancel anytime |
 
 ### 📊 3D Candlestick Chart
 OHLC data rendered as 3D boxes with wicks. Green for bullish, red for bearish. Smooth camera controls with zoom support.

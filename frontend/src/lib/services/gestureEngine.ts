@@ -34,7 +34,7 @@ export const ENGINE_CONFIG = {
     ZOOM_COOLDOWN_MS: 300,      // Cooldown after zoom ends
     TRADING_COOLDOWN_MS: 200,   // Cooldown after trading state change
     MIN_LOCK_DURATION_MS: 100,  // Minimum time to hold a lock
-    CONFIRM_HOLD_MS: 1500,      // Time to hold thumbs up for confirmation
+    CONFIRM_HOLD_MS: 3000,      // Time to hold thumbs up for confirmation (3 seconds)
     CONFIRM_ZONE_RADIUS: 0.12,  // 12% of viewport for confirm zone
 };
 
