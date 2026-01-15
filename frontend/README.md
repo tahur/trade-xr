@@ -1,38 +1,78 @@
-# sv
+# HoloTrade Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit application for the HoloTrade trading interface.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Framework**: SvelteKit 5
+- **3D Engine**: Three.js via Threlte
+- **Tracking**: MediaPipe Face Mesh & Hands
+- **Styling**: TailwindCSS
 
-```sh
-# create a new project in the current directory
-npx sv create
+## Setup
 
-# create a new project in my-app
-npx sv create my-app
-```
+```bash
+# Install dependencies
+npm install
 
-## Developing
+# Create environment file
+cp .env.example .env
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+# Start development server
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Available Scripts
 
-To create a production version of your app:
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server at http://localhost:5173 |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run check` | TypeScript type checking |
+| `npm run lint` | Run linter |
 
-```sh
-npm run build
+## Project Structure
+
+```
+src/
+├── routes/
+│   └── +page.svelte      # Main application page
+├── lib/
+│   ├── components/
+│   │   ├── Chart3D/      # 3D candlestick components
+│   │   ├── Scene3D/      # 3D scene with lighting
+│   │   ├── Tracking/     # MediaPipe integration
+│   │   └── UI/           # User interface components
+│   ├── stores/           # Svelte reactive stores
+│   ├── services/         # API clients and business logic
+│   ├── utils/            # Helper functions (EMA, etc.)
+│   └── config/           # App configuration
+└── app.html              # HTML template
 ```
 
-You can preview the production build with `npm run preview`.
+## Key Files
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+| File | Purpose |
+|------|---------|
+| `+page.svelte` | Main orchestrator, camera control |
+| `FaceTracker.svelte` | MediaPipe face/hand integration |
+| `PriceTargetOverlay.svelte` | Gesture trading UI |
+| `Scene3D.svelte` | 3D scene with lights and environment |
+| `DynamicIsland.svelte` | Notification center |
+| `orderService.ts` | Centralized order placement |
+| `ema.ts` | Signal smoothing utility |
+
+## Environment Variables
+
+See `.env.example` for required variables.
+
+## Browser Requirements
+
+- Modern browser with WebGL support
+- Webcam access permission
+- Works best in Chrome/Edge
+
+---
+
+Part of [HoloTrade](../README.md) | See [TECHNICAL.md](../TECHNICAL.md) for implementation details

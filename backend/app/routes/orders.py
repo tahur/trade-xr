@@ -41,3 +41,10 @@ async def get_positions():
         return kite_client.get_positions()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/margins")
+async def get_margins():
+    try:
+        return kite_client.get_margins()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

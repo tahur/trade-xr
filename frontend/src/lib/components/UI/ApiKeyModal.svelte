@@ -71,8 +71,12 @@
     >
         <!-- Backdrop -->
         <div
+            role="button"
+            tabindex="-1"
+            aria-label="Close modal"
             class="absolute inset-0 bg-black/80 backdrop-blur-sm"
             on:click={handleClose}
+            on:keydown={(e) => e.key === "Escape" && handleClose()}
         ></div>
 
         <!-- Modal -->

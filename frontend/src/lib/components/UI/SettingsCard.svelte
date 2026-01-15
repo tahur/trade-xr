@@ -15,6 +15,7 @@
 <div class="relative z-50">
     <!-- Settings Toggle Button -->
     <button
+        aria-label="Toggle settings"
         class="flex items-center justify-center w-10 h-10 rounded-xl backdrop-blur-xl
             bg-gradient-to-br from-white/10 to-violet-500/5 border border-white/15
             text-white/60 hover:text-white hover:border-white/25 hover:scale-105
@@ -58,6 +59,7 @@
                     >Settings</span
                 >
                 <button
+                    aria-label="Close settings"
                     class="text-white/40 hover:text-white transition-colors"
                     on:click={() => (showSettings = false)}
                 >

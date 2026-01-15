@@ -71,6 +71,9 @@ class KiteClient:
             # Determine transaction type
             trans_type = self.kite.TRANSACTION_TYPE_BUY if transaction_type.upper() == "BUY" else self.kite.TRANSACTION_TYPE_SELL
             
+            # Round price to tick size (0.01 for most instruments)
+            rounded_price = round(price, 2)
+            
             # Simple Limit Order Logic for now
             order_id = self.kite.place_order(
                 variety=self.kite.VARIETY_REGULAR,
@@ -78,9 +81,9 @@ class KiteClient:
                 tradingsymbol=symbol,
                 transaction_type=trans_type,
                 quantity=quantity,
-                product=self.kite.PRODUCT_MIS,
+                product=self.kite.PRODUCT_CNC,  # CNC for delivery/cash & carry
                 order_type=self.kite.ORDER_TYPE_LIMIT,
-                price=price,
+                price=rounded_price,
                 validity=self.kite.VALIDITY_DAY
             )
             
@@ -100,4 +103,24 @@ class KiteClient:
             return self.kite.positions()
         except Exception as e:
             logger.error(f"Error fetching positions: {e}")
+            raise e
+
+    def get_margins(self):
+        """Fetches available margins."""
+        if not self.kite or not self.access_token:
+            raise Exception("Kite session not active")
+        
+        try:
+            margins = self.kite.margins()
+            # Extract equity segment available margin
+            equity = margins.get("equity", {})
+            available = equity.get("available", {})
+            return {
+                "available_cash": available.get("cash", 0),
+                "available_margin": available.get("live_balance", 0),
+                "used_margin": equity.get("utilised", {}).get("debits", 0),
+                "total": equity.get("net", 0)
+            }
+        except Exception as e:
+            logger.error(f"Error fetching margins: {e}")
             raise e

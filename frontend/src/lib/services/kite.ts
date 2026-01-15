@@ -22,13 +22,37 @@ export const kite = {
                 price
             }),
         });
-        if (!response.ok) throw new Error("Order failed");
+        if (!response.ok) {
+            // Extract the actual error message from the API response
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Order failed");
+            } catch (e: any) {
+                if (e.message && e.message !== "Order failed") {
+                    throw e; // Re-throw if we already have a good message
+                }
+                throw new Error("Order failed - unknown error");
+            }
+        }
         return await response.json();
     },
 
     async getPositions() {
         const response = await fetch(`${API_URL}/positions`);
         if (!response.ok) throw new Error("Failed to fetch positions");
+        return await response.json();
+    },
+
+    async getMargins() {
+        const response = await fetch(`${API_URL}/margins`);
+        if (!response.ok) {
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Failed to fetch margins");
+            } catch {
+                throw new Error("Failed to fetch margins");
+            }
+        }
         return await response.json();
     }
 };

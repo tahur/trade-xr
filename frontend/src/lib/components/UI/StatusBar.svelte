@@ -2,7 +2,6 @@
     import { fade } from "svelte/transition";
 
     export let isLive: boolean = false;
-    export let cameraName: string = "";
     export let apiStatus: string = "Not Connected";
 </script>
 

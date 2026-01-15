@@ -4,6 +4,33 @@
     import { cubicOut } from "svelte/easing";
     import { spring } from "svelte/motion";
     import { headPosition, isTracking } from "$lib/stores/tracking";
+    import { kite } from "$lib/services/kite";
+    import { onMount, onDestroy } from "svelte";
+
+    // Available margin state
+    let availableMargin: number | null = null;
+    let marginInterval: ReturnType<typeof setInterval> | null = null;
+
+    // Fetch margin on mount and periodically
+    async function fetchMargin() {
+        try {
+            const data = await kite.getMargins();
+            availableMargin = data.available_cash || data.available_margin || 0;
+        } catch {
+            // Silently fail - margin not available if not logged in
+            availableMargin = null;
+        }
+    }
+
+    onMount(() => {
+        fetchMargin();
+        // Refresh every 5s for faster detection after login
+        marginInterval = setInterval(fetchMargin, 5000);
+    });
+
+    onDestroy(() => {
+        if (marginInterval) clearInterval(marginInterval);
+    });
 
     // Snappy easing for quick, responsive feel
     const snappyEase = cubicOut;
@@ -14,9 +41,9 @@
 
     // Determine width and height based on mode
     $: width =
-        mode === "compact" ? "260px" : mode === "live" ? "360px" : "340px";
+        mode === "compact" ? "320px" : mode === "live" ? "360px" : "340px";
     $: height =
-        mode === "compact" ? "80px" : mode === "live" ? "100px" : "100px";
+        mode === "compact" ? "90px" : mode === "live" ? "100px" : "100px";
 
     // Subtle 3D Tilt - high damping for efficiency
     const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.1, damping: 0.8 });
@@ -83,16 +110,28 @@
                 <!-- Compact Mode - Ticker -->
                 {#if mode === "compact" && content.type === "ticker"}
                     <div
-                        class="flex flex-col items-center justify-center px-4 w-full h-full gap-2"
+                        class="flex flex-col justify-center px-5 w-full h-full gap-1"
                     >
-                        <!-- Symbol Name -->
-                        <span
-                            class="text-[10px] font-bold text-white/40 uppercase tracking-widest"
-                        >
-                            {content.symbol}
-                        </span>
+                        <!-- Top Row: Symbol & Margin -->
+                        <div class="flex items-center justify-between w-full">
+                            <span
+                                class="text-[10px] font-bold text-white/40 uppercase tracking-widest"
+                            >
+                                {content.symbol}
+                            </span>
+                            {#if availableMargin !== null}
+                                <span
+                                    class="text-[10px] font-medium text-white/40"
+                                >
+                                    ₹{availableMargin.toLocaleString("en-IN", {
+                                        maximumFractionDigits: 0,
+                                    })}
+                                </span>
+                            {/if}
+                        </div>
 
-                        <div class="flex items-center gap-3">
+                        <!-- Bottom Row: Price & Change -->
+                        <div class="flex items-center justify-between w-full">
                             <!-- Price -->
                             <span
                                 class="text-2xl font-mono font-black text-white tracking-tight"
@@ -100,17 +139,14 @@
                                 ₹{content.price.toFixed(2)}
                             </span>
 
-                            <!-- Divider -->
-                            <div class="h-6 w-px bg-white/10"></div>
-
                             <!-- Change Badge -->
                             <div
-                                class="flex items-center gap-1 px-2 py-1 rounded-lg {content.change >=
+                                class="flex items-center gap-1 px-2.5 py-1 rounded-lg {content.change >=
                                 0
                                     ? 'bg-emerald-500/20 text-emerald-400'
                                     : 'bg-rose-500/20 text-rose-400'}"
                             >
-                                <span class="text-xs font-bold">
+                                <span class="text-sm font-bold">
                                     {content.change >= 0 ? "▲" : "▼"}
                                     {Math.abs(content.changePercent).toFixed(
                                         2,
@@ -256,7 +292,7 @@
                                     'OPEN'
                                         ? 'bg-yellow-400 animate-pulse'
                                         : 'bg-gray-400'}"
-                                />
+                                ></div>
                                 <span
                                     class="text-xs font-medium text-white/90 uppercase"
                                     >{content.symbol}</span
