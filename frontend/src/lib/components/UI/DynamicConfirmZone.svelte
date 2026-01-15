@@ -9,6 +9,7 @@
 
     import { onMount, onDestroy, createEventDispatcher } from "svelte";
     import { fade, scale } from "svelte/transition";
+    import { spring } from "svelte/motion";
     import { gestureState } from "$lib/stores/gesture";
     import { ENGINE_CONFIG } from "$lib/services/gestureEngine";
 
@@ -26,12 +27,23 @@
     } | null = null;
 
     // === ZONE STATE ===
-    let zoneCenter = { x: 0.5, y: 0.5 }; // Normalized 0-1
+    // Use spring for smooth, jitter-free positioning
+    const zonePosition = spring(
+        { x: 50, y: 50 },
+        {
+            stiffness: 0.3,
+            damping: 0.9,
+        },
+    );
+
     let zoneSpawned = false;
     let progress = 0; // 0 to 1
     let holdStartTime: number | null = null;
     let isComplete = false;
     let animationFrame: number | null = null;
+
+    // Store locked center for distance calculations (normalized 0-1)
+    let lockedCenter = { x: 0.5, y: 0.5 };
 
     // === CONSTANTS ===
     const ZONE_RADIUS = ENGINE_CONFIG.CONFIRM_ZONE_RADIUS; // 0.12 = 12% of viewport
@@ -74,14 +86,19 @@
 
         // Step 1: Spawn zone when thumbs up first detected
         if (isThumbsUp && !zoneSpawned && $gestureState.isHandDetected) {
-            zoneCenter = { ...handPos };
+            // Lock the position - set spring instantly with { hard: true }
+            lockedCenter = { x: handPos.x, y: handPos.y };
+            zonePosition.set(
+                { x: handPos.x * 100, y: handPos.y * 100 },
+                { hard: true },
+            );
             zoneSpawned = true;
             holdStartTime = performance.now();
         }
 
         // Step 2: Track progress while thumbs up in zone
         if (zoneSpawned && isThumbsUp && $gestureState.isHandDetected) {
-            const dist = distance(handPos, zoneCenter);
+            const dist = distance(handPos, lockedCenter);
 
             if (dist < ZONE_RADIUS) {
                 // Hand is in zone - update progress
@@ -135,19 +152,17 @@
         }
     });
 
-    // Calculate screen position
-    $: screenX = zoneCenter.x * 100;
-    $: screenY = zoneCenter.y * 100;
+    // Calculate derived values - use spring values for display
     $: strokeDashoffset = CIRCUMFERENCE * (1 - progress);
     $: isHandInZone =
         zoneSpawned &&
-        distance($gestureState.handPosition, zoneCenter) < ZONE_RADIUS;
+        distance($gestureState.handPosition, lockedCenter) < ZONE_RADIUS;
 </script>
 
 {#if isActive && zoneSpawned}
     <div
         class="confirm-zone"
-        style="left: {screenX}%; top: {screenY}%"
+        style="left: {$zonePosition.x}%; top: {$zonePosition.y}%"
         transition:scale={{ duration: 200, start: 0.8 }}
     >
         <!-- Outer glow ring -->
