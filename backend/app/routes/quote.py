@@ -70,14 +70,8 @@ async def get_candles(symbol: str, exchange: str = "NSE", interval: str = "5minu
         raise HTTPException(status_code=401, detail="Kite session not active. Please login first.")
     
     try:
-        # Get instrument token
-        instrument = f"{exchange}:{symbol}"
-        ltp_data = kite.kite.ltp([instrument])
-        
-        if instrument not in ltp_data:
-            raise HTTPException(status_code=404, detail=f"Symbol {symbol} not found")
-        
-        instrument_token = ltp_data[instrument]["instrument_token"]
+        # Get instrument token (cached)
+        instrument_token = kite.get_instrument_token(symbol, exchange)
         
         # Calculate date range
         to_date = datetime.now()

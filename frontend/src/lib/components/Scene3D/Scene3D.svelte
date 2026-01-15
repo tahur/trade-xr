@@ -27,68 +27,34 @@
     />
 </T.PerspectiveCamera>
 
-<!-- Professional Trading Terminal Lighting -->
+<!-- Optimization: Simplified 3-Point Lighting Setup for Performance -->
 
-<!-- Ambient - warm terminal glow -->
-<T.AmbientLight intensity={0.65} color="#e8ddff" />
+<!-- 1. Ambient - Base illumination -->
+<T.AmbientLight intensity={0.8} color="#e8ddff" />
 
-<!-- Main monitor backlight (from behind screen) -->
-<T.PointLight
-    position={[25, 10, -25]}
-    intensity={1.5}
-    color="#9d8aff"
-    distance={150}
-/>
-
-<!-- Key light (simulating overhead office lighting) -->
+<!-- 2. Key Light - Main source (Directional) -->
 <T.DirectionalLight
     position={[40, 80, 60]}
-    intensity={1.2}
+    intensity={1.5}
     color="#ffffff"
     castShadow
     shadow.mapSize={[2048, 2048]}
 />
 
-<!-- Warm desk lamp from right -->
-<T.SpotLight
-    position={[70, 30, 40]}
-    intensity={0.9}
-    color="#ffd89b"
-    angle={0.4}
-    penumbra={0.5}
-    distance={120}
-/>
-
-<!-- Cool accent from left (screen reflection) -->
+<!-- 3. Rim/Back Light - Depth and separation -->
 <T.PointLight
-    position={[-10, 15, 30]}
-    intensity={0.9}
-    color="#6ee7f9"
-    distance={100}
-/>
-
-<!-- Subtle rim light for depth -->
-<T.PointLight
-    position={[25, 5, -35]}
-    intensity={0.7}
-    color="#a78bfa"
-    distance={100}
-/>
-
-<!-- Additional fill light from front for better visibility -->
-<T.PointLight
-    position={[25, 20, 80]}
-    intensity={0.8}
-    color="#f0e6ff"
+    position={[25, 10, -30]}
+    intensity={2.0}
+    color="#9d8aff"
     distance={150}
 />
 
-<!-- Soft side fill from right -->
+<!-- 4. Fill Light - Soften shadows (opposite to key) -->
 <T.PointLight
-    position={[80, 10, 0]}
-    intensity={0.5}
-    color="#fff5e1"
-    distance={120}
+    position={[-20, 20, 40]}
+    intensity={0.6}
+    color="#6ee7f9"
+    distance={100}
 />
 
 <!-- The Chart - only render when data is loaded -->

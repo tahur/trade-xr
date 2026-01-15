@@ -23,6 +23,7 @@ class KiteClient:
         self.api_secret = os.getenv("KITE_API_SECRET")
         self.access_token = None
         self.kite = None
+        self._token_cache = {}  # Cache for instrument tokens
 
         if not self.api_key or not self.api_secret:
             logger.warning("Kite API credentials not found in environment variables.")
@@ -37,6 +38,7 @@ class KiteClient:
         """Re-configures the client with new credentials."""
         self.api_key = api_key
         self.api_secret = api_secret
+        self._token_cache = {} # Clear cache on re-config
         logger.info("Re-configuring KiteClient with provided credentials.")
         
         try:
@@ -60,6 +62,32 @@ class KiteClient:
             return {"status": "success", "data": data}
         except Exception as e:
             logger.error(f"Error logging in to Kite: {e}")
+            raise e
+
+    def get_instrument_token(self, symbol, exchange="NSE"):
+        """Fetches and caches instrument token for a symbol."""
+        if not self.kite:
+            raise Exception("Kite client not initialized")
+            
+        instrument = f"{exchange}:{symbol}"
+        
+        # Check cache first
+        if instrument in self._token_cache:
+            return self._token_cache[instrument]
+            
+        try:
+            # Fetch from LTP API (lightweight)
+            ltp_data = self.kite.ltp([instrument])
+            
+            if instrument in ltp_data:
+                token = ltp_data[instrument]["instrument_token"]
+                self._token_cache[instrument] = token
+                return token
+            else:
+                raise Exception(f"Symbol {symbol} not found")
+                
+        except Exception as e:
+            logger.error(f"Error fetching token for {symbol}: {e}")
             raise e
 
     def place_order(self, symbol, quantity, price, transaction_type, exchange="NSE"):
