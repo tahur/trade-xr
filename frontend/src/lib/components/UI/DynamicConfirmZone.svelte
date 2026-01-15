@@ -349,8 +349,8 @@
         align-items: center;
         gap: 8px;
         padding: 8px 16px;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(12px);
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
         border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }

@@ -31,9 +31,9 @@
     let lockedPrice: number | null = null;
     let lockTime: number | null = null; // Track when locked for cooldown
 
-    // === EMA SMOOTHING ===
+    // === EMA SMOOTHING - FASTER for snappy response ===
     let smoothedHandY = 0.5;
-    const EMA_ALPHA = EMA_PRESETS.ULTRA_SMOOTH; // Using preset for consistency
+    const EMA_ALPHA = EMA_PRESETS.SNAPPY; // 0.7 for fast response (was ULTRA_SMOOTH)
 
     // Debounce timers
     let entryDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -284,10 +284,10 @@
 />
 
 {#if state !== "IDLE"}
-    <!-- === PRICE LINE === -->
+    <!-- === PRICE LINE - GPU accelerated === -->
     <div
-        class="fixed left-0 right-0 pointer-events-none z-40 transition-all duration-75"
-        style="top: {screenY}%"
+        class="fixed left-0 right-0 pointer-events-none z-40"
+        style="top: 0; transform: translateY({screenY}vh); will-change: transform;"
     >
         <!-- Line -->
         <div
@@ -303,14 +303,15 @@
             transition:scale={{ duration: 150, start: 0.9 }}
         >
             <div
-                class="relative px-5 py-4 rounded-2xl backdrop-blur-2xl border transition-all duration-300
+                class="relative px-5 py-4 rounded-2xl backdrop-blur-md border
                     {isLocked
-                    ? 'bg-gradient-to-br from-emerald-500/30 via-emerald-400/20 to-cyan-500/10 border-emerald-400/40 shadow-[0_8px_32px_rgba(16,185,129,0.25)]'
-                    : 'bg-gradient-to-br from-white/20 via-white/10 to-violet-500/10 border-white/30 shadow-[0_8px_32px_rgba(139,92,246,0.2)]'}"
+                    ? 'bg-emerald-500/25 border-emerald-400/50 shadow-lg shadow-emerald-500/20'
+                    : 'bg-white/15 border-white/30 shadow-lg shadow-violet-500/15'}"
+                style="will-change: transform, opacity;"
             >
                 <!-- Inner glow -->
                 <div
-                    class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/15 to-transparent pointer-events-none"
+                    class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"
                 ></div>
 
                 <!-- Status Label -->
