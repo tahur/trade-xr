@@ -39,6 +39,7 @@ class KiteClient:
         self.api_key = api_key
         self.api_secret = api_secret
         self._token_cache = {} # Clear cache on re-config
+        self.access_token = None # Clear old session
         logger.info("Re-configuring KiteClient with provided credentials.")
         
         try:

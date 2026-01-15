@@ -75,22 +75,28 @@
         }
     }
 
-    // Color helpers
-    function getChangeColor(change: number) {
-        return change >= 0 ? "text-green-400" : "text-red-400";
-    }
+    // Memoized color helpers (defined once, no recreation per render)
+    const COLORS = {
+        positive: "text-green-400",
+        negative: "text-red-400",
+        cyan: "text-cyan-400",
+    } as const;
 
-    function getStatusIcon(status: string) {
-        if (status === "SUCCESS") return "✓";
-        if (status === "FAILED") return "✗";
-        return "⌛";
-    }
+    const STATUS_ICONS = { SUCCESS: "✓", FAILED: "✗", PENDING: "⌛" } as const;
 
-    function getSeverityColor(severity: string) {
-        if (severity === "success") return "text-green-400";
-        if (severity === "error") return "text-red-400";
-        return "text-cyan-400";
-    }
+    const getChangeColor = (change: number) =>
+        change >= 0 ? COLORS.positive : COLORS.negative;
+
+    const getStatusIcon = (status: string) =>
+        STATUS_ICONS[status as keyof typeof STATUS_ICONS] ||
+        STATUS_ICONS.PENDING;
+
+    const getSeverityColor = (severity: string) =>
+        severity === "success"
+            ? COLORS.positive
+            : severity === "error"
+              ? COLORS.negative
+              : COLORS.cyan;
 </script>
 
 {#if isVisible}
@@ -342,6 +348,9 @@
     }
 
     .dynamic-island {
+        /* Layout containment for performance isolation */
+        contain: layout style;
+
         /* Lighter glassmorphic effect - less GPU intensive */
         background: linear-gradient(
             135deg,

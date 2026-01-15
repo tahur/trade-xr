@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from app.kite_client import KiteClient
 
 router = APIRouter()
+
+# Cache headers for short-lived market data (1 second cache)
+CACHE_HEADERS = {"Cache-Control": "private, max-age=1"}
 
 @router.get("/ltp/{symbol}")
 async def get_ltp(symbol: str, exchange: str = "MCX"):

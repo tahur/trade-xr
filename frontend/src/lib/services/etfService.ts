@@ -92,7 +92,10 @@ function createETFStore() {
                         error: null
                     }));
 
-                    console.log(`[ETF] Loaded ${candles.length} candles for ${currentSymbol}`);
+                    // Dev logging only
+                    if (import.meta.env.DEV) {
+                        console.log(`[ETF] Loaded ${candles.length} candles for ${currentSymbol}`);
+                    }
                 }
             }
         } catch (e) {
@@ -124,7 +127,10 @@ function createETFStore() {
         // Poll candles every 60 seconds
         candleIntervalId = setInterval(fetchCandles, 60000);
 
-        console.log(`[ETF] Started polling for ${etf.symbol}`);
+        // Dev logging only
+        if (import.meta.env.DEV) {
+            console.log(`[ETF] Started polling for ${etf.symbol}`);
+        }
     }
 
     function stopPolling() {
