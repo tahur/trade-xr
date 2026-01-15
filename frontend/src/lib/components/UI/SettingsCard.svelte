@@ -45,9 +45,10 @@
     <!-- Settings Panel -->
     {#if showSettings}
         <div
-            class="absolute left-0 top-full mt-3 w-64 rounded-2xl backdrop-blur-2xl overflow-hidden
-                bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95
-                border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]"
+            class="absolute left-0 top-full mt-3 w-64 rounded-2xl backdrop-blur-xl overflow-hidden
+            bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95
+            border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]"
+            style="will-change: transform;"
             transition:scale={{ duration: 200, start: 0.9 }}
         >
             <!-- Header -->

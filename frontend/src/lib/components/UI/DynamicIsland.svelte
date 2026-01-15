@@ -350,8 +350,8 @@
             rgba(139, 92, 246, 0.04) 100%
         );
         /* Reduced blur for better performance */
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
 
         /* Border and shadow */
         border: 1px solid rgba(255, 255, 255, 0.18);
@@ -364,6 +364,7 @@
         transition:
             width 0.15s cubic-bezier(0.2, 0, 0, 1),
             height 0.15s cubic-bezier(0.2, 0, 0, 1);
+        will-change: width, height;
 
         /* Prevent text selection */
         user-select: none;
