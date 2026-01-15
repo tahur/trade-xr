@@ -1009,9 +1009,11 @@ The most expensive CSS effects are `backdrop-filter: blur()` and complex gradien
 | Optimization | Before | After |
 |--------------|--------|-------|
 | Price card blur | `backdrop-blur-2xl` (24px) | `backdrop-blur-md` (12px) |
+| Dynamic Island | `backdrop-blur-xl` (16px) | `backdrop-blur-lg` (12px) + `will-change` |
+| Settings Card | `backdrop-blur-2xl` | `backdrop-blur-xl` + `will-change` |
 | EMA smoothing | `ULTRA_SMOOTH` (0.15) | `SNAPPY` (0.7) |
 | Position updates | `top: X%` | `transform: translateY()` |
-| GPU hints | None | `will-change: transform` |
+| GPU hints | None | `will-change: transform / width, height` |
 
 ### GPU-Accelerated Properties
 

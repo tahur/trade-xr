@@ -56,6 +56,12 @@ Order confirmation uses a deliberate 3-second hold:
 | 5 | Hold 3s | Progress ring fills → Order placed! |
 | Cancel | Closed fist | Cancel anytime |
 
+### ⚡️ High Performance
+Optimized for 60fps+ tracking and rendering:
+- GPU-accelerated smooth animations (`will-change`, transforms only)
+- Optimized glassmorphism effects (12px blur sweet spot)
+- Snappy, jitter-free gesture tracking
+
 ### 📊 3D Candlestick Chart
 OHLC data rendered as 3D boxes with wicks. Green for bullish, red for bearish. Smooth camera controls with zoom support.
 
