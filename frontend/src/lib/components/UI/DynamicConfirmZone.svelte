@@ -1,0 +1,374 @@
+<script lang="ts">
+    /**
+     * DynamicConfirmZone - Gesture-based order confirmation
+     *
+     * The zone spawns at the user's hand position when thumbs up is detected.
+     * User must hold thumbs up steady inside the zone for 1.5s to confirm.
+     * Moving hand outside zone resets progress.
+     */
+
+    import { onMount, onDestroy, createEventDispatcher } from "svelte";
+    import { fade, scale } from "svelte/transition";
+    import { gestureState } from "$lib/stores/gesture";
+    import { ENGINE_CONFIG } from "$lib/services/gestureEngine";
+
+    const dispatch = createEventDispatcher<{
+        confirm: void;
+        cancel: void;
+    }>();
+
+    // Props
+    export let isActive: boolean = false;
+    export let orderDetails: {
+        side: "BUY" | "SELL";
+        quantity: number;
+        price: number;
+    } | null = null;
+
+    // === ZONE STATE ===
+    let zoneCenter = { x: 0.5, y: 0.5 }; // Normalized 0-1
+    let zoneSpawned = false;
+    let progress = 0; // 0 to 1
+    let holdStartTime: number | null = null;
+    let isComplete = false;
+    let animationFrame: number | null = null;
+
+    // === CONSTANTS ===
+    const ZONE_RADIUS = ENGINE_CONFIG.CONFIRM_ZONE_RADIUS; // 0.12 = 12% of viewport
+    const HOLD_DURATION_MS = ENGINE_CONFIG.CONFIRM_HOLD_MS; // 1500ms
+    const CIRCUMFERENCE = 2 * Math.PI * 45; // SVG circle with r=45
+
+    // === HELPERS ===
+    function distance(
+        a: { x: number; y: number },
+        b: { x: number; y: number },
+    ): number {
+        return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
+
+    function resetZone() {
+        zoneSpawned = false;
+        progress = 0;
+        holdStartTime = null;
+        isComplete = false;
+    }
+
+    // === MAIN LOGIC ===
+    function tick() {
+        if (!isActive) {
+            resetZone();
+            return;
+        }
+
+        const currentGesture = $gestureState.detectedGesture;
+        const handPos = $gestureState.handPosition;
+        const isThumbsUp = currentGesture === "Thumbs_Up";
+        const isClosedFist = currentGesture === "Closed_Fist";
+
+        // Cancel on closed fist
+        if (isClosedFist) {
+            dispatch("cancel");
+            resetZone();
+            return;
+        }
+
+        // Step 1: Spawn zone when thumbs up first detected
+        if (isThumbsUp && !zoneSpawned && $gestureState.isHandDetected) {
+            zoneCenter = { ...handPos };
+            zoneSpawned = true;
+            holdStartTime = performance.now();
+        }
+
+        // Step 2: Track progress while thumbs up in zone
+        if (zoneSpawned && isThumbsUp && $gestureState.isHandDetected) {
+            const dist = distance(handPos, zoneCenter);
+
+            if (dist < ZONE_RADIUS) {
+                // Hand is in zone - update progress
+                const elapsed =
+                    performance.now() - (holdStartTime || performance.now());
+                progress = Math.min(1, elapsed / HOLD_DURATION_MS);
+
+                // Check for completion
+                if (progress >= 1 && !isComplete) {
+                    isComplete = true;
+                    // Haptic feedback if available
+                    if ("vibrate" in navigator) {
+                        navigator.vibrate([50, 30, 50]);
+                    }
+                    dispatch("confirm");
+                }
+            } else {
+                // Hand moved outside zone - reset progress
+                progress = 0;
+                holdStartTime = performance.now(); // Restart timer
+            }
+        }
+
+        // Step 3: Reset if thumbs up released
+        if (!isThumbsUp && zoneSpawned && !isComplete) {
+            resetZone();
+        }
+
+        // Continue animation loop
+        if (isActive) {
+            animationFrame = requestAnimationFrame(tick);
+        }
+    }
+
+    // Start/stop animation loop based on isActive
+    $: if (isActive) {
+        if (animationFrame === null) {
+            animationFrame = requestAnimationFrame(tick);
+        }
+    } else {
+        if (animationFrame !== null) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+        }
+        resetZone();
+    }
+
+    onDestroy(() => {
+        if (animationFrame !== null) {
+            cancelAnimationFrame(animationFrame);
+        }
+    });
+
+    // Calculate screen position
+    $: screenX = zoneCenter.x * 100;
+    $: screenY = zoneCenter.y * 100;
+    $: strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+    $: isHandInZone =
+        zoneSpawned &&
+        distance($gestureState.handPosition, zoneCenter) < ZONE_RADIUS;
+</script>
+
+{#if isActive && zoneSpawned}
+    <div
+        class="confirm-zone"
+        style="left: {screenX}%; top: {screenY}%"
+        transition:scale={{ duration: 200, start: 0.8 }}
+    >
+        <!-- Outer glow ring -->
+        <div
+            class="zone-ring"
+            class:hand-inside={isHandInZone}
+            class:complete={isComplete}
+        >
+            <!-- Background Circle -->
+            <svg viewBox="0 0 100 100" class="progress-svg">
+                <!-- Track -->
+                <circle cx="50" cy="50" r="45" class="track-ring" />
+                <!-- Progress -->
+                <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    class="progress-ring"
+                    stroke-dasharray={CIRCUMFERENCE}
+                    stroke-dashoffset={strokeDashoffset}
+                    class:filling={progress > 0}
+                />
+            </svg>
+
+            <!-- Center Content -->
+            <div class="center-content">
+                {#if isComplete}
+                    <span class="checkmark" transition:scale={{ duration: 200 }}
+                        >✓</span
+                    >
+                {:else}
+                    <span class="emoji">👍</span>
+                {/if}
+            </div>
+        </div>
+
+        <!-- Order Details -->
+        {#if orderDetails && !isComplete}
+            <div class="order-info" transition:fade={{ duration: 150 }}>
+                <span
+                    class="side"
+                    class:buy={orderDetails.side === "BUY"}
+                    class:sell={orderDetails.side === "SELL"}
+                >
+                    {orderDetails.side}
+                </span>
+                <span class="details">
+                    {orderDetails.quantity} @ ₹{orderDetails.price.toFixed(2)}
+                </span>
+            </div>
+        {/if}
+
+        <!-- Status Text -->
+        <p class="status-text">
+            {#if isComplete}
+                Order Confirmed!
+            {:else if isHandInZone}
+                Hold steady... {Math.round(progress * 100)}%
+            {:else}
+                Move thumb into zone
+            {/if}
+        </p>
+    </div>
+{/if}
+
+<style>
+    .confirm-zone {
+        position: fixed;
+        transform: translate(-50%, -50%);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        pointer-events: none;
+    }
+
+    .zone-ring {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        position: relative;
+
+        /* Glassmorphic base */
+        background: radial-gradient(
+            circle,
+            rgba(16, 185, 129, 0.1) 0%,
+            rgba(16, 185, 129, 0.05) 50%,
+            transparent 70%
+        );
+        border: 3px solid rgba(16, 185, 129, 0.3);
+        box-shadow:
+            0 0 40px rgba(16, 185, 129, 0.2),
+            inset 0 0 30px rgba(16, 185, 129, 0.1);
+
+        transition: all 0.3s ease;
+    }
+
+    .zone-ring.hand-inside {
+        border-color: rgba(16, 185, 129, 0.7);
+        box-shadow:
+            0 0 60px rgba(16, 185, 129, 0.4),
+            inset 0 0 40px rgba(16, 185, 129, 0.2);
+    }
+
+    .zone-ring.complete {
+        border-color: rgba(16, 185, 129, 1);
+        box-shadow:
+            0 0 80px rgba(16, 185, 129, 0.6),
+            inset 0 0 50px rgba(16, 185, 129, 0.3);
+        animation: pulse 0.5s ease;
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .progress-svg {
+        position: absolute;
+        inset: 0;
+        transform: rotate(-90deg);
+    }
+
+    .track-ring {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 4;
+    }
+
+    .progress-ring {
+        fill: none;
+        stroke: #10b981;
+        stroke-width: 4;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.1s linear;
+    }
+
+    .progress-ring.filling {
+        filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
+    }
+
+    .center-content {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .emoji {
+        font-size: 48px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .checkmark {
+        font-size: 56px;
+        color: #10b981;
+        font-weight: bold;
+        animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes pop {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+        70% {
+            transform: scale(1.2);
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .order-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .side {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .side.buy {
+        background: rgba(16, 185, 129, 0.3);
+        color: #10b981;
+    }
+
+    .side.sell {
+        background: rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .details {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+    }
+
+    .status-text {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+</style>

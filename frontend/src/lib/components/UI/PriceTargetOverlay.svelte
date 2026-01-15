@@ -3,6 +3,13 @@
     import { twoHandPinch } from "$lib/stores/tracking";
     import { placeOrder } from "$lib/services/orderService";
     import { ema, EMA_PRESETS } from "$lib/utils/ema";
+    import {
+        gestureEngine,
+        acquireTrading,
+        acquireConfirming,
+        releaseTrading,
+    } from "$lib/services/gestureEngine";
+    import DynamicConfirmZone from "./DynamicConfirmZone.svelte";
     import { fade, scale } from "svelte/transition";
     import { onDestroy } from "svelte";
 
@@ -51,6 +58,8 @@
 
     function resetState() {
         clearAllTimers();
+        // Release trading context
+        releaseTrading();
         state = "IDLE";
         lockedPrice = null;
         lockTime = null;
@@ -73,9 +82,13 @@
         $gestureState.numHandsDetected === 1 &&
         !isZooming;
 
-    // Combined check including order cooldown (separate to avoid reactive cycle)
+    // Combined check including order cooldown and engine lock
     function canActivate(): boolean {
-        return isValidHand && !orderCooldownActive;
+        return (
+            isValidHand &&
+            !orderCooldownActive &&
+            gestureEngine.canAcquire("TRADING")
+        );
     }
 
     $: currentGesture = $gestureState.detectedGesture;
@@ -106,7 +119,11 @@
         ) {
             if (!entryDebounce) {
                 entryDebounce = setTimeout(() => {
-                    if ($gestureState.isHandDetected && state === "IDLE") {
+                    if (
+                        $gestureState.isHandDetected &&
+                        state === "IDLE" &&
+                        acquireTrading()
+                    ) {
                         state = "TARGETING";
                     }
                     entryDebounce = null;
@@ -152,7 +169,8 @@
                     if (
                         $gestureState.detectedGesture === "Pointing_Up" &&
                         !$gestureState.isPinching &&
-                        state === "LOCKED"
+                        state === "LOCKED" &&
+                        acquireConfirming()
                     ) {
                         state = "CONFIRMING";
                     }
@@ -221,15 +239,49 @@
         }
     }
 
+    // === DYNAMIC ZONE HANDLERS ===
+    function handleConfirmZoneConfirm() {
+        if (lockedPrice && state === "CONFIRMING") {
+            placeOrder({
+                symbol,
+                side: "BUY",
+                quantity: 1,
+                price: lockedPrice,
+            });
+            state = "ORDER_PLACED";
+            orderCooldownActive = true;
+            setTimeout(() => {
+                orderCooldownActive = false;
+            }, 3000);
+            setTimeout(resetState, 2500);
+        }
+    }
+
+    function handleConfirmZoneCancel() {
+        if (state === "CONFIRMING") {
+            resetState();
+        }
+    }
+
     // Visual states
     $: isTargeting = state === "TARGETING";
     $: isLocked =
         state === "LOCKED" ||
         state === "CONFIRMING" ||
         state === "ORDER_PLACED";
-    $: showConfirmDialog = state === "CONFIRMING";
+    $: showConfirmZone = state === "CONFIRMING";
     $: showOrderSuccess = state === "ORDER_PLACED";
 </script>
+
+<!-- Dynamic Confirmation Zone -->
+<DynamicConfirmZone
+    isActive={showConfirmZone}
+    orderDetails={lockedPrice
+        ? { side: "BUY", quantity: 1, price: lockedPrice }
+        : null}
+    on:confirm={handleConfirmZoneConfirm}
+    on:cancel={handleConfirmZoneCancel}
+/>
 
 {#if state !== "IDLE"}
     <!-- === PRICE LINE === -->
@@ -364,121 +416,17 @@
                         <span class="text-xs font-semibold text-emerald-300">
                             Point up to confirm
                         </span>
-                    {:else if showConfirmDialog}
+                    {:else if showConfirmZone}
                         <span class="text-base animate-pulse">👍</span>
                         <span
                             class="text-xs font-semibold text-emerald-300 animate-pulse"
                         >
-                            Thumbs up to buy!
+                            Hold thumbs up in zone!
                         </span>
                     {/if}
                 </div>
             </div>
         {/if}
-    </div>
-{/if}
-
-<!-- === CONFIRMATION MODAL (visionOS Glass) === -->
-{#if showConfirmDialog}
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-        transition:fade={{ duration: 150 }}
-    >
-        <div
-            class="relative px-10 py-8 rounded-3xl backdrop-blur-3xl
-                bg-gradient-to-br from-emerald-500/40 via-emerald-400/30 to-cyan-500/20
-                border border-emerald-400/50 shadow-[0_25px_80px_rgba(16,185,129,0.4)]"
-        >
-            <!-- Inner glow -->
-            <div
-                class="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"
-            ></div>
-
-            <div class="relative text-center">
-                <div class="flex items-center justify-center gap-3 mb-4">
-                    <span
-                        class="px-3 py-1 rounded-lg bg-emerald-500/50 text-sm font-black uppercase text-white"
-                    >
-                        BUY
-                    </span>
-                    <span class="text-lg font-bold text-white/90"
-                        >CONFIRM ORDER</span
-                    >
-                </div>
-
-                <!-- Order Details Grid -->
-                <div
-                    class="bg-black/20 rounded-xl px-6 py-4 mb-4 text-left space-y-2"
-                >
-                    <div class="flex justify-between items-center">
-                        <span
-                            class="text-xs text-white/50 uppercase tracking-wide"
-                            >Script</span
-                        >
-                        <span class="text-sm font-bold text-white"
-                            >{symbol}</span
-                        >
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span
-                            class="text-xs text-white/50 uppercase tracking-wide"
-                            >Order Type</span
-                        >
-                        <span class="text-sm font-medium text-cyan-300"
-                            >LIMIT</span
-                        >
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span
-                            class="text-xs text-white/50 uppercase tracking-wide"
-                            >Product</span
-                        >
-                        <span class="text-sm font-medium text-yellow-300"
-                            >CNC</span
-                        >
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span
-                            class="text-xs text-white/50 uppercase tracking-wide"
-                            >Quantity</span
-                        >
-                        <span class="text-sm font-bold text-white">1</span>
-                    </div>
-                    <div class="h-px bg-white/10 my-2"></div>
-                    <div class="flex justify-between items-center">
-                        <span
-                            class="text-xs text-white/50 uppercase tracking-wide"
-                            >Price</span
-                        >
-                        <span
-                            class="text-xl font-mono font-black text-emerald-300"
-                        >
-                            ₹{(lockedPrice ?? 0).toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-
-                <div
-                    class="flex items-center justify-center gap-2 text-emerald-200/80 text-sm animate-pulse"
-                >
-                    <!-- Thumbs Up Icon -->
-                    <svg
-                        class="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width="2"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z"
-                        />
-                    </svg>
-                    <span>Hold 👍 to confirm</span>
-                </div>
-            </div>
-        </div>
     </div>
 {/if}
 

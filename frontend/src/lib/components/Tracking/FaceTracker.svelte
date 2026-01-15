@@ -12,6 +12,11 @@
         isCameraEnabled,
     } from "$lib/stores/tracking";
     import { gestureState, zoomCooldownActive } from "$lib/stores/gesture";
+    import {
+        gestureEngine,
+        acquireZoom,
+        releaseZoom,
+    } from "$lib/services/gestureEngine";
 
     let videoElement: HTMLVideoElement;
     let faceMesh: FaceMesh;
@@ -135,11 +140,13 @@
                 );
 
                 if (!wasZooming) {
-                    // Start zoom gesture
-                    wasZooming = true;
-                    zoomStartDistance = handDist;
-                    baseZoom = $zoomLevel;
-                    lastHandDist = handDist;
+                    // Try to acquire zoom context
+                    if (acquireZoom()) {
+                        wasZooming = true;
+                        zoomStartDistance = handDist;
+                        baseZoom = $zoomLevel;
+                        lastHandDist = handDist;
+                    }
                 }
 
                 // Calculate velocity for momentum (smoothed)
@@ -167,7 +174,8 @@
                 // Less than 2 hands - end zoom gesture
                 if (wasZooming) {
                     wasZooming = false;
-                    // Start cooldown to prevent accidental trading triggers
+                    // Release zoom context with cooldown
+                    releaseZoom();
                     zoomCooldownActive.set(true);
                     if (cooldownTimer) clearTimeout(cooldownTimer);
                     cooldownTimer = setTimeout(() => {

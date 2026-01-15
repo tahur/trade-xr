@@ -14,7 +14,7 @@ A collection of planned improvements for HoloTrade. Each item includes the probl
 
 ## 1. Gesture Engine (Centralized Gesture Management)
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 **Completed**
 
 ### Problem
 
@@ -117,7 +117,7 @@ if (numHands === 2) {
 
 ## 2. Dynamic Zone Confirmation (Single Hand)
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 **Completed**
 
 ### Problem
 
