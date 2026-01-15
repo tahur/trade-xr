@@ -67,9 +67,9 @@ macOS-style notification center showing:
 
 ### 🔌 Zerodha Kite Integration
 Full integration with India's largest discount broker:
-- OAuth login flow
+- **One-Click Connect**: Branded Kite button with 3-state flow (Setup → Connect → Connected)
+- OAuth login flow managed entirely within the app
 - Real-time LTP (Last Traded Price)
-- Historical candle data
 - Order placement (Limit orders, CNC product type)
 - Position and margin tracking
 

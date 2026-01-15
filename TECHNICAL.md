@@ -91,9 +91,9 @@ frontend/src/lib/
 │   │   └── Scene3D.svelte           # 3D scene with lighting
 │   ├── Tracking/
 │   │   └── FaceTracker.svelte       # MediaPipe integration
-│   └── UI/
 │       ├── DynamicIsland.svelte     # Notification center
 │       ├── DynamicConfirmZone.svelte # Gesture confirmation zone
+│       ├── KiteButton.svelte        # API connection button
 │       ├── PriceTargetOverlay.svelte # Gesture trading UI
 │       ├── SettingsCard.svelte      # Settings panel
 │       └── ...
@@ -869,6 +869,14 @@ export async function placeOrder(params: OrderParams): Promise<OrderResult> {
 ---
 
 ## API Integration
+
+### Connection UX Flow
+
+The application uses a 3-state connection button (`KiteButton.svelte`) in the status bar:
+
+1.  **Setup (Orange)**: No keys found in `localStorage`. Opens settings modal.
+2.  **Connect (Blue)**: Keys found. Click initiates OAuth redirect to Zerodha.
+3.  **Connected (Green)**: OAuth successful. Shows branded Kite logo.
 
 ### Frontend Kite Service (`services/kite.ts`)
 
