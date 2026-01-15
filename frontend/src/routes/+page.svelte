@@ -15,6 +15,7 @@
     import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
+    import ApiKeyModal from "$lib/components/UI/ApiKeyModal.svelte";
 
     // Stores
     import {
@@ -29,8 +30,48 @@
 
     // Kite Login State
     let kiteStatus = "Not Connected";
+    let kiteState: "NOT_CONFIGURED" | "CONFIGURED" | "CONNECTED" =
+        "NOT_CONFIGURED";
+    let showApiModal = false;
+    let isConnecting = false;
+
+    function updateKiteState() {
+        if (kiteStatus === "Connected") {
+            kiteState = "CONNECTED";
+            return;
+        }
+
+        const k = localStorage.getItem("kite_api_key");
+        const s = localStorage.getItem("kite_api_secret");
+
+        if (k && s) {
+            kiteState = "CONFIGURED";
+        } else {
+            kiteState = "NOT_CONFIGURED";
+        }
+    }
+
+    // React to status changes
+    $: kiteStatus, updateKiteState();
+
+    function handleSetup() {
+        showApiModal = true;
+    }
+
+    function handleConnect() {
+        const apiKey = localStorage.getItem("kite_api_key");
+        if (!apiKey) {
+            showApiModal = true;
+            return;
+        }
+        isConnecting = true;
+        // Redirect to Kite Login
+        window.location.href = `https://kite.trade/connect/login?v=3&api_key=${apiKey}`;
+    }
 
     onMount(async () => {
+        updateKiteState();
+
         // --- BYOK: Auto-configure Backend ---
         const storedKey = localStorage.getItem("kite_api_key");
         const storedSecret = localStorage.getItem("kite_api_secret");
@@ -57,6 +98,7 @@
 
         if (requestToken) {
             kiteStatus = "Connecting...";
+            isConnecting = true;
             dynamicIsland.show(
                 {
                     type: "api",
@@ -69,6 +111,7 @@
             try {
                 await kite.login(requestToken);
                 kiteStatus = "Connected";
+                isConnecting = false;
                 dynamicIsland.show(
                     {
                         type: "api",
@@ -86,6 +129,7 @@
             } catch (e) {
                 console.error("Kite Login Error:", e);
                 kiteStatus = "Connection Failed";
+                isConnecting = false;
                 dynamicIsland.show(
                     {
                         type: "api",
@@ -343,7 +387,22 @@
     />
 
     <!-- Consolidated Status Bar (bottom-left) -->
-    <StatusBar isLive={$isTracking} apiStatus={kiteStatus} />
+    <StatusBar
+        isLive={$isTracking}
+        {kiteState}
+        loading={isConnecting}
+        on:setup={handleSetup}
+        on:connect={handleConnect}
+    />
+
+    <!-- API Key Modal (Global) -->
+    <ApiKeyModal
+        isOpen={showApiModal}
+        on:close={() => {
+            showApiModal = false;
+            updateKiteState();
+        }}
+    />
 
     <!-- Face Tracker -->
     <FaceTracker />

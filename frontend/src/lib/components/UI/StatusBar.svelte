@@ -1,8 +1,17 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
+    import { createEventDispatcher } from "svelte";
+    import KiteButton from "./KiteButton.svelte";
+
+    const dispatch = createEventDispatcher<{
+        setup: void;
+        connect: void;
+    }>();
 
     export let isLive: boolean = false;
-    export let apiStatus: string = "Not Connected";
+    export let kiteState: "NOT_CONFIGURED" | "CONFIGURED" | "CONNECTED" =
+        "NOT_CONFIGURED";
+    export let loading: boolean = false;
 </script>
 
 <div class="status-bar" transition:fade={{ duration: 200 }}>
@@ -21,25 +30,13 @@
     <!-- Divider -->
     <div class="divider"></div>
 
-    <!-- API Status -->
-    <div class="status-item">
-        <div class="status-icon" class:active={apiStatus === "Connected"}>
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                    fill-rule="evenodd"
-                    d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                    clip-rule="evenodd"
-                />
-            </svg>
-        </div>
-        <span class="status-text">
-            {apiStatus === "Connected"
-                ? "API ✓"
-                : apiStatus === "Not Connected"
-                  ? "API ✗"
-                  : "API..."}
-        </span>
-    </div>
+    <!-- Kite Connection Button -->
+    <KiteButton
+        state={kiteState}
+        {loading}
+        on:setup={() => dispatch("setup")}
+        on:connect={() => dispatch("connect")}
+    />
 </div>
 
 <style>
