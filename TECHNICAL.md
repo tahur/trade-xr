@@ -282,7 +282,7 @@ function ema(current: number, previous: number, alpha: number = 0.7): number {
 | Pinch distance | 0.7 | Reduce jitter in finger detection |
 | Hand X position | 0.7 | Smooth hand movement |
 | Hand Y position | 0.7 | Smooth hand movement |
-| Price overlay hand Y | 0.15 | Very smooth for price selection |
+| Price overlay hand Y | 0.7 | Snappy response for price selection |
 
 ### Code Example
 
@@ -290,7 +290,7 @@ function ema(current: number, previous: number, alpha: number = 0.7): number {
 // PriceTargetOverlay.svelte
 import { ema, EMA_PRESETS } from "$lib/utils/ema";
 
-const EMA_ALPHA = EMA_PRESETS.ULTRA_SMOOTH; // 0.15
+const EMA_ALPHA = EMA_PRESETS.SNAPPY; // 0.7 for fast response
 
 $: {
   const rawY = $gestureState.handPosition.y;
@@ -989,6 +989,42 @@ if (storedKey && storedSecret) {
 | Positions | Backend + Store | Fetched on demand |
 | Candles | Svelte store | Session only |
 | Settings (sensitivity) | Svelte store | Session only |
+
+---
+
+## Performance Tips
+
+### Reducing UI Lag
+
+The most expensive CSS effects are `backdrop-filter: blur()` and complex gradients. Here are the optimizations applied:
+
+| Optimization | Before | After |
+|--------------|--------|-------|
+| Price card blur | `backdrop-blur-2xl` (24px) | `backdrop-blur-md` (12px) |
+| EMA smoothing | `ULTRA_SMOOTH` (0.15) | `SNAPPY` (0.7) |
+| Position updates | `top: X%` | `transform: translateY()` |
+| GPU hints | None | `will-change: transform` |
+
+### GPU-Accelerated Properties
+
+Use these for smooth animations:
+```css
+/* Good - GPU accelerated */
+transform: translateX/Y/Z()
+opacity
+
+/* Avoid - triggers layout/paint */
+top, left, right, bottom
+width, height
+```
+
+### Blur Guidelines
+
+| Blur Radius | Performance | Use Case |
+|-------------|-------------|----------|
+| 4-8px | Excellent | Order info badges |
+| 12-16px | Good | Main UI cards |
+| 24px+ | Poor | Avoid in animated elements |
 
 ---
 
