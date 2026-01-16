@@ -337,10 +337,10 @@
     const baseCamY = 10; // Fixed Y position
     const baseCamZ = 45; // Closer for bigger candles
 
-    // Spring for smooth camera motion (snappier settings)
+    // Spring for smooth camera motion - TUNED for snappy zoom
     const camPos = spring(
         { x: baseCamX, y: baseCamY, z: baseCamZ },
-        { stiffness: 0.15, damping: 0.75 },
+        { stiffness: 0.35, damping: 0.75 },
     );
 
     // Spring for smooth parallax offset (minimal)

@@ -31,10 +31,10 @@ export const twoHandPinch = writable<TwoHandPinch>({
 // Raw zoom level (1.0 = normal, <1 = zoomed in, >1 = zoomed out)
 export const zoomLevel = writable<number>(1.0);
 
-// Smooth zoom with spring interpolation for butter-smooth transitions
+// Smooth zoom with spring interpolation - TUNED for snappy response
 export const smoothZoom = spring(1.0, {
-    stiffness: 0.1,  // Lower = smoother but slower
-    damping: 0.7     // Higher = less oscillation
+    stiffness: 0.5,  // Increased from 0.1 for much faster response
+    damping: 0.8     // Slightly higher to reduce oscillation
 });
 
 // Keep smooth zoom synced with raw zoom
