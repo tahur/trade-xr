@@ -34,6 +34,9 @@
     let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
     const ZOOM_COOLDOWN_MS = 300; // 0.3 seconds cooldown after zoom
 
+    // Frame throttling for MediaPipe CPU optimization
+    let frameCount = 0;
+
     // === SIGNAL PROCESSING LAYER ===
     // EMA Smoothing State
     const EMA_ALPHA = 0.7; // Higher = faster response (0.7 = snappy, 0.5 = balanced)
@@ -421,8 +424,11 @@
         if (videoElement) {
             camera = new Camera(videoElement, {
                 onFrame: async () => {
-                    // Send to both models
-                    await faceMesh.send({ image: videoElement });
+                    // Throttle face mesh to every other frame for CPU savings
+                    // Hand tracking runs every frame for responsiveness
+                    if (frameCount++ % 2 === 0) {
+                        await faceMesh.send({ image: videoElement });
+                    }
                     await hands.send({ image: videoElement });
                 },
                 width: 640,

@@ -392,7 +392,10 @@
     </div>
 
     <!-- Zoom Indicator -->
-    <ZoomIndicator zoomLevel={zoomPercent} isPinching={$twoHandPinch.active} />
+    <ZoomIndicator
+        zoomLevel={zoomPercent}
+        isPinching={$twoHandPinch.isActive}
+    />
 
     <!-- Holographic Frame Border -->
     <div class="absolute inset-0 pointer-events-none z-5">

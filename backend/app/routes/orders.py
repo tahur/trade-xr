@@ -15,7 +15,7 @@ class OrderRequest(BaseModel):
     transaction_type: str # BUY or SELL
 
 @router.post("/login")
-async def login(data: LoginRequest):
+def login(data: LoginRequest):
     try:
         response = kite_client.login(data.request_token)
         return response
@@ -23,7 +23,7 @@ async def login(data: LoginRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/order")
-async def place_order(order: OrderRequest):
+def place_order(order: OrderRequest):
     try:
         response = kite_client.place_order(
             symbol=order.symbol,
@@ -36,21 +36,21 @@ async def place_order(order: OrderRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/positions")
-async def get_positions():
+def get_positions():
     try:
         return kite_client.get_positions()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/margins")
-async def get_margins():
+def get_margins():
     try:
         return kite_client.get_margins()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/order/{order_id}")
-async def get_order_status(order_id: str):
+def get_order_status(order_id: str):
     """Get order status by order_id"""
     try:
         return kite_client.get_order_status(order_id)
@@ -58,9 +58,10 @@ async def get_order_status(order_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/orders")
-async def get_orders():
+def get_orders():
     """Get all orders for the day"""
     try:
         return kite_client.get_orders()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+

@@ -86,7 +86,9 @@
     $: screenY = Math.max(8, Math.min(92, smoothedHandY * 100));
 
     // Is hand valid? Block during zoom cooldown and check hand preference
-    $: isZooming = $twoHandPinch.isActive || $zoomCooldownActive;
+    // CRITICAL: Block if ANY of: zoom active, cooldown, or 2+ hands detected
+    $: isTwoHands = $gestureState.numHandsDetected >= 2;
+    $: isZooming = $twoHandPinch.isActive || $zoomCooldownActive || isTwoHands;
     $: isPreferredHand =
         $gestureState.primaryHandSide === $tradingHandPreference;
     $: isValidHand =
@@ -94,6 +96,14 @@
         $gestureState.numHandsDetected === 1 &&
         isPreferredHand &&
         !isZooming;
+
+    // Check for fist gesture on any detected hand (for cancel)
+    $: isFistDetected =
+        $gestureState.isHandDetected &&
+        $gestureState.detectedGesture === "Closed_Fist";
+
+    // Picker should be hidden during CONFIRMING state OR when ORDER_PLACED
+    $: showPricePicker = state === "TARGETING" || state === "LOCKED";
 
     // Combined check including order cooldown and engine lock
     function canActivate(): boolean {
@@ -125,8 +135,17 @@
 
     // === STATE MACHINE ===
     $: {
-        // CANCEL: Closed Fist
-        if (currentGesture === "Closed_Fist" && isValidHand) {
+        // PRIORITY: Two-hand zoom resets any active state
+        if (isZooming && state !== "IDLE" && state !== "ORDER_PLACED") {
+            resetState();
+        }
+
+        // CANCEL: Closed Fist (works even with 2 hands detected)
+        else if (
+            isFistDetected &&
+            state !== "IDLE" &&
+            state !== "ORDER_PLACED"
+        ) {
             resetState();
         }
 
@@ -313,7 +332,7 @@
     on:cancel={handleConfirmZoneCancel}
 />
 
-{#if state !== "IDLE"}
+{#if showPricePicker}
     <!-- === PRICE LINE - GPU accelerated === -->
     <div
         class="fixed left-0 right-0 pointer-events-none z-40"

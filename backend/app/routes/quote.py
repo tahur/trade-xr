@@ -8,7 +8,7 @@ router = APIRouter()
 CACHE_HEADERS = {"Cache-Control": "private, max-age=1"}
 
 @router.get("/ltp/{symbol}")
-async def get_ltp(symbol: str, exchange: str = "MCX"):
+def get_ltp(symbol: str, exchange: str = "MCX"):
     """Fetches Last Traded Price for a symbol."""
     kite = KiteClient()
     
@@ -32,7 +32,7 @@ async def get_ltp(symbol: str, exchange: str = "MCX"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/quote/{symbol}")
-async def get_quote(symbol: str, exchange: str = "MCX"):
+def get_quote(symbol: str, exchange: str = "MCX"):
     """Fetches full quote for a symbol including OHLC, volume etc."""
     kite = KiteClient()
     
@@ -66,7 +66,7 @@ async def get_quote(symbol: str, exchange: str = "MCX"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/candles/{symbol}")
-async def get_candles(symbol: str, exchange: str = "NSE", interval: str = "5minute", days: int = 1):
+def get_candles(symbol: str, exchange: str = "NSE", interval: str = "5minute", days: int = 1):
     """Fetches historical OHLC candle data for a symbol."""
     from datetime import datetime, timedelta
     

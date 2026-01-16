@@ -481,8 +481,8 @@
             rgba(139, 92, 246, 0.04) 100%
         );
         /* Reduced blur for better performance */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
 
         /* Border and shadow */
         border: 1px solid rgba(255, 255, 255, 0.18);

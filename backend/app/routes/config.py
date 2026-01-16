@@ -10,7 +10,7 @@ class ConfigRequest(BaseModel):
     api_secret: str
 
 @router.post("/config")
-async def configure_kite(config: ConfigRequest):
+def configure_kite(config: ConfigRequest):
     """
     Configures the Kite client with provided API credentials.
     """
