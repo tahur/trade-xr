@@ -1,7 +1,12 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import { Canvas } from "@threlte/core";
-    import { spring } from "svelte/motion";
+    import { spring } from "svelte/motion"; // Keep spring for rotation only
+    import {
+        animationController,
+        type CameraState,
+    } from "$lib/controllers/AnimationController";
+    import { gestureBus } from "$lib/services/gestureBus";
     import Scene3D from "$lib/components/Scene3D/Scene3D.svelte";
     import { kite } from "$lib/services/kite";
     import { etfStore } from "$lib/services/etfService";
@@ -337,33 +342,46 @@
     const baseCamY = 10; // Fixed Y position
     const baseCamZ = 45; // Closer for bigger candles
 
-    // Spring for smooth camera motion - TUNED for snappy zoom
-    const camPos = spring(
-        { x: baseCamX, y: baseCamY, z: baseCamZ },
-        { stiffness: 0.35, damping: 0.75 },
-    );
+    // Camera position now controlled by AnimationController (RAF-based)
+    let camPos = { x: baseCamX, y: baseCamY, z: baseCamZ };
 
-    // Spring for smooth parallax offset (minimal)
+    // Spring for smooth parallax rotation only (minimal)
     const camRot = spring({ x: 0, y: 0 }, { stiffness: 0.12, damping: 0.8 });
 
     // Track zoom percentage for UI display
-    $: zoomPercent = Math.round($smoothZoom * 100);
+    $: zoomPercent = Math.round(
+        $twoHandPinch.isActive
+            ? (baseCamZ / (animationController.getTarget().z || baseCamZ)) * 100
+            : 100,
+    );
 
-    // Reactive camera updates - very subtle parallax
+    // Connect AnimationController to camera position
+    onMount(() => {
+        animationController.onUpdate = (state: CameraState) => {
+            camPos = state;
+        };
+
+        // Listen for zoom events from gestureBus
+        const unsubZoom = gestureBus.on("ZOOM_UPDATE", (event) => {
+            // AnimationController handles the actual update in FaceTracker
+            // This is for any additional UI sync
+        });
+
+        return () => {
+            unsubZoom();
+        };
+    });
+
+    // Reactive parallax updates - very subtle (rotation only)
     $: {
         // Minimal position offsets for parallax (very subtle)
-        const xOffset = $headPosition.x * $sensitivity * 3; // Minimal
-        const yOffset = $headPosition.y * $sensitivity * 2; // Minimal
+        const xOffset = $headPosition.x * $sensitivity * 3;
+        const yOffset = $headPosition.y * $sensitivity * 2;
 
         camRot.set({ x: yOffset * 0.005, y: xOffset * 0.005 });
 
-        // Apply zoom and subtle parallax
-        const zoomMultiplier = $smoothZoom;
-        camPos.set({
-            x: baseCamX + xOffset,
-            y: baseCamY + yOffset,
-            z: Math.max(30, Math.min(100, baseCamZ * zoomMultiplier)),
-        });
+        // Update parallax via AnimationController
+        animationController.setParallax(xOffset, yOffset);
     }
 </script>
 
@@ -385,7 +403,7 @@
         <Canvas shadows>
             <Scene3D
                 {candles}
-                cameraPosition={$camPos}
+                cameraPosition={camPos}
                 cameraRotation={$camRot}
             />
         </Canvas>

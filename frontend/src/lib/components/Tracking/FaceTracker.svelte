@@ -17,6 +17,8 @@
         acquireZoom,
         releaseZoom,
     } from "$lib/services/gestureEngine";
+    import { animationController } from "$lib/controllers/AnimationController";
+    import { gestureBus } from "$lib/services/gestureBus";
 
     let videoElement: HTMLVideoElement;
     let faceMesh: FaceMesh;
@@ -166,6 +168,18 @@
                     Math.min(3.0, baseZoom * amplifiedRatio),
                 );
 
+                // DIRECT RAF UPDATE - bypasses spring for instant response
+                animationController.setZoom(newZoom);
+
+                // Emit event for any listeners
+                gestureBus.emit("ZOOM_UPDATE", {
+                    handDistance: handDist,
+                    initialDistance: zoomStartDistance,
+                    delta: distanceRatio - 1,
+                    zoomFactor: newZoom,
+                });
+
+                // Still update stores for UI display
                 zoomLevel.set(newZoom);
                 twoHandPinch.set({
                     isActive: true,
@@ -179,6 +193,10 @@
                     wasZooming = false;
                     // Release zoom context with cooldown
                     releaseZoom();
+
+                    // Emit zoom end event
+                    gestureBus.emit("ZOOM_END");
+
                     zoomCooldownActive.set(true);
                     if (cooldownTimer) clearTimeout(cooldownTimer);
                     cooldownTimer = setTimeout(() => {
