@@ -1,5 +1,9 @@
 <script lang="ts">
-    import { gestureState, zoomCooldownActive } from "$lib/stores/gesture";
+    import {
+        gestureState,
+        zoomCooldownActive,
+        tradingHandPreference,
+    } from "$lib/stores/gesture";
     import { twoHandPinch } from "$lib/stores/tracking";
     import { placeOrder } from "$lib/services/orderService";
     import { ema, EMA_PRESETS } from "$lib/utils/ema";
@@ -75,11 +79,14 @@
 
     $: screenY = Math.max(8, Math.min(92, smoothedHandY * 100));
 
-    // Is hand valid? Block during zoom cooldown
+    // Is hand valid? Block during zoom cooldown and check hand preference
     $: isZooming = $twoHandPinch.isActive || $zoomCooldownActive;
+    $: isPreferredHand =
+        $gestureState.primaryHandSide === $tradingHandPreference;
     $: isValidHand =
         $gestureState.isHandDetected &&
         $gestureState.numHandsDetected === 1 &&
+        isPreferredHand &&
         !isZooming;
 
     // Combined check including order cooldown and engine lock
@@ -291,11 +298,42 @@
     >
         <!-- Line -->
         <div
-            class="h-0.5 w-full transition-colors duration-200 {isLocked
-                ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent'
-                : 'bg-gradient-to-r from-transparent via-violet-400 to-transparent'}"
-            style="opacity: {isLocked ? 1 : 0.7}"
+            class="h-0.5 w-full transition-colors duration-200
+                {state === 'CONFIRMING'
+                ? 'bg-gradient-to-r from-transparent via-amber-400 to-transparent'
+                : isLocked
+                  ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent'
+                  : 'bg-gradient-to-r from-transparent via-violet-400 to-transparent'}"
+            style="opacity: {isLocked || state === 'CONFIRMING' ? 1 : 0.7}"
         ></div>
+
+        <!-- === HINT TEXT ON LINE (Above & Below) - Right side before card === -->
+        {#if !showOrderSuccess}
+            <!-- Above Line - Next Action -->
+            <div
+                class="absolute right-[160px] -top-6 text-[11px] font-semibold text-right
+                {state === 'CONFIRMING'
+                    ? 'text-amber-400'
+                    : isLocked
+                      ? 'text-emerald-400'
+                      : 'text-violet-400'}"
+            >
+                {#if state === "CONFIRMING"}
+                    👍 Hold in zone
+                {:else if isLocked}
+                    ☝️ Point up to confirm
+                {:else}
+                    👌 Pinch to lock
+                {/if}
+            </div>
+
+            <!-- Below Line - Cancel hint -->
+            <div
+                class="absolute right-[160px] top-3 text-[10px] text-white/30 text-right"
+            >
+                ✊ Fist to cancel
+            </div>
+        {/if}
 
         <!-- === PRICE CARD (visionOS Glass) === -->
         <div
