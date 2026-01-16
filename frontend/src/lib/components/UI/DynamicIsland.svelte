@@ -79,7 +79,7 @@
     // Reactively update target size
     $: {
         const targetW = mode === "compact" ? 320 : mode === "live" ? 360 : 340;
-        const targetH = mode === "compact" ? 90 : mode === "live" ? 100 : 100;
+        const targetH = mode === "compact" ? 90 : mode === "live" ? 134 : 100;
         size.set({ w: targetW, h: targetH });
     }
 
@@ -158,43 +158,45 @@
                 <!-- Compact Mode - Ticker -->
                 {#if mode === "compact" && content.type === "ticker"}
                     <div
-                        class="flex flex-col justify-center px-5 w-full h-full gap-1"
+                        class="flex items-center justify-between px-6 w-full h-full"
                     >
-                        <!-- Top Row: Symbol & Margin -->
-                        <div class="flex items-center justify-between w-full">
+                        <!-- Left: Info Group -->
+                        <div class="flex flex-col justify-center gap-0.5">
                             <span
-                                class="text-[10px] font-bold text-white/40 uppercase tracking-widest"
+                                class="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none"
                             >
                                 {content.symbol}
                             </span>
-                            {#if availableMargin !== null}
-                                <span
-                                    class="text-[10px] font-medium text-white/40"
-                                >
-                                    ₹{availableMargin.toLocaleString("en-IN", {
-                                        maximumFractionDigits: 0,
-                                    })}
-                                </span>
-                            {/if}
-                        </div>
-
-                        <!-- Bottom Row: Price & Change -->
-                        <div class="flex items-center justify-between w-full">
-                            <!-- Price -->
                             <span
-                                class="text-2xl font-mono font-black text-white tracking-tight"
+                                class="text-3xl font-mono font-medium text-white tracking-tight leading-none mt-1"
                             >
                                 ₹{content.price.toFixed(2)}
                             </span>
+                        </div>
 
-                            <!-- Change Badge -->
+                        <!-- Right: Context Group -->
+                        <div
+                            class="flex flex-col items-end justify-center gap-2"
+                        >
+                            {#if availableMargin !== null}
+                                <span
+                                    class="text-[10px] font-medium text-white/30 font-mono"
+                                >
+                                    Funds: ₹{availableMargin.toLocaleString(
+                                        "en-IN",
+                                        { maximumFractionDigits: 0 },
+                                    )}
+                                </span>
+                            {/if}
+
+                            <!-- Change Pill -->
                             <div
-                                class="flex items-center gap-1 px-2.5 py-1 rounded-lg {content.change >=
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full {content.change >=
                                 0
                                     ? 'bg-emerald-500/20 text-emerald-400'
                                     : 'bg-rose-500/20 text-rose-400'}"
                             >
-                                <span class="text-sm font-bold">
+                                <span class="text-xs font-bold font-mono">
                                     {content.change >= 0 ? "▲" : "▼"}
                                     {Math.abs(content.changePercent).toFixed(
                                         2,
@@ -322,77 +324,101 @@
                         </div>
                     {/if}
 
-                    <!-- Live Activity Mode - P&L (Original Style) -->
+                    <!-- Live Activity Mode - P&L (Refined) -->
                 {:else if mode === "live" && content.type === "pnl"}
                     <div
-                        class="flex flex-col px-5 py-2 w-full h-full gap-2"
+                        class="flex flex-col px-6 py-3 w-full h-full gap-1 justify-between"
                         in:scale={{
                             start: 0.95,
                             duration: 150,
                             easing: snappyEase,
                         }}
                     >
-                        <!-- Top row: Symbol + Position Status -->
+                        <!-- Header: Symbol + Status -->
                         <div class="flex items-center justify-between w-full">
                             <span
-                                class="text-sm font-semibold text-white tracking-wide"
+                                class="text-sm font-black text-white tracking-widest uppercase opacity-90"
                             >
                                 {content.symbol}
                             </span>
                             <div
-                                class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30"
+                                class="flex items-center gap-1.5 pl-2 pr-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
                             >
+                                <span class="relative flex h-1.5 w-1.5">
+                                    <span
+                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                                    ></span>
+                                    <span
+                                        class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"
+                                    ></span>
+                                </span>
                                 <span
-                                    class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
+                                    class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest"
                                 >
-                                    ↗ Position Open
+                                    Active
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Middle row: Prices (Avg → LTP) -->
+                        <!-- Data Grid: Prices -->
                         <div
-                            class="flex items-center justify-between w-full text-xs"
+                            class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full mt-1"
                         >
-                            <div class="flex items-center gap-1">
-                                <span class="text-white/40">Avg:</span>
-                                <span class="text-white/80 font-mono"
-                                    >₹{content.avgPrice.toFixed(2)}</span
+                            <!-- Avg Price -->
+                            <div class="flex flex-col items-start gap-0.5">
+                                <span
+                                    class="text-[9px] font-bold text-white/40 uppercase tracking-wider"
+                                    >Avg Price</span
                                 >
+                                <span
+                                    class="text-xs font-mono font-bold text-white/80 tracking-tight"
+                                >
+                                    ₹{content.avgPrice.toFixed(2)}
+                                </span>
                             </div>
-                            <span class="text-white/30">→</span>
-                            <div class="flex items-center gap-1">
-                                <span class="text-white/40">LTP:</span>
-                                <span class="text-white font-mono font-medium"
-                                    >₹{content.currentPrice.toFixed(2)}</span
+
+                            <!-- Arrow -->
+                            <span class="text-white/20 text-[10px] pb-3">➔</span
+                            >
+
+                            <!-- LTP -->
+                            <div class="flex flex-col items-end gap-0.5">
+                                <span
+                                    class="text-[9px] font-bold text-white/40 uppercase tracking-wider"
+                                    >Current</span
                                 >
+                                <span
+                                    class="text-xs font-mono font-bold text-white tracking-tight"
+                                >
+                                    ₹{content.currentPrice.toFixed(2)}
+                                </span>
                             </div>
                         </div>
 
-                        <!-- Bottom row: P&L -->
+                        <!-- Hero Row: P&L -->
                         <div
-                            class="flex items-center justify-center w-full pt-1 border-t border-white/10"
+                            class="flex items-center justify-center w-full mt-1"
                         >
-                            <span class="text-white/50 text-xs mr-2">P&L</span>
-                            <span
-                                class="text-lg font-mono font-bold {content.pnl >=
-                                0
-                                    ? 'text-green-400'
-                                    : 'text-red-400'}"
-                            >
-                                {content.pnl >= 0
-                                    ? "+"
-                                    : ""}₹{content.pnl.toFixed(2)}
-                            </span>
-                            <span
-                                class="text-sm font-mono ml-2 {content.pnl >= 0
-                                    ? 'text-green-400'
-                                    : 'text-red-400'}"
-                            >
-                                ({content.pnl >= 0
-                                    ? "+"
-                                    : ""}{content.pnlPercent.toFixed(2)}%)
-                            </span>
+                            <div class="flex items-baseline gap-2">
+                                <span
+                                    class="text-2xl font-mono font-black tracking-tighter {content.pnl >=
+                                    0
+                                        ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                                        : 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]'}"
+                                >
+                                    {content.pnl >= 0 ? "+" : ""}₹{Math.abs(
+                                        content.pnl,
+                                    ).toFixed(2)}
+                                </span>
+                                <span
+                                    class="text-xs font-mono font-bold opacity-80 {content.pnl >=
+                                    0
+                                        ? 'text-emerald-300'
+                                        : 'text-rose-300'}"
+                                >
+                                    ({content.pnlPercent.toFixed(2)}%)
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -472,61 +498,56 @@
 <style>
     .dynamic-island-wrapper {
         position: fixed;
-        top: 1.5rem;
-        right: 1.5rem;
+        top: 2rem;
+        right: 2rem;
         z-index: 100;
-        perspective: 1000px;
+        perspective: 1200px;
     }
 
     .dynamic-island {
-        /* Layout containment for performance isolation */
+        /* Layout containment */
         contain: layout style;
 
-        /* Lighter glassmorphic effect - less GPU intensive */
+        /* Glassmorphism: Frosted Glass Effect */
         background: linear-gradient(
             135deg,
-            rgba(255, 255, 255, 0.12) 0%,
-            rgba(255, 255, 255, 0.08) 50%,
-            rgba(139, 92, 246, 0.04) 100%
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0.05) 100%
         );
-        /* Reduced blur for better performance */
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
 
-        /* Border and shadow */
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        /* Soft Border */
+        border: 1px solid rgba(255, 255, 255, 0.15);
 
-        /* Rounded corners */
+        /* Soft Shadow */
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+        /* Square with subtle radius (Card shape) */
         border-radius: 16px;
 
-        /* Rounded corners */
-        border-radius: 16px;
-
-        /* NOTE: Width/Height transitions removed - handled by Svelte Spring */
+        /* Performance Optimizations */
         will-change: width, height, transform;
-
-        /* Prevent text selection */
         user-select: none;
         position: relative;
+        overflow: hidden;
     }
 
-    /* Subtle inner glow */
-    .dynamic-island::before {
+    /* Subtle top highlight for glass edge */
+    .dynamic-island::after {
         content: "";
         position: absolute;
-        inset: 0;
-        border-radius: 16px;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
         background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.08) 0%,
-            transparent 60%
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.4),
+            transparent
         );
         pointer-events: none;
-    }
-
-    /* Very subtle hover effect */
-    .dynamic-island-wrapper:hover .dynamic-island {
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+        /* No border radius needed for straight line or match parent if needed */
     }
 </style>

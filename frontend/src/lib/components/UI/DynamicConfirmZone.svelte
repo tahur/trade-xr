@@ -243,33 +243,33 @@
         border-radius: 50%;
         position: relative;
 
-        /* Glassmorphic base */
+        /* Holographic base */
         background: radial-gradient(
             circle,
-            rgba(16, 185, 129, 0.1) 0%,
-            rgba(16, 185, 129, 0.05) 50%,
-            transparent 70%
+            rgba(139, 92, 246, 0.15) 0%,
+            rgba(139, 92, 246, 0.05) 60%,
+            transparent 80%
         );
-        border: 3px solid rgba(16, 185, 129, 0.3);
+        border: 2px solid rgba(139, 92, 246, 0.4);
         box-shadow:
-            0 0 40px rgba(16, 185, 129, 0.2),
-            inset 0 0 30px rgba(16, 185, 129, 0.1);
+            0 0 50px rgba(139, 92, 246, 0.2),
+            inset 0 0 30px rgba(139, 92, 246, 0.1);
 
         transition: all 0.3s ease;
     }
 
     .zone-ring.hand-inside {
-        border-color: rgba(16, 185, 129, 0.7);
+        border-color: rgba(167, 139, 250, 0.8);
         box-shadow:
-            0 0 60px rgba(16, 185, 129, 0.4),
-            inset 0 0 40px rgba(16, 185, 129, 0.2);
+            0 0 70px rgba(167, 139, 250, 0.4),
+            inset 0 0 40px rgba(167, 139, 250, 0.2);
     }
 
     .zone-ring.complete {
-        border-color: rgba(16, 185, 129, 1);
+        border-color: rgba(167, 139, 250, 1);
         box-shadow:
-            0 0 80px rgba(16, 185, 129, 0.6),
-            inset 0 0 50px rgba(16, 185, 129, 0.3);
+            0 0 100px rgba(167, 139, 250, 0.6),
+            inset 0 0 60px rgba(167, 139, 250, 0.4);
         animation: pulse 0.5s ease;
     }
 
@@ -291,20 +291,20 @@
 
     .track-ring {
         fill: none;
-        stroke: rgba(255, 255, 255, 0.1);
-        stroke-width: 4;
+        stroke: rgba(139, 92, 246, 0.1);
+        stroke-width: 3;
     }
 
     .progress-ring {
         fill: none;
-        stroke: #10b981;
+        stroke: #8b5cf6;
         stroke-width: 4;
         stroke-linecap: round;
         transition: stroke-dashoffset 0.1s linear;
     }
 
     .progress-ring.filling {
-        filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
+        filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.8));
     }
 
     .center-content {
@@ -317,13 +317,14 @@
 
     .emoji {
         font-size: 48px;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
     }
 
     .checkmark {
         font-size: 56px;
-        color: #10b981;
+        color: #8b5cf6;
         font-weight: bold;
+        filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.5));
         animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
@@ -344,43 +345,49 @@
     .order-info {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         padding: 8px 16px;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(8px);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
     }
 
     .side {
-        font-size: 12px;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 3px 8px;
+        border-radius: 6px;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .side.buy {
-        background: rgba(16, 185, 129, 0.3);
-        color: #10b981;
+        background: rgba(167, 139, 250, 0.1);
+        color: #a78bfa;
+        border: 1px solid rgba(167, 139, 250, 0.3);
     }
 
     .side.sell {
-        background: rgba(239, 68, 68, 0.3);
-        color: #ef4444;
+        background: rgba(244, 63, 94, 0.1);
+        color: #f43f5e;
+        border: 1px solid rgba(244, 63, 94, 0.3);
     }
 
     .details {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: 500;
+        color: #ffffff;
+        font-family: monospace;
+        font-weight: 700;
+        letter-spacing: -0.02em;
     }
 
     .status-text {
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(167, 139, 250, 0.8);
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         text-align: center;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
     }
 </style>

@@ -442,16 +442,15 @@
         if (videoElement) {
             camera = new Camera(videoElement, {
                 onFrame: async () => {
-                    // Throttle BOTH Face and Hands to every other frame (30fps target)
-                    // This creates significant CPU headroom for the 60fps 3D render loop
+                    // Safe approach: Sequential execution
+                    // Hands: Priority (Every frame for gesture fluidity)
+                    await hands.send({ image: videoElement });
+
+                    // Face: Throttled (Every 2nd frame is enough for parallax)
                     frameCount++;
                     if (frameCount % 2 === 0) {
-                        await Promise.all([
-                            faceMesh.send({ image: videoElement }),
-                            hands.send({ image: videoElement })
-                        ]);
+                        await faceMesh.send({ image: videoElement });
                     }
-                },
                 },
                 width: 640,
                 height: 480,
