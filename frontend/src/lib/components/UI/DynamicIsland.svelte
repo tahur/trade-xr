@@ -280,38 +280,83 @@
                         </div>
                     {/if}
 
-                    <!-- Live Activity Mode - P&L -->
+                    <!-- Live Activity Mode - P&L (Redesigned) -->
                 {:else if mode === "live" && content.type === "pnl"}
                     <div
-                        class="flex flex-col items-center justify-center px-5 w-full h-full gap-1"
+                        class="flex flex-col px-5 py-2 w-full h-full gap-2"
                         in:scale={{
                             start: 0.95,
                             duration: 150,
                             easing: snappyEase,
                         }}
                     >
-                        <!-- Top row: Symbol and indicator -->
+                        <!-- Top row: Symbol + Position Status -->
                         <div class="flex items-center justify-between w-full">
-                            <div class="flex items-center gap-2">
-                                <div
-                                    class="w-1.5 h-1.5 rounded-full {content.position ===
-                                    'OPEN'
-                                        ? 'bg-yellow-400 animate-pulse'
-                                        : 'bg-gray-400'}"
-                                ></div>
+                            <span
+                                class="text-sm font-semibold text-white tracking-wide"
+                            >
+                                {content.symbol}
+                            </span>
+                            <div
+                                class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30"
+                            >
+                                <svg
+                                    class="w-3 h-3 text-emerald-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2.5"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                    />
+                                </svg>
                                 <span
-                                    class="text-xs font-medium text-white/90 uppercase"
-                                    >{content.symbol}</span
+                                    class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
+                                >
+                                    Position Open
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Middle row: Prices (Avg → LTP) -->
+                        <div
+                            class="flex items-center justify-between w-full text-xs"
+                        >
+                            <div class="flex items-center gap-1">
+                                <span class="text-white/40">Avg:</span>
+                                <span class="text-white/80 font-mono"
+                                    >₹{content.avgPrice.toFixed(2)}</span
                                 >
                             </div>
-                            <span class="text-xs text-white/60">
-                                {content.position}
-                            </span>
+                            <svg
+                                class="w-3 h-3 text-white/30"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                />
+                            </svg>
+                            <div class="flex items-center gap-1">
+                                <span class="text-white/40">LTP:</span>
+                                <span class="text-white font-mono font-medium"
+                                    >₹{content.currentPrice.toFixed(2)}</span
+                                >
+                            </div>
                         </div>
 
                         <!-- Bottom row: P&L -->
-                        <div class="flex items-center justify-center w-full">
-                            <span class="text-white/70 text-xs mr-2">P&L:</span>
+                        <div
+                            class="flex items-center justify-center w-full pt-1 border-t border-white/10"
+                        >
+                            <span class="text-white/50 text-xs mr-2">P&L</span>
                             <span
                                 class="text-lg font-mono font-bold {getChangeColor(
                                     content.pnl,

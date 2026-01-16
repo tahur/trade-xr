@@ -34,6 +34,8 @@ export interface PnLContent {
     symbol: string;
     pnl: number;
     pnlPercent: number;
+    avgPrice: number;      // Buy average price
+    currentPrice: number;  // Current LTP
     position: 'OPEN' | 'CLOSED';
 }
 

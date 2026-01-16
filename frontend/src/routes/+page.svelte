@@ -181,15 +181,19 @@
                     symbol: matchingPosition.symbol,
                     pnl: matchingPosition.pnl,
                     pnlPercent: pnlPercent,
+                    avgPrice: matchingPosition.averagePrice,
+                    currentPrice: matchingPosition.lastPrice,
                     position: "OPEN",
                 });
             } else {
                 // No position for selected ETF - show aggregate
-                const position = $positionsStore.positions[0];
+                const firstPos = $positionsStore.positions[0];
                 dynamicIsland.setLiveActivity({
                     symbol: `${$positionsStore.positions.length} positions`,
                     pnl: $positionsStore.totalPnl,
                     pnlPercent: $positionsStore.totalPnlPercent,
+                    avgPrice: firstPos?.averagePrice || 0,
+                    currentPrice: firstPos?.lastPrice || 0,
                     position: "OPEN",
                 });
             }
