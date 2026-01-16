@@ -313,7 +313,7 @@
                         </div>
                     {/if}
 
-                    <!-- Live Activity Mode - P&L (Redesigned) -->
+                    <!-- Live Activity Mode - P&L (Original Style) -->
                 {:else if mode === "live" && content.type === "pnl"}
                     <div
                         class="flex flex-col px-5 py-2 w-full h-full gap-2"
@@ -333,23 +333,10 @@
                             <div
                                 class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30"
                             >
-                                <svg
-                                    class="w-3 h-3 text-emerald-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                                    />
-                                </svg>
                                 <span
                                     class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
                                 >
-                                    Position Open
+                                    ↗ Position Open
                                 </span>
                             </div>
                         </div>
@@ -364,19 +351,7 @@
                                     >₹{content.avgPrice.toFixed(2)}</span
                                 >
                             </div>
-                            <svg
-                                class="w-3 h-3 text-white/30"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                />
-                            </svg>
+                            <span class="text-white/30">→</span>
                             <div class="flex items-center gap-1">
                                 <span class="text-white/40">LTP:</span>
                                 <span class="text-white font-mono font-medium"
@@ -391,18 +366,19 @@
                         >
                             <span class="text-white/50 text-xs mr-2">P&L</span>
                             <span
-                                class="text-lg font-mono font-bold {getChangeColor(
-                                    content.pnl,
-                                )}"
+                                class="text-lg font-mono font-bold {content.pnl >=
+                                0
+                                    ? 'text-green-400'
+                                    : 'text-red-400'}"
                             >
                                 {content.pnl >= 0
                                     ? "+"
                                     : ""}₹{content.pnl.toFixed(2)}
                             </span>
                             <span
-                                class="text-sm font-mono ml-2 {getChangeColor(
-                                    content.pnl,
-                                )}"
+                                class="text-sm font-mono ml-2 {content.pnl >= 0
+                                    ? 'text-green-400'
+                                    : 'text-red-400'}"
                             >
                                 ({content.pnl >= 0
                                     ? "+"
