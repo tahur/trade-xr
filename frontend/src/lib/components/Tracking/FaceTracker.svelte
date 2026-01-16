@@ -442,12 +442,16 @@
         if (videoElement) {
             camera = new Camera(videoElement, {
                 onFrame: async () => {
-                    // Throttle face mesh to every other frame for CPU savings
-                    // Hand tracking runs every frame for responsiveness
-                    if (frameCount++ % 2 === 0) {
-                        await faceMesh.send({ image: videoElement });
+                    // Throttle BOTH Face and Hands to every other frame (30fps target)
+                    // This creates significant CPU headroom for the 60fps 3D render loop
+                    frameCount++;
+                    if (frameCount % 2 === 0) {
+                        await Promise.all([
+                            faceMesh.send({ image: videoElement }),
+                            hands.send({ image: videoElement })
+                        ]);
                     }
-                    await hands.send({ image: videoElement });
+                },
                 },
                 width: 640,
                 height: 480,

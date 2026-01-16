@@ -48,7 +48,7 @@
     intensity={1.5}
     color="#ffffff"
     castShadow
-    shadow.mapSize={[1024, 1024]}
+    shadow.mapSize={[512, 512]}
 />
 
 <!-- 3. Rim/Back Light - Depth and separation -->
