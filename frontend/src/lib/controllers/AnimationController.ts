@@ -1,13 +1,5 @@
-/**
- * AnimationController - RAF-based animation for 60fps smooth updates
- * 
- * Replaces Svelte springs for camera control to achieve <50ms response
- */
-
-// Linear interpolation - core of smooth animation
-function lerp(current: number, target: number, factor: number): number {
-    return current + (target - current) * factor;
-}
+// Physics-based Animation Controller
+// Uses Damped Harmonic Oscillator for organic, butter-smooth movement
 
 export interface CameraState {
     x: number;
@@ -15,8 +7,11 @@ export interface CameraState {
     z: number;
 }
 
-interface AnimationConfig {
-    lerpFactor: number;  // 0.1-0.3 recommended (higher = faster)
+export interface PhysicsConfig {
+    stiffness: number; // Force pulling towards target (Target: 150-250)
+    damping: number;   // Friction opposing velocity (Target: 15-25)
+    mass: number;      // "Heaviness" of the camera (Target: 1-2)
+    precision: number; // Minimum velocity to keep simulating
     basePosition: CameraState;
 }
 
@@ -24,71 +19,96 @@ class AnimationController {
     private running = false;
     private rafId: number | null = null;
 
-    // Current interpolated values
+    // Position state
     private current: CameraState;
-
-    // Target values (what we're animating toward)
     private target: CameraState;
 
-    // Configuration
-    private config: AnimationConfig;
+    // Physics state (Velocity)
+    private velocity: CameraState = { x: 0, y: 0, z: 0 };
 
-    // Callback for updates - connected to camera
+    // Configuration
+    private config: PhysicsConfig;
+
+    // Time delta tracking
+    private lastTime: number = 0;
+
+    // Callback for updates
     public onUpdate: ((state: CameraState) => void) | null = null;
 
-    constructor(config: AnimationConfig) {
-        this.config = config;
-        this.current = { ...config.basePosition };
-        this.target = { ...config.basePosition };
+    constructor(config: Partial<PhysicsConfig> & { basePosition: CameraState }) {
+        this.config = {
+            stiffness: 220, // Snappy but organic
+            damping: 20,    // No over-oscillation (critical damping territory)
+            mass: 1.2,      // Slight weight for "momentum" feel
+            precision: 0.001,
+            ...config
+        };
+        this.current = { ...this.config.basePosition };
+        this.target = { ...this.config.basePosition };
     }
 
-    /**
-     * Start the animation loop
-     */
     start(): void {
         if (this.running) return;
         this.running = true;
+        this.lastTime = performance.now();
         this.loop();
-        console.log('[AnimationController] Started');
+        console.log('[AnimationController] Physics Engine Started');
     }
 
-    /**
-     * Stop the animation loop
-     */
     stop(): void {
         this.running = false;
         if (this.rafId !== null) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
         }
-        console.log('[AnimationController] Stopped');
     }
 
-    /**
-     * Main animation loop - runs at 60fps
-     */
     private loop = (): void => {
         if (!this.running) return;
 
-        // Lerp each axis toward target
-        this.current.x = lerp(this.current.x, this.target.x, this.config.lerpFactor);
-        this.current.y = lerp(this.current.y, this.target.y, this.config.lerpFactor);
-        this.current.z = lerp(this.current.z, this.target.z, this.config.lerpFactor);
+        const now = performance.now();
+        // Cap delta time to prevent physics explosions on lag spikes (max 64ms)
+        const dt = Math.min((now - this.lastTime) / 1000, 0.064);
+        this.lastTime = now;
 
-        // Dispatch update to camera
-        if (this.onUpdate) {
+        // --- PHYSICS STEP (Hooke's Law) ---
+        // Force = -k * displacement - damping * velocity
+        // Acceleration = Force / Mass
+
+        let needsUpdate = false;
+
+        (['x', 'y', 'z'] as const).forEach(axis => {
+            const displacement = this.current[axis] - this.target[axis];
+
+            // Optimization: If very close and stopped, snap to target
+            if (Math.abs(displacement) < this.config.precision && Math.abs(this.velocity[axis]) < this.config.precision) {
+                this.current[axis] = this.target[axis];
+                this.velocity[axis] = 0;
+                return;
+            }
+
+            needsUpdate = true;
+
+            const springForce = -this.config.stiffness * displacement;
+            const dampingForce = -this.config.damping * this.velocity[axis];
+            const acceleration = (springForce + dampingForce) / this.config.mass;
+
+            this.velocity[axis] += acceleration * dt;
+            this.current[axis] += this.velocity[axis] * dt;
+        });
+
+        if (needsUpdate && this.onUpdate) {
             this.onUpdate({ ...this.current });
         }
 
-        // Schedule next frame
         this.rafId = requestAnimationFrame(this.loop);
     };
 
     /**
      * Set zoom level (affects Z position)
-     * @param zoomMultiplier - 1.0 = normal, <1 = zoomed in, >1 = zoomed out
      */
     setZoom(zoomMultiplier: number): void {
+        // Clamp heavily to prevent camera clipping
         const clampedZoom = Math.max(0.3, Math.min(3.0, zoomMultiplier));
         this.target.z = this.config.basePosition.z * clampedZoom;
     }
@@ -126,6 +146,8 @@ class AnimationController {
             this.current.z = state.z;
             this.target.z = state.z;
         }
+        // Reset velocity on jump to prevent slingshot
+        this.velocity = { x: 0, y: 0, z: 0 };
     }
 
     /**
@@ -150,28 +172,23 @@ class AnimationController {
     }
 
     /**
-     * Update lerp factor dynamically
+     * Update stiffness dynamically
      */
-    setLerpFactor(factor: number): void {
-        this.config.lerpFactor = Math.max(0.05, Math.min(0.5, factor));
+    setStiffness(stiffness: number): void {
+        this.config.stiffness = stiffness;
     }
 }
 
 // === SINGLETON INSTANCE ===
-// Base camera position from +page.svelte
 const BASE_CAM_X = 25;
 const BASE_CAM_Y = 10;
 const BASE_CAM_Z = 45;
 
 export const animationController = new AnimationController({
-    lerpFactor: 0.25,  // Fast but smooth (0.25 = ~4 frames to 90% target)
     basePosition: { x: BASE_CAM_X, y: BASE_CAM_Y, z: BASE_CAM_Z }
 });
 
-// Auto-start when imported (client-side only)
+// Auto-start when imported
 if (typeof window !== 'undefined') {
     animationController.start();
 }
-
-export type { AnimationConfig };
-export { lerp };

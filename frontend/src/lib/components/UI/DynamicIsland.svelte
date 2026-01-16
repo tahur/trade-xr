@@ -72,14 +72,23 @@
     $: content = $dynamicIsland.content;
     $: isVisible = $dynamicIsland.isVisible;
 
-    // Determine width and height based on mode
-    $: width =
-        mode === "compact" ? "320px" : mode === "live" ? "360px" : "340px";
-    $: height =
-        mode === "compact" ? "90px" : mode === "live" ? "100px" : "100px";
+    // Physics-based size spring - Tuned for "Apple-like" fluid snap
+    // High stiffness = fast response, High damping = no wobble
+    const size = spring({ w: 320, h: 90 }, { stiffness: 0.35, damping: 0.82 });
+
+    // Reactively update target size
+    $: {
+        const targetW = mode === "compact" ? 320 : mode === "live" ? 360 : 340;
+        const targetH = mode === "compact" ? 90 : mode === "live" ? 100 : 100;
+        size.set({ w: targetW, h: targetH });
+    }
+
+    // Use spring values
+    $: width = `${$size.w}px`;
+    $: height = `${$size.h}px`;
 
     // Subtle 3D Tilt - high damping for efficiency
-    const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.1, damping: 0.8 });
+    const tilt = spring({ x: 0, y: 0 }, { stiffness: 0.35, damping: 0.75 });
 
     $: {
         if ($isTracking) {
@@ -491,11 +500,11 @@
         /* Rounded corners */
         border-radius: 16px;
 
-        /* Quick, smooth CSS-only transition for size changes */
-        transition:
-            width 0.15s cubic-bezier(0.2, 0, 0, 1),
-            height 0.15s cubic-bezier(0.2, 0, 0, 1);
-        will-change: width, height;
+        /* Rounded corners */
+        border-radius: 16px;
+
+        /* NOTE: Width/Height transitions removed - handled by Svelte Spring */
+        will-change: width, height, transform;
 
         /* Prevent text selection */
         user-select: none;

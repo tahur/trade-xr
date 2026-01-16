@@ -4,8 +4,8 @@
 
 // Pinch detection thresholds
 export const GESTURE_THRESHOLDS = {
-    /** Distance threshold to start pinching (stricter) */
-    PINCH_ENTER: 0.045,
+    /** Distance threshold to start pinching (stricter - was 0.045) */
+    PINCH_ENTER: 0.035,
     /** Distance threshold to stop pinching (more lenient) */
     PINCH_EXIT: 0.07,
     /** Minimum ms to hold pinch before confirming */
@@ -29,8 +29,8 @@ export const EMA_PRESETS = {
 export const TRADING_TIMING = {
     /** Delay before entering targeting mode */
     ENTRY_DELAY_MS: 200,
-    /** Delay before locking price after pinch */
-    LOCK_DELAY_MS: 350,
+    /** Delay before locking price after pinch (slower - was 350) */
+    LOCK_DELAY_MS: 450,
     /** Delay before confirming after point-up */
     CONFIRM_DELAY_MS: 400,
     /** Delay before placing order after thumbs-up */

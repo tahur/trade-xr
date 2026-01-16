@@ -13,9 +13,13 @@
         acquireConfirming,
         releaseTrading,
     } from "$lib/services/gestureEngine";
+    import { gestureBus } from "$lib/services/gestureBus";
     import DynamicConfirmZone from "./DynamicConfirmZone.svelte";
     import { fade, scale } from "svelte/transition";
-    import { onDestroy } from "svelte";
+    import { onMount, onDestroy } from "svelte";
+
+    // Track if zoom is blocking us (from event bus)
+    let isZoomBlocking = false;
 
     // Post-order cooldown to prevent re-triggering
     let orderCooldownActive = false;
@@ -77,6 +81,41 @@
 
     onDestroy(clearAllTimers);
 
+    // Subscribe to gestureBus for immediate zoom blocking
+    let unsubZoomStart: (() => void) | null = null;
+    let unsubZoomEnd: (() => void) | null = null;
+
+    onMount(() => {
+        // Zoom starts - immediately cancel any trading state
+        unsubZoomStart = gestureBus.on("ZOOM_START", () => {
+            isZoomBlocking = true;
+            if (state !== "IDLE" && state !== "ORDER_PLACED") {
+                resetState();
+            }
+        });
+
+        // Also cancel on zoom update (in case we missed ZOOM_START)
+        gestureBus.on("ZOOM_UPDATE", () => {
+            isZoomBlocking = true;
+            if (state !== "IDLE" && state !== "ORDER_PLACED") {
+                resetState();
+            }
+        });
+
+        // Zoom ends - allow trading after cooldown
+        unsubZoomEnd = gestureBus.on("ZOOM_END", () => {
+            // Keep blocking for cooldown period
+            setTimeout(() => {
+                isZoomBlocking = false;
+            }, 300); // Match ZOOM_COOLDOWN_MS
+        });
+    });
+
+    onDestroy(() => {
+        unsubZoomStart?.();
+        unsubZoomEnd?.();
+    });
+
     // === EMA SMOOTHED HAND POSITION ===
     $: {
         const rawY = $gestureState.handPosition.y;
@@ -86,7 +125,12 @@
     $: screenY = Math.max(8, Math.min(92, smoothedHandY * 100));
 
     // Is hand valid? Block during zoom cooldown and check hand preference
-    $: isZooming = $twoHandPinch.isActive || $zoomCooldownActive;
+    // CRITICAL: Use BOTH store check AND event-based flag for reliable blocking
+    $: isZooming =
+        $twoHandPinch.isActive ||
+        $zoomCooldownActive ||
+        isZoomBlocking ||
+        $gestureState.numHandsDetected >= 2;
     $: isPreferredHand =
         $gestureState.primaryHandSide === $tradingHandPreference;
     $: isValidHand =
@@ -159,11 +203,18 @@
             resetState();
         }
 
-        // TARGETING → LOCKED (pinch)
+        // TARGETING → LOCKED (pinch + STABLE HAND)
         else if (state === "TARGETING" && isPinching) {
-            if (!lockDebounce) {
+            // CRITICAL: Prevent locking if hand is moving fast (swiping)
+            const isStable = $gestureState.isHandStable;
+
+            if (isStable && !lockDebounce) {
                 lockDebounce = setTimeout(() => {
-                    if ($gestureState.isPinching && state === "TARGETING") {
+                    if (
+                        $gestureState.isPinching &&
+                        state === "TARGETING" &&
+                        $gestureState.isHandStable // Check again after delay
+                    ) {
                         lockedPrice = hoverPrice;
                         lockTime = Date.now(); // Track when locked
                         state = "LOCKED";
