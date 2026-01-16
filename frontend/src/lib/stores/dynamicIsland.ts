@@ -80,6 +80,9 @@ function createDynamicIslandStore() {
     // Store the last ticker content so we can restore it after notifications
     let lastTickerContent: TickerContent = defaultTickerContent;
 
+    // Queue P&L content when notification is active, so it can be shown after
+    let queuedPnL: PnLContent | null = null;
+
     return {
         subscribe,
 
@@ -106,6 +109,7 @@ function createDynamicIslandStore() {
         show: (content: OrderContent | ApiContent, duration = 3000) => {
             if (collapseTimer) clearTimeout(collapseTimer);
             notificationActive = true; // Prevent P&L from overriding
+            queuedPnL = null; // Clear any queued P&L when new notification starts
 
             set({
                 mode: 'expanded',
@@ -113,21 +117,35 @@ function createDynamicIslandStore() {
                 isVisible: true
             });
 
-            // Auto-collapse back to ticker - restore saved ticker content
+            // Auto-collapse - check for queued P&L first, otherwise restore ticker
             collapseTimer = setTimeout(() => {
                 notificationActive = false; // Allow P&L updates again
-                set({
-                    mode: 'compact',
-                    content: lastTickerContent,
-                    isVisible: true
-                });
+
+                // If P&L was queued during notification, show it now
+                if (queuedPnL) {
+                    set({
+                        mode: 'live',
+                        content: queuedPnL,
+                        isVisible: true
+                    });
+                    queuedPnL = null;
+                } else {
+                    set({
+                        mode: 'compact',
+                        content: lastTickerContent,
+                        isVisible: true
+                    });
+                }
             }, duration);
         },
 
-        // Set live activity (persistent P&L) - only if no notification is active
+        // Set live activity (persistent P&L) - queues if notification is active
         setLiveActivity: (pnl: Omit<PnLContent, 'type'>) => {
-            // Don't override active error/order notifications
+            const pnlContent: PnLContent = { type: 'pnl', ...pnl };
+
+            // If notification is active, queue P&L to show after it expires
             if (notificationActive) {
+                queuedPnL = pnlContent;
                 return;
             }
 
@@ -136,7 +154,7 @@ function createDynamicIslandStore() {
 
             set({
                 mode: 'live',
-                content: { type: 'pnl', ...pnl },
+                content: pnlContent,
                 isVisible: true
             });
 

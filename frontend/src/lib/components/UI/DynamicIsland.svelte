@@ -6,12 +6,14 @@
     import { headPosition, isTracking } from "$lib/stores/tracking";
     import { kite } from "$lib/services/kite";
     import { onMount, onDestroy } from "svelte";
+    import { selectedETFStore } from "$lib/stores/selectedETF";
+    import { positionsStore } from "$lib/stores/positions";
 
     // Available margin state
     let availableMargin: number | null = null;
     let marginInterval: ReturnType<typeof setInterval> | null = null;
 
-    // Fetch margin on mount and periodically
+    // Fetch margin only (positions come from store)
     async function fetchMargin() {
         try {
             const data = await kite.getMargins();
@@ -24,13 +26,44 @@
 
     onMount(() => {
         fetchMargin();
-        // Refresh every 5s for faster detection after login
+        // Refresh margin every 5s
         marginInterval = setInterval(fetchMargin, 5000);
     });
 
     onDestroy(() => {
         if (marginInterval) clearInterval(marginInterval);
     });
+
+    // React to positions store changes and update P&L display
+    $: {
+        const selectedSymbol = $selectedETFStore.symbol;
+        const positions = $positionsStore.positions;
+
+        // Find position matching selected ETF
+        const matchingPosition = positions.find(
+            (p) => p.symbol === selectedSymbol,
+        );
+
+        if (matchingPosition && matchingPosition.quantity !== 0) {
+            const pnlPercent =
+                matchingPosition.averagePrice > 0
+                    ? (matchingPosition.pnl /
+                          (matchingPosition.averagePrice *
+                              Math.abs(matchingPosition.quantity))) *
+                      100
+                    : 0;
+
+            // Update Dynamic Island with P&L
+            dynamicIsland.setLiveActivity({
+                symbol: matchingPosition.symbol,
+                pnl: matchingPosition.pnl,
+                pnlPercent: pnlPercent,
+                avgPrice: matchingPosition.averagePrice,
+                currentPrice: matchingPosition.lastPrice,
+                position: "OPEN",
+            });
+        }
+    }
 
     // Snappy easing for quick, responsive feel
     const snappyEase = cubicOut;

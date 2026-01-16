@@ -29,6 +29,7 @@
     import { positionsStore, hasOpenPositions } from "$lib/stores/positions";
     import { ordersStore, hasPendingOrders } from "$lib/stores/orders";
     import { dynamicIsland } from "$lib/stores/dynamicIsland";
+    import { selectedETFStore } from "$lib/stores/selectedETF";
 
     // Kite Login State
     let kiteStatus = "Not Connected";
@@ -99,6 +100,7 @@
         const requestToken = urlParams.get("request_token");
 
         if (requestToken) {
+            // Fresh login flow
             kiteStatus = "Connecting...";
             isConnecting = true;
             dynamicIsland.show(
@@ -145,6 +147,28 @@
                     3000,
                 );
             }
+        } else {
+            // No request token - check if existing session is valid
+            // Try to fetch margins to verify session
+            try {
+                const margins = await kite.getMargins();
+                if (
+                    margins &&
+                    (margins.available_cash !== undefined ||
+                        margins.available_margin !== undefined)
+                ) {
+                    // Session is valid! Start polling
+                    console.log(
+                        "[Session] Existing session detected, starting polling...",
+                    );
+                    kiteStatus = "Connected";
+                    positionsStore.startPolling(5000);
+                    ordersStore.startPolling(3000);
+                }
+            } catch (e) {
+                // No valid session - that's fine, user needs to login
+                console.log("[Session] No existing session found");
+            }
         }
     });
 
@@ -163,7 +187,15 @@
     $: priceChangePercent = $etfStore.changePercent;
 
     // Dynamic Island Priority: Pending Orders > P&L (only for selected ETF)
+    // Explicitly track positions array to ensure reactivity when positions load after login
+    $: positionsCount = $positionsStore.positions.length;
+    $: pendingOrdersCount = $ordersStore.pendingOrders.length;
+
     $: {
+        // Force reactivity by reading these values
+        const _p = positionsCount;
+        const _o = pendingOrdersCount;
+
         // Check for pending orders first (higher priority)
         const pendingForSymbol = $ordersStore.pendingOrders.filter(
             (o) => o.symbol === selectedETF.symbol,
@@ -244,6 +276,7 @@
         if (etf.symbol === selectedETF.symbol) return;
 
         selectedETF = etf;
+        selectedETFStore.set(etf); // Update store so DynamicIsland can access it
         etfStore.switchETF(etf);
 
         // Immediately update ticker with new symbol (price will update when data arrives)
