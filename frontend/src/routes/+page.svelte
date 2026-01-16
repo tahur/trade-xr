@@ -129,6 +129,9 @@
                 positionsStore.startPolling(5000); // Poll every 5 seconds
                 ordersStore.startPolling(3000); // Poll orders more frequently
 
+                // Immediately refresh chart data after login
+                etfStore.refresh();
+
                 window.history.replaceState(
                     {},
                     document.title,
@@ -164,6 +167,9 @@
                     kiteStatus = "Connected";
                     positionsStore.startPolling(5000);
                     ordersStore.startPolling(3000);
+
+                    // Immediately refresh chart data for existing session
+                    etfStore.refresh();
                 }
             } catch (e) {
                 // No valid session - that's fine, user needs to login
