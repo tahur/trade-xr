@@ -84,14 +84,11 @@
             return;
         }
 
-        // Step 1: Spawn zone when thumbs up first detected
+        // Step 1: Spawn zone at FIXED CENTER when thumbs up first detected
         if (isThumbsUp && !zoneSpawned && $gestureState.isHandDetected) {
-            // Lock the position - set spring instantly with { hard: true }
-            lockedCenter = { x: handPos.x, y: handPos.y };
-            zonePosition.set(
-                { x: handPos.x * 100, y: handPos.y * 100 },
-                { hard: true },
-            );
+            // Fixed center position - not following hand
+            lockedCenter = { x: 0.5, y: 0.5 };
+            zonePosition.set({ x: 50, y: 50 }, { hard: true });
             zoneSpawned = true;
             holdStartTime = performance.now();
         }
