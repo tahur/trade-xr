@@ -27,6 +27,7 @@
     } from "$lib/stores/tracking";
     import { tradingStore } from "$lib/stores/trading";
     import { positionsStore, hasOpenPositions } from "$lib/stores/positions";
+    import { ordersStore, hasPendingOrders } from "$lib/stores/orders";
     import { dynamicIsland } from "$lib/stores/dynamicIsland";
 
     // Kite Login State
@@ -124,6 +125,7 @@
 
                 // Start polling real positions from Kite
                 positionsStore.startPolling(5000); // Poll every 5 seconds
+                ordersStore.startPolling(3000); // Poll orders more frequently
 
                 window.history.replaceState(
                     {},
@@ -149,6 +151,7 @@
     // Stop polling on unmount
     onDestroy(() => {
         positionsStore.stopPolling();
+        ordersStore.stopPolling();
     });
 
     // Currently selected ETF
@@ -159,16 +162,31 @@
     $: livePrice = $etfStore.ltp;
     $: priceChangePercent = $etfStore.changePercent;
 
-    // Sync REAL P&L to Dynamic Island - show selected ETF's position or aggregate
+    // Dynamic Island Priority: Pending Orders > P&L (only for selected ETF)
     $: {
-        if ($hasOpenPositions) {
-            // Find position matching currently selected ETF
+        // Check for pending orders first (higher priority)
+        const pendingForSymbol = $ordersStore.pendingOrders.filter(
+            (o) => o.symbol === selectedETF.symbol,
+        );
+
+        if (pendingForSymbol.length > 0) {
+            // Show pending order status for selected ETF
+            const firstPending = pendingForSymbol[0];
+            dynamicIsland.setPendingOrder({
+                symbol: firstPending.symbol,
+                action: firstPending.transactionType,
+                quantity: firstPending.quantity,
+                price: firstPending.price,
+                pendingCount: pendingForSymbol.length,
+            });
+        } else {
+            // Check for position matching selected ETF
             const matchingPosition = $positionsStore.positions.find(
                 (p) => p.symbol === selectedETF.symbol,
             );
 
             if (matchingPosition) {
-                // Show P&L for the selected ETF
+                // Show P&L ONLY for the selected ETF
                 const pnlPercent =
                     matchingPosition.averagePrice > 0
                         ? (matchingPosition.pnl /
@@ -186,16 +204,8 @@
                     position: "OPEN",
                 });
             } else {
-                // No position for selected ETF - show aggregate
-                const firstPos = $positionsStore.positions[0];
-                dynamicIsland.setLiveActivity({
-                    symbol: `${$positionsStore.positions.length} positions`,
-                    pnl: $positionsStore.totalPnl,
-                    pnlPercent: $positionsStore.totalPnlPercent,
-                    avgPrice: firstPos?.averagePrice || 0,
-                    currentPrice: firstPos?.lastPrice || 0,
-                    position: "OPEN",
-                });
+                // No position for selected ETF - collapse to ticker mode
+                dynamicIsland.collapse();
             }
         }
     }

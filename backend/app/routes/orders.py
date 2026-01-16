@@ -57,3 +57,10 @@ async def get_order_status(order_id: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/orders")
+async def get_orders():
+    """Get all orders for the day"""
+    try:
+        return kite_client.get_orders()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -123,6 +123,18 @@ class KiteClient:
             logger.error(f"Error placing order: {e}")
             raise e
 
+    def get_orders(self):
+        """Fetches all orders for the day."""
+        if not self.kite or not self.access_token:
+            raise Exception("Kite session not active")
+        
+        try:
+            orders = self.kite.orders()
+            return orders if orders else []
+        except Exception as e:
+            logger.error(f"Error fetching orders: {e}")
+            raise e
+
     def get_positions(self):
         """Fetches current positions."""
         if not self.kite or not self.access_token:

@@ -39,7 +39,16 @@ export interface PnLContent {
     position: 'OPEN' | 'CLOSED';
 }
 
-export type IslandContent = TickerContent | OrderContent | ApiContent | PnLContent;
+export interface PendingOrderContent {
+    type: 'pending';
+    symbol: string;
+    action: 'BUY' | 'SELL';
+    quantity: number;
+    price: number;
+    pendingCount: number;  // Total pending orders
+}
+
+export type IslandContent = TickerContent | OrderContent | ApiContent | PnLContent | PendingOrderContent;
 
 interface DynamicIslandState {
     mode: IslandMode;
@@ -141,6 +150,22 @@ function createDynamicIslandStore() {
                     });
                 }, 5000);
             }
+        },
+
+        // Set pending order activity (shows pending orders)
+        setPendingOrder: (pending: Omit<PendingOrderContent, 'type'>) => {
+            // Don't override active notifications
+            if (notificationActive) {
+                return;
+            }
+
+            if (collapseTimer) clearTimeout(collapseTimer);
+
+            set({
+                mode: 'expanded',
+                content: { type: 'pending', ...pending },
+                isVisible: true
+            });
         },
 
         // Manually collapse to compact - restore ticker

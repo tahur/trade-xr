@@ -67,5 +67,18 @@ export const kite = {
             }
         }
         return await response.json();
+    },
+
+    async getOrders() {
+        const response = await fetch(`${API_URL}/orders`);
+        if (!response.ok) {
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Failed to fetch orders");
+            } catch {
+                throw new Error("Failed to fetch orders");
+            }
+        }
+        return await response.json();
     }
 };
