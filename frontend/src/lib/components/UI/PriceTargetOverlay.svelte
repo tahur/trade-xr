@@ -196,29 +196,33 @@
         // CONFIRMING → ORDER_PLACED (Thumbs Up)
         else if (state === "CONFIRMING" && currentGesture === "Thumbs_Up") {
             if (!orderDebounce) {
-                orderDebounce = setTimeout(() => {
+                orderDebounce = setTimeout(async () => {
                     if (
                         $gestureState.detectedGesture === "Thumbs_Up" &&
                         state === "CONFIRMING"
                     ) {
                         if (lockedPrice) {
-                            // Use centralized order service
-                            placeOrder({
+                            // Use centralized order service - await result
+                            const result = await placeOrder({
                                 symbol,
                                 side: "BUY",
                                 quantity: 1,
                                 price: lockedPrice,
                             });
+
+                            if (result.success) {
+                                state = "ORDER_PLACED";
+                                // Activate post-order cooldown to prevent re-triggering
+                                orderCooldownActive = true;
+                                setTimeout(() => {
+                                    orderCooldownActive = false;
+                                }, 3000);
+                                setTimeout(resetState, 2500);
+                            } else {
+                                // Order failed - go back to LOCKED state
+                                state = "LOCKED";
+                            }
                         }
-                        state = "ORDER_PLACED";
-
-                        // Activate post-order cooldown to prevent re-triggering
-                        orderCooldownActive = true;
-                        setTimeout(() => {
-                            orderCooldownActive = false;
-                        }, 3000); // 3 second cooldown after order
-
-                        setTimeout(resetState, 2500);
                     }
                     orderDebounce = null;
                 }, ORDER_DELAY_MS);
@@ -247,20 +251,26 @@
     }
 
     // === DYNAMIC ZONE HANDLERS ===
-    function handleConfirmZoneConfirm() {
+    async function handleConfirmZoneConfirm() {
         if (lockedPrice && state === "CONFIRMING") {
-            placeOrder({
+            const result = await placeOrder({
                 symbol,
                 side: "BUY",
                 quantity: 1,
                 price: lockedPrice,
             });
-            state = "ORDER_PLACED";
-            orderCooldownActive = true;
-            setTimeout(() => {
-                orderCooldownActive = false;
-            }, 3000);
-            setTimeout(resetState, 2500);
+
+            if (result.success) {
+                state = "ORDER_PLACED";
+                orderCooldownActive = true;
+                setTimeout(() => {
+                    orderCooldownActive = false;
+                }, 3000);
+                setTimeout(resetState, 2500);
+            } else {
+                // Order failed - go back to LOCKED state
+                state = "LOCKED";
+            }
         }
     }
 

@@ -64,6 +64,7 @@ function createDynamicIslandStore() {
 
     let collapseTimer: ReturnType<typeof setTimeout> | null = null;
     let liveActivityTimeout: ReturnType<typeof setTimeout> | null = null;
+    let notificationActive = false; // Prevent P&L from overriding error/order notifications
 
     // Store the last ticker content so we can restore it after notifications
     let lastTickerContent: TickerContent = defaultTickerContent;
@@ -90,9 +91,10 @@ function createDynamicIslandStore() {
             });
         },
 
-        // Show notification (auto-collapse)
+        // Show notification (auto-collapse) - takes priority over live activities
         show: (content: OrderContent | ApiContent, duration = 3000) => {
             if (collapseTimer) clearTimeout(collapseTimer);
+            notificationActive = true; // Prevent P&L from overriding
 
             set({
                 mode: 'expanded',
@@ -102,6 +104,7 @@ function createDynamicIslandStore() {
 
             // Auto-collapse back to ticker - restore saved ticker content
             collapseTimer = setTimeout(() => {
+                notificationActive = false; // Allow P&L updates again
                 set({
                     mode: 'compact',
                     content: lastTickerContent,
@@ -110,8 +113,13 @@ function createDynamicIslandStore() {
             }, duration);
         },
 
-        // Set live activity (persistent P&L)
+        // Set live activity (persistent P&L) - only if no notification is active
         setLiveActivity: (pnl: Omit<PnLContent, 'type'>) => {
+            // Don't override active error/order notifications
+            if (notificationActive) {
+                return;
+            }
+
             if (collapseTimer) clearTimeout(collapseTimer);
             if (liveActivityTimeout) clearTimeout(liveActivityTimeout);
 

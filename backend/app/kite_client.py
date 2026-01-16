@@ -153,3 +153,30 @@ class KiteClient:
         except Exception as e:
             logger.error(f"Error fetching margins: {e}")
             raise e
+
+    def get_order_status(self, order_id):
+        """Fetches order status and history."""
+        if not self.kite or not self.access_token:
+            raise Exception("Kite session not active")
+        
+        try:
+            # Get order history - returns list of status changes
+            history = self.kite.order_history(order_id)
+            
+            if history and len(history) > 0:
+                # Get the latest status (last entry)
+                latest = history[-1]
+                return {
+                    "order_id": order_id,
+                    "status": latest.get("status", "UNKNOWN"),
+                    "status_message": latest.get("status_message", ""),
+                    "filled_quantity": latest.get("filled_quantity", 0),
+                    "pending_quantity": latest.get("pending_quantity", 0),
+                    "average_price": latest.get("average_price", 0)
+                }
+            else:
+                return {"order_id": order_id, "status": "UNKNOWN", "status_message": "No history found"}
+                
+        except Exception as e:
+            logger.error(f"Error fetching order status: {e}")
+            raise e

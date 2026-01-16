@@ -48,3 +48,12 @@ async def get_margins():
         return kite_client.get_margins()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/order/{order_id}")
+async def get_order_status(order_id: str):
+    """Get order status by order_id"""
+    try:
+        return kite_client.get_order_status(order_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

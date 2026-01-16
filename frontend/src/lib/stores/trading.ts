@@ -32,61 +32,74 @@ const initialState: TradingState = {
 };
 
 function createTradingStore() {
-    const { subscribe, update } = writable<TradingState>(initialState);
+    const { subscribe, update, set } = writable<TradingState>(initialState);
 
     return {
         subscribe,
-        placeOrder: async (symbol: string, side: 'BUY' | 'SELL', quantity: number, price: number) => {
-            // 1. Call Real API (Fire and forget or await?)
-            // We'll treat it as optimistic update for now, but usually we would wait.
-            try {
-                await kite.placeOrder(symbol, side, quantity, price);
-                console.log("Kite Order Placed:", symbol, side, quantity, price);
-            } catch (e) {
-                console.error("Kite Order Failed:", e);
-                // We might want to NOT update local state if API fails, but for now let's keep the mock behavior as "Demo" fallback or optimistic.
-                // Or better, let's keep the mock logic as the "UI feedback" since we might not have webhooks yet.
-            }
 
+        /**
+         * Fetch real positions from Kite API and update store
+         */
+        fetchRealPositions: async () => {
+            try {
+                const data = await kite.getPositions();
+                const positions: Position[] = (data.net || []).map((p: any) => ({
+                    symbol: p.tradingsymbol,
+                    quantity: p.quantity,
+                    avgPrice: p.average_price,
+                    currentPrice: p.last_price,
+                    pnl: p.pnl || (p.last_price - p.average_price) * p.quantity
+                }));
+
+                update(state => ({
+                    ...state,
+                    positions
+                }));
+
+                return positions;
+            } catch (e) {
+                console.error("[TradingStore] Failed to fetch positions:", e);
+                return [];
+            }
+        },
+
+        /**
+         * Update local state after a successful order (called by orderService)
+         * Only updates optimistic UI - real data comes from fetchRealPositions
+         */
+        addLocalOrder: (symbol: string, side: 'BUY' | 'SELL', quantity: number, price: number) => {
             update(state => {
                 const id = Math.random().toString(36).substr(2, 9);
-                const newOrder: Order = {
+                const filledOrder: Order = {
                     id,
                     symbol,
                     side,
                     quantity,
                     price,
-                    status: 'OPEN',
+                    status: 'FILLED',
                     timestamp: new Date()
                 };
 
-                // Mock Instant Fill for demo
-                const filledOrder = { ...newOrder, status: 'FILLED' as const };
-
-                // Update Position
+                // Update Position optimistically
                 const existingPosIndex = state.positions.findIndex(p => p.symbol === symbol);
                 let newPositions = [...state.positions];
 
                 if (existingPosIndex > -1) {
                     const pos = newPositions[existingPosIndex];
-                    // Simple averaging logic
-                    const totalVal = (pos.quantity * pos.avgPrice) + (quantity * price);
-                    const totalQty = pos.quantity + quantity; // Assuming BUY for now
-
                     if (side === 'BUY') {
+                        const totalVal = (pos.quantity * pos.avgPrice) + (quantity * price);
+                        const totalQty = pos.quantity + quantity;
                         newPositions[existingPosIndex] = {
                             ...pos,
                             quantity: totalQty,
                             avgPrice: totalVal / totalQty
                         };
                     } else {
-                        // Sell logic simplifed: reduce qty
                         newPositions[existingPosIndex].quantity -= quantity;
                         if (newPositions[existingPosIndex].quantity <= 0) {
                             newPositions = newPositions.filter(p => p.symbol !== symbol);
                         }
                     }
-
                 } else if (side === 'BUY') {
                     newPositions.push({
                         symbol,
@@ -105,6 +118,16 @@ function createTradingStore() {
                 };
             });
         },
+
+        /**
+         * @deprecated Use addLocalOrder instead - this method has confusing behavior
+         */
+        placeOrder: async (symbol: string, side: 'BUY' | 'SELL', quantity: number, price: number) => {
+            // Just call addLocalOrder for backward compatibility
+            // The actual API call is handled by orderService
+            console.warn("[TradingStore] placeOrder is deprecated, use addLocalOrder instead");
+        },
+
         updatePrice: (currentPrice: number) => {
             update(state => {
                 const newPositions = state.positions.map(p => ({
