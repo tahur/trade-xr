@@ -16,6 +16,7 @@
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
     import ApiKeyModal from "$lib/components/UI/ApiKeyModal.svelte";
+    import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
 
     // Stores
     import {
@@ -333,29 +334,35 @@
 
     // Base camera position - trading desk perspective (looking at monitor)
     const baseCamX = 25; // Center X to see all 50 candles
-    $: baseCamY = 8; // Lowered for larger chart view
-    const baseCamZ = 45; // Closer for bigger candles (was 60)
+    const baseCamY = 10; // Fixed Y position
+    const baseCamZ = 45; // Closer for bigger candles
 
-    // Spring for smooth camera motion
+    // Spring for smooth camera motion (snappier settings)
     const camPos = spring(
-        { x: baseCamX, y: 10, z: baseCamZ },
-        { stiffness: 0.08, damping: 0.6 },
+        { x: baseCamX, y: baseCamY, z: baseCamZ },
+        { stiffness: 0.15, damping: 0.75 },
     );
 
-    // Reactive camera updates - responds to centerPrice changes
-    $: {
-        const xOffset = $headPosition.x * $sensitivity * 50;
-        const yOffset = $headPosition.y * $sensitivity * 20;
-        const zOffset = ($headPosition.z - 0.45) * -300;
-        const zoomMultiplier = $smoothZoom; // Use smooth spring zoom
+    // Spring for smooth parallax offset (minimal)
+    const camRot = spring({ x: 0, y: 0 }, { stiffness: 0.12, damping: 0.8 });
 
+    // Track zoom percentage for UI display
+    $: zoomPercent = Math.round($smoothZoom * 100);
+
+    // Reactive camera updates - very subtle parallax
+    $: {
+        // Minimal position offsets for parallax (very subtle)
+        const xOffset = $headPosition.x * $sensitivity * 3; // Minimal
+        const yOffset = $headPosition.y * $sensitivity * 2; // Minimal
+
+        camRot.set({ x: yOffset * 0.005, y: xOffset * 0.005 });
+
+        // Apply zoom and subtle parallax
+        const zoomMultiplier = $smoothZoom;
         camPos.set({
             x: baseCamX + xOffset,
             y: baseCamY + yOffset,
-            z: Math.max(
-                50,
-                Math.min(300, (baseCamZ + zOffset) * zoomMultiplier),
-            ),
+            z: Math.max(30, Math.min(100, baseCamZ * zoomMultiplier)),
         });
     }
 </script>
@@ -376,9 +383,16 @@
     <!-- 3D Scene Layer -->
     <div class="absolute inset-0 z-0">
         <Canvas shadows>
-            <Scene3D {candles} cameraPosition={$camPos} />
+            <Scene3D
+                {candles}
+                cameraPosition={$camPos}
+                cameraRotation={$camRot}
+            />
         </Canvas>
     </div>
+
+    <!-- Zoom Indicator -->
+    <ZoomIndicator zoomLevel={zoomPercent} isPinching={$twoHandPinch.active} />
 
     <!-- Holographic Frame Border -->
     <div class="absolute inset-0 pointer-events-none z-5">

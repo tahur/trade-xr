@@ -11,12 +11,22 @@
         y: 10,
         z: 45,
     };
+    // Parallax offset (subtle position adjustment based on head tracking)
+    export let cameraRotation: { x: number; y: number } = { x: 0, y: 0 };
+
+    // Apply parallax as subtle position offset (not rotation - conflicts with OrbitControls)
+    $: parallaxX = cameraRotation.y * 15; // Convert rotation to position offset
+    $: parallaxY = -cameraRotation.x * 10;
 </script>
 
-<!-- Camera pointing at chart -->
+<!-- Camera with OrbitControls (parallax applied via position offset) -->
 <T.PerspectiveCamera
     makeDefault
-    position={[cameraPosition.x, cameraPosition.y, cameraPosition.z]}
+    position={[
+        cameraPosition.x + parallaxX,
+        cameraPosition.y + parallaxY,
+        cameraPosition.z,
+    ]}
     fov={55}
 >
     <OrbitControls
