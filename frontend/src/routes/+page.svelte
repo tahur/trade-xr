@@ -472,6 +472,7 @@
     <PriceTargetOverlay
         minPrice={minLow}
         maxPrice={maxHigh}
+        ltp={$etfStore.ltp}
         symbol={selectedETF.symbol}
     />
 

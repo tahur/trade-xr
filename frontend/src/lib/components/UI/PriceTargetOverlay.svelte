@@ -22,7 +22,13 @@
 
     export let minPrice: number;
     export let maxPrice: number;
+    export let ltp: number = 0; // Last Traded Price - center point
     export let symbol: string = "SILVERCASE"; // Current ETF symbol
+
+    // Price range based on LTP (±5% range around LTP)
+    $: priceRange = ltp > 0 ? ltp * 0.05 : (maxPrice - minPrice) / 2;
+    $: effectiveMin = ltp > 0 ? ltp - priceRange : minPrice;
+    $: effectiveMax = ltp > 0 ? ltp + priceRange : maxPrice;
 
     // === STATE MACHINE (BUY ONLY) ===
     type State =
@@ -101,14 +107,21 @@
     $: currentGesture = $gestureState.detectedGesture;
     $: isPinching = $gestureState.isPinching;
 
-    // Price calculation with EMA
+    // Price calculation with EMA - LTP centered
+    // Hand at center (y=0.5) = LTP
+    // Hand above (y<0.5) = price above LTP
+    // Hand below (y>0.5) = price below LTP
     function handYToPrice(y: number): number {
         const clamped = Math.max(0.1, Math.min(0.9, y));
-        return minPrice + (maxPrice - minPrice) * (1 - clamped);
+        // Invert Y so higher hand = higher price
+        // Center at 0.5 = LTP
+        return effectiveMin + (effectiveMax - effectiveMin) * (1 - clamped);
     }
 
     $: hoverPrice = handYToPrice(smoothedHandY);
     $: displayPrice = lockedPrice ?? hoverPrice;
+    $: priceOffset = ltp > 0 ? displayPrice - ltp : 0;
+    $: priceOffsetPercent = ltp > 0 ? (priceOffset / ltp) * 100 : 0;
 
     // === STATE MACHINE ===
     $: {
@@ -443,6 +456,29 @@
                 >
                     ₹{displayPrice.toFixed(2)}
                 </div>
+
+                <!-- Price Offset Indicator (subtle) -->
+                {#if ltp > 0 && !showOrderSuccess}
+                    <div
+                        class="mt-1 flex items-center gap-1.5 text-[11px] font-mono"
+                    >
+                        <span class="text-white/40">LTP</span>
+                        <span
+                            class={priceOffset >= 0
+                                ? "text-emerald-400"
+                                : "text-red-400"}
+                        >
+                            {priceOffset >= 0 ? "+" : ""}{priceOffset.toFixed(
+                                2,
+                            )}
+                        </span>
+                        <span class="text-white/30">
+                            ({priceOffset >= 0
+                                ? "+"
+                                : ""}{priceOffsetPercent.toFixed(1)}%)
+                        </span>
+                    </div>
+                {/if}
             </div>
         </div>
 

@@ -55,7 +55,9 @@ async def get_quote(symbol: str, exchange: str = "MCX"):
                 "close": quote.get("ohlc", {}).get("close", 0),
                 "change": quote.get("net_change", 0),
                 "change_percent": quote.get("net_change", 0) / quote.get("ohlc", {}).get("close", 1) * 100 if quote.get("ohlc", {}).get("close") else 0,
-                "volume": quote.get("volume", 0)
+                "volume": quote.get("volume", 0),
+                "upper_circuit": quote.get("upper_circuit_limit", 0),
+                "lower_circuit": quote.get("lower_circuit_limit", 0)
             }
         else:
             raise HTTPException(status_code=404, detail=f"Symbol {symbol} not found")
