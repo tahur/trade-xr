@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { Canvas } from "@threlte/core";
     import { spring } from "svelte/motion";
     import Scene3D from "$lib/components/Scene3D/Scene3D.svelte";
@@ -26,6 +26,7 @@
         isTracking,
     } from "$lib/stores/tracking";
     import { tradingStore } from "$lib/stores/trading";
+    import { positionsStore, hasOpenPositions } from "$lib/stores/positions";
     import { dynamicIsland } from "$lib/stores/dynamicIsland";
 
     // Kite Login State
@@ -121,6 +122,9 @@
                     2500,
                 );
 
+                // Start polling real positions from Kite
+                positionsStore.startPolling(5000); // Poll every 5 seconds
+
                 window.history.replaceState(
                     {},
                     document.title,
@@ -142,6 +146,11 @@
         }
     });
 
+    // Stop polling on unmount
+    onDestroy(() => {
+        positionsStore.stopPolling();
+    });
+
     // Currently selected ETF
     let selectedETF = DEFAULT_ETF;
 
@@ -150,27 +159,40 @@
     $: livePrice = $etfStore.ltp;
     $: priceChangePercent = $etfStore.changePercent;
 
-    // Update trading store with current price for P&L calculation
+    // Sync REAL P&L to Dynamic Island - show selected ETF's position or aggregate
     $: {
-        if (livePrice > 0) {
-            tradingStore.updatePrice(livePrice);
-        }
-    }
+        if ($hasOpenPositions) {
+            // Find position matching currently selected ETF
+            const matchingPosition = $positionsStore.positions.find(
+                (p) => p.symbol === selectedETF.symbol,
+            );
 
-    // Sync P&L to Dynamic Island when position exists
-    $: {
-        const positions = $tradingStore.positions;
-        if (positions.length > 0) {
-            const position = positions[0]; // Show first position
-            const pnlPercent =
-                (position.pnl / (position.avgPrice * position.quantity)) * 100;
+            if (matchingPosition) {
+                // Show P&L for the selected ETF
+                const pnlPercent =
+                    matchingPosition.averagePrice > 0
+                        ? (matchingPosition.pnl /
+                              (matchingPosition.averagePrice *
+                                  Math.abs(matchingPosition.quantity))) *
+                          100
+                        : 0;
 
-            dynamicIsland.setLiveActivity({
-                symbol: position.symbol,
-                pnl: position.pnl,
-                pnlPercent: pnlPercent,
-                position: "OPEN",
-            });
+                dynamicIsland.setLiveActivity({
+                    symbol: matchingPosition.symbol,
+                    pnl: matchingPosition.pnl,
+                    pnlPercent: pnlPercent,
+                    position: "OPEN",
+                });
+            } else {
+                // No position for selected ETF - show aggregate
+                const position = $positionsStore.positions[0];
+                dynamicIsland.setLiveActivity({
+                    symbol: `${$positionsStore.positions.length} positions`,
+                    pnl: $positionsStore.totalPnl,
+                    pnlPercent: $positionsStore.totalPnlPercent,
+                    position: "OPEN",
+                });
+            }
         }
     }
 
