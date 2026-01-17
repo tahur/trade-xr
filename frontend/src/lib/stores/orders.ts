@@ -4,17 +4,7 @@
  */
 import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
-
-export interface KiteOrder {
-    orderId: string;
-    symbol: string;
-    transactionType: 'BUY' | 'SELL';
-    quantity: number;
-    price: number;
-    status: 'OPEN' | 'COMPLETE' | 'CANCELLED' | 'REJECTED' | 'PENDING';
-    statusMessage: string;
-    orderTimestamp: string;
-}
+import type { KiteOrder } from '../types/trading';
 
 export interface OrdersState {
     orders: KiteOrder[];

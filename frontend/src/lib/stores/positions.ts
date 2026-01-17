@@ -4,16 +4,10 @@
  */
 import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
+import type { Position } from '../types/trading';
 
-export interface RealPosition {
-    symbol: string;
-    quantity: number;
-    averagePrice: number;
-    lastPrice: number;
-    pnl: number;
-    dayChange: number;
-    dayChangePercent: number;
-}
+// Using Position from central types (RealPosition is an alias)
+export type RealPosition = Position;
 
 export interface PositionsState {
     positions: RealPosition[];

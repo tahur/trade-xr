@@ -1,23 +1,9 @@
 import { writable } from 'svelte/store';
 import { kite } from "../services/kite";
+import type { LegacyPosition, Order } from '../types/trading';
 
-export interface Position {
-    symbol: string;
-    quantity: number;
-    avgPrice: number;
-    currentPrice: number;
-    pnl: number;
-}
-
-export interface Order {
-    id: string;
-    symbol: string;
-    side: 'BUY' | 'SELL';
-    quantity: number;
-    price: number;
-    status: 'OPEN' | 'FILLED' | 'CANCELLED';
-    timestamp: Date;
-}
+// Using LegacyPosition for backward compatibility with local state
+export type Position = LegacyPosition;
 
 export interface TradingState {
     balance: number;
