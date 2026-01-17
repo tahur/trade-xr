@@ -365,233 +365,247 @@
 />
 
 {#if state !== "IDLE"}
-    <!-- === PRICE LINE - GPU accelerated === -->
+    <!-- === HOLOGRAPHIC TARGETING LINE === -->
     <div
         class="fixed left-0 right-0 pointer-events-none z-40"
         style="top: 0; transform: translateY({screenY}vh); will-change: transform;"
     >
-        <!-- Line -->
-        <div
-            class="h-0.5 w-full transition-colors duration-200
-                {state === 'CONFIRMING'
-                ? 'bg-gradient-to-r from-transparent via-amber-400 to-transparent'
-                : isLocked
-                  ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent'
-                  : 'bg-gradient-to-r from-transparent via-violet-400 to-transparent'}"
-            style="opacity: {isLocked || state === 'CONFIRMING' ? 1 : 0.7}"
-        ></div>
-
-        <!-- === HINT TEXT ON LINE (Above & Below) - Right side before card === -->
-        {#if !showOrderSuccess}
-            <!-- Above Line - Next Action -->
+        <!-- Main Line with Glow -->
+        <div class="relative">
+            <!-- Glow Layer -->
             <div
-                class="absolute right-[160px] -top-6 text-[11px] font-semibold text-right
-                {state === 'CONFIRMING'
-                    ? 'text-amber-400'
+                class="absolute inset-0 h-1 blur-sm transition-all duration-300
+                    {state === 'CONFIRMING'
+                    ? 'bg-gradient-to-r from-transparent via-amber-400 to-transparent'
                     : isLocked
-                      ? 'text-emerald-400'
-                      : 'text-violet-400'}"
-            >
-                {#if state === "CONFIRMING"}
-                    👍 Hold in zone
-                {:else if isLocked}
-                    ☝️ Point up to confirm
-                {:else}
-                    👌 Pinch to lock
-                {/if}
-            </div>
-
-            <!-- Below Line - Cancel hint -->
+                      ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent'
+                      : 'bg-gradient-to-r from-transparent via-violet-500 to-transparent'}"
+                style="opacity: {isLocked ? 0.8 : 0.5}"
+            ></div>
+            <!-- Core Line -->
             <div
-                class="absolute right-[160px] top-3 text-[10px] text-white/30 text-right"
-            >
-                ✊ Fist to cancel
-            </div>
-        {/if}
+                class="h-[2px] w-full transition-colors duration-200
+                    {state === 'CONFIRMING'
+                    ? 'bg-gradient-to-r from-transparent via-amber-300 to-transparent'
+                    : isLocked
+                      ? 'bg-gradient-to-r from-transparent via-emerald-300 to-transparent'
+                      : 'bg-gradient-to-r from-transparent via-violet-400 to-transparent'}"
+            ></div>
+        </div>
 
-        <!-- === PRICE CARD (visionOS Glass) === -->
-        <div
-            class="absolute right-4 -translate-y-1/2 min-w-[140px]"
-            transition:scale={{ duration: 150, start: 0.9 }}
-        >
+        {#if !showOrderSuccess}
+            <!-- === CENTERED HUD INSTRUCTION === -->
             <div
-                class="relative px-5 py-4 rounded-2xl backdrop-blur-md border
-                    {isLocked
-                    ? 'bg-emerald-500/25 border-emerald-400/50 shadow-lg shadow-emerald-500/20'
-                    : 'bg-white/15 border-white/30 shadow-lg shadow-violet-500/15'}"
-                style="will-change: transform, opacity;"
+                class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+                transition:scale={{ duration: 150, start: 0.9 }}
             >
-                <!-- Inner glow -->
                 <div
-                    class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"
-                ></div>
-
-                <!-- Status Label -->
-                <div class="relative flex items-center gap-2 mb-1">
-                    {#if showOrderSuccess}
-                        <svg
-                            class="w-3.5 h-3.5 text-emerald-300"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="2.5"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12.75l6 6 9-13.5"
-                            />
-                        </svg>
+                    class="px-5 py-2 backdrop-blur-xl rounded-full border flex items-center gap-3 shadow-2xl
+                        {state === 'CONFIRMING'
+                        ? 'bg-amber-950/60 border-amber-500/40'
+                        : isLocked
+                          ? 'bg-emerald-950/60 border-emerald-500/40'
+                          : 'bg-slate-950/60 border-violet-500/40'}"
+                >
+                    {#if isTargeting}
+                        <span class="text-lg">👌</span>
                         <span
-                            class="text-[10px] font-black uppercase tracking-wider text-emerald-300"
+                            class="text-xs font-bold uppercase tracking-widest text-violet-300"
                         >
-                            ORDER PLACED
+                            Pinch to Lock
                         </span>
-                    {:else if isLocked}
+                    {:else if state === "LOCKED"}
+                        <span class="text-lg">☝️</span>
                         <span
-                            class="px-2 py-0.5 rounded-md bg-emerald-500/40 text-[9px] font-black uppercase tracking-wider text-emerald-200"
+                            class="text-xs font-bold uppercase tracking-widest text-emerald-300"
                         >
-                            BUY
+                            Point Up to Confirm
                         </span>
-                        <svg
-                            class="w-3 h-3 text-emerald-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="2.5"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                            />
-                        </svg>
+                    {:else if showConfirmZone}
+                        <span class="text-lg animate-pulse">👍</span>
                         <span
-                            class="text-[10px] font-bold uppercase tracking-wider text-emerald-200/80"
+                            class="text-xs font-bold uppercase tracking-widest text-amber-300 animate-pulse"
                         >
-                            LOCKED
-                        </span>
-                    {:else}
-                        <svg
-                            class="w-3 h-3 text-violet-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="2"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                            />
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                        </svg>
-                        <span
-                            class="text-[10px] font-bold uppercase tracking-wider text-violet-200/80"
-                        >
-                            TARGET PRICE
+                            Hold in Zone
                         </span>
                     {/if}
                 </div>
+            </div>
 
-                <!-- Price -->
+            <!-- === PRICE TAG (Premium Right-Side Design) === -->
+            <div
+                class="absolute right-0 -translate-y-1/2 flex items-center"
+                transition:fade={{ duration: 150 }}
+            >
+                <!-- Holographic Price Plate -->
                 <div
-                    class="relative text-2xl font-mono font-black tracking-tight
+                    class="relative pl-6 pr-5 py-3 rounded-l-2xl border-y border-l backdrop-blur-xl shadow-2xl
                         {isLocked
-                        ? 'text-white drop-shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                        : 'text-white/90'}"
+                        ? 'bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-emerald-500/50'
+                        : 'bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-violet-500/40'}"
                 >
-                    ₹{displayPrice.toFixed(2)}
-                </div>
-
-                <!-- Price Offset Indicator (subtle) -->
-                {#if ltp > 0 && !showOrderSuccess}
+                    <!-- Inner Shine -->
                     <div
-                        class="mt-1 flex items-center gap-1.5 text-[11px] font-mono"
-                    >
-                        <span class="text-white/40">LTP</span>
+                        class="absolute inset-0 rounded-l-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none"
+                    ></div>
+
+                    <!-- Status Badge -->
+                    <div class="flex items-center gap-2 mb-1">
+                        {#if isLocked}
+                            <span
+                                class="px-2 py-0.5 rounded-md bg-emerald-500/30 text-[9px] font-black uppercase tracking-wider text-emerald-400 border border-emerald-500/30"
+                            >
+                                BUY
+                            </span>
+                            <svg
+                                class="w-3 h-3 text-emerald-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke-width="2.5"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                                />
+                            </svg>
+                            <span
+                                class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80"
+                            >
+                                Locked
+                            </span>
+                        {:else}
+                            <svg
+                                class="w-3 h-3 text-violet-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke-width="2"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+                                />
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                            </svg>
+                            <span
+                                class="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80"
+                            >
+                                Target
+                            </span>
+                        {/if}
+                    </div>
+
+                    <!-- Price Value -->
+                    <div class="flex items-baseline gap-1">
                         <span
-                            class={priceOffset >= 0
-                                ? "text-emerald-400"
-                                : "text-red-400"}
+                            class="text-sm font-medium {isLocked
+                                ? 'text-emerald-400/60'
+                                : 'text-violet-400/60'}">₹</span
                         >
-                            {priceOffset >= 0 ? "+" : ""}{priceOffset.toFixed(
-                                2,
-                            )}
-                        </span>
-                        <span class="text-white/30">
-                            ({priceOffset >= 0
-                                ? "+"
-                                : ""}{priceOffsetPercent.toFixed(1)}%)
+                        <span
+                            class="text-3xl font-mono font-black tracking-tight text-white
+                            {isLocked
+                                ? 'drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                : 'drop-shadow-[0_0_10px_rgba(139,92,246,0.4)]'}"
+                        >
+                            {displayPrice.toFixed(2)}
                         </span>
                     </div>
-                {/if}
-            </div>
-        </div>
 
-        <!-- === HINT CARD (Left Side) === -->
-        {#if !showOrderSuccess}
+                    <!-- Delta from LTP -->
+                    {#if ltp > 0}
+                        <div
+                            class="flex items-center gap-2 mt-1 text-[10px] font-mono"
+                        >
+                            <span class="text-white/30">vs LTP</span>
+                            <span
+                                class={priceOffset >= 0
+                                    ? "text-emerald-400"
+                                    : "text-rose-400"}
+                            >
+                                {priceOffset >= 0
+                                    ? "+"
+                                    : ""}{priceOffset.toFixed(2)}
+                            </span>
+                            <span class="text-white/20">|</span>
+                            <span
+                                class={priceOffset >= 0
+                                    ? "text-emerald-400/60"
+                                    : "text-rose-400/60"}
+                            >
+                                {priceOffsetPercent >= 0
+                                    ? "+"
+                                    : ""}{priceOffsetPercent.toFixed(2)}%
+                            </span>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Edge Connector -->
+                <div
+                    class="w-1 h-10 {isLocked
+                        ? 'bg-emerald-500/50'
+                        : 'bg-violet-500/40'} rounded-r"
+                ></div>
+            </div>
+
+            <!-- === CANCEL HINT (Left Side) === -->
             <div
                 class="absolute left-4 -translate-y-1/2"
                 transition:fade={{ duration: 100 }}
             >
                 <div
-                    class="px-4 py-2 rounded-xl backdrop-blur-xl bg-black/40 border border-white/10 flex items-center gap-2"
+                    class="px-3 py-1.5 rounded-lg bg-slate-950/50 backdrop-blur-sm border border-white/10 text-[10px] text-white/40 font-medium"
                 >
-                    {#if isTargeting}
-                        <span class="text-base">👌</span>
-                        <span class="text-xs font-semibold text-violet-300">
-                            Pinch to lock price
-                        </span>
-                    {:else if state === "LOCKED"}
-                        <span class="text-base">☝️</span>
-                        <span class="text-xs font-semibold text-emerald-300">
-                            Point up to confirm
-                        </span>
-                    {:else if showConfirmZone}
-                        <span class="text-base animate-pulse">👍</span>
-                        <span
-                            class="text-xs font-semibold text-emerald-300 animate-pulse"
-                        >
-                            Hold thumbs up in zone!
-                        </span>
-                    {/if}
+                    ✊ Fist to cancel
                 </div>
             </div>
         {/if}
     </div>
 {/if}
 
-<!-- === SUCCESS MODAL === -->
+<!-- === SUCCESS MODAL (Premium Holographic) === -->
 {#if showOrderSuccess}
     <div
         class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-        transition:scale={{ duration: 200, start: 0.8 }}
+        transition:scale={{ duration: 250, start: 0.9, opacity: 0 }}
     >
         <div
-            class="relative px-14 py-10 rounded-3xl backdrop-blur-3xl
-                bg-gradient-to-br from-emerald-500/50 via-green-400/40 to-cyan-500/30
-                border border-emerald-300/60 shadow-[0_30px_100px_rgba(16,185,129,0.5)]"
+            class="relative px-12 py-10 rounded-[32px] backdrop-blur-2xl
+                bg-gradient-to-br from-emerald-950/90 via-emerald-900/80 to-cyan-950/70
+                border border-emerald-400/40 shadow-[0_0_60px_rgba(16,185,129,0.4)]"
         >
+            <!-- Ambient Glow -->
             <div
-                class="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/15 to-transparent pointer-events-none"
+                class="absolute inset-0 bg-emerald-500/10 blur-3xl -z-10 rounded-full"
             ></div>
 
-            <div class="relative text-center">
-                <!-- Success Checkmark Icon -->
-                <div class="flex items-center justify-center mb-4">
+            <!-- Inner Shine -->
+            <div
+                class="absolute inset-0 rounded-[32px] bg-gradient-to-br from-white/10 to-transparent pointer-events-none"
+            ></div>
+
+            <div class="relative text-center flex flex-col items-center">
+                <!-- Animated Checkmark Ring -->
+                <div class="mb-5 relative">
                     <div
-                        class="w-16 h-16 rounded-full bg-emerald-500/30 flex items-center justify-center"
+                        class="absolute inset-0 bg-emerald-500/30 blur-xl rounded-full animate-pulse"
+                    ></div>
+                    <div
+                        class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400/60 flex items-center justify-center relative z-10"
                     >
                         <svg
-                            class="w-10 h-10 text-emerald-300"
+                            class="w-10 h-10 text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
                             fill="none"
                             viewBox="0 0 24 24"
-                            stroke-width="2.5"
+                            stroke-width="3"
                             stroke="currentColor"
                         >
                             <path
@@ -602,9 +616,30 @@
                         </svg>
                     </div>
                 </div>
-                <div class="text-2xl font-black text-white">ORDER PLACED</div>
-                <div class="text-xl font-mono font-bold text-emerald-100 mt-2">
-                    ₹{(lockedPrice ?? 0).toFixed(2)}
+
+                <div
+                    class="text-3xl font-black text-white tracking-tight mb-1 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                >
+                    ORDER SENT
+                </div>
+                <div
+                    class="text-[11px] font-semibold text-emerald-300/70 uppercase tracking-[0.2em] mb-4"
+                >
+                    Executed Successfully
+                </div>
+
+                <div
+                    class="px-6 py-3 rounded-xl bg-slate-950/50 border border-emerald-500/30 flex flex-col items-center gap-1"
+                >
+                    <span
+                        class="text-[10px] text-emerald-400/60 uppercase font-bold tracking-wider"
+                        >Fill Price</span
+                    >
+                    <span
+                        class="text-2xl font-mono font-black text-emerald-200 tracking-tight drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                    >
+                        ₹{(lockedPrice ?? 0).toFixed(2)}
+                    </span>
                 </div>
             </div>
         </div>
