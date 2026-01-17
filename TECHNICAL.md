@@ -2,12 +2,57 @@
 
 > **Last Updated**: 2026-01-17  
 > **Repository**: [github.com/tahur/holotrade](https://github.com/tahur/holotrade)  
-> **Based on**: Actual codebase audit (not previous documentation)
 
 [![GitHub](https://img.shields.io/badge/GitHub-tahur%2Fholotrade-181717?logo=github)](https://github.com/tahur/holotrade)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This document provides comprehensive technical details about HoloTrade's implementation, including every file, what was attempted, what succeeded, and the current state.
+This document provides comprehensive technical details about HoloTrade's implementation.
+
+---
+
+## Dynamic Island - Context-Aware Notifications
+
+The Dynamic Island adapts its display based on the current trading context:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Compact: Default State
+    
+    Compact --> Expanded: Order Placed
+    Compact --> Live: Position Opened
+    Compact --> Pending: Order Pending
+    
+    Expanded --> Compact: 3s timeout
+    Live --> Compact: Position Closed
+    Pending --> Expanded: Order Filled
+    Pending --> Compact: Order Failed
+    
+    note right of Compact
+        Shows: Symbol + Price
+        Size: 320×90px
+        Update: Real-time LTP
+    end note
+    
+    note right of Expanded
+        Shows: Order Status
+        Size: 340×100px
+        Duration: 3 seconds
+    end note
+    
+    note right of Live
+        Shows: P&L + Avg Price
+        Size: 360×134px
+        Update: Continuous
+    end note
+    
+    note right of Pending
+        Shows: Pending Order
+        Size: 340×100px
+        Pulse: Amber indicator
+    end note
+```
+
+**Key Feature:** The island automatically switches context based on trading events - from showing live prices to order confirmations to P&L tracking.
 
 ---
 
@@ -1321,6 +1366,33 @@ function updateCamera(state: CameraState): void {
 **Priority 3 (Low Impact):**
 - Some components could be smaller
 - Some duplicated logic between stores and components
+
+---
+
+## Performance Optimization Checklist
+
+### Immediate Wins (Low Effort, High Impact)
+
+- [x] Shadow map optimization (2048→512) - **Done**
+- [x] Centralized configuration constants - **Done**
+- [x] Event bus for instant gesture updates - **Done**
+- [ ] Backend `@lru_cache` for repeated API calls
+- [ ] CDN preconnect tags in HTML head
+- [ ] Shadow disabled on non-critical lights
+
+### Medium Effort
+
+- [ ] FaceTracker throttling (60fps→30fps)
+- [ ] Extract TradingController from reactive blocks
+- [ ] Derived stores for complex calculations
+- [ ] Verify async/sync route handling
+
+### High Effort (Architectural)
+
+- [ ] InstancedMesh for candle rendering
+- [ ] Split FaceTracker.svelte (561 lines→modules)
+- [ ] Add automated tests
+- [ ] TypeScript strict mode
 
 ---
 

@@ -10,6 +10,58 @@
 
 ---
 
+## How It Works
+
+### Gesture-Based Trading Flow
+
+```mermaid
+flowchart TD
+    A[Show Hand] --> B{Gesture Detected?}
+    B -->|Pinch| C[Price Locked]
+    B -->|Point Up| D[Open Confirmation]
+    B -->|Thumbs Up| E[Hold 3s]
+    B -->|Closed Fist| F[Cancel]
+    
+    C --> G{Hold Stable?}
+    G -->|450ms| H[✓ Price Confirmed]
+    G -->|Move Hand| B
+    
+    D --> E
+    E --> I[Order Placed]
+    
+    F --> A
+    H --> D
+    I --> J[Dynamic Island Shows Status]
+    
+    style A fill:#e8f5e9
+    style C fill:#fff3e0
+    style H fill:#e3f2fd
+    style I fill:#c8e6c9
+    style F fill:#ffebee
+```
+
+### Face Tracking → Camera Parallax
+
+```mermaid
+flowchart LR
+    A[Webcam] --> B[MediaPipe Face Mesh]
+    B --> C[Nose Landmark]
+    C --> D[Calculate Offset]
+    D --> E[Physics Controller]
+    E --> F[3D Camera Position]
+    
+    G[Head Movement] -.->|X: ±25°| F
+    G -.->|Y: ±20°| F
+    
+    style A fill:#e3f2fd
+    style E fill:#fff3e0
+    style F fill:#c8e6c9
+```
+
+**Result:** Natural depth perception as your head moves - the chart appears to float in 3D space.
+
+---
+
 ## What is HoloTrade?
 
 HoloTrade is an experimental trading interface that transforms how you interact with stock market data. Instead of clicking buttons and typing numbers, you:
