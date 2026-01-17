@@ -105,15 +105,6 @@ function createTradingStore() {
             });
         },
 
-        /**
-         * @deprecated Use addLocalOrder instead - this method has confusing behavior
-         */
-        placeOrder: async (symbol: string, side: 'BUY' | 'SELL', quantity: number, price: number) => {
-            // Just call addLocalOrder for backward compatibility
-            // The actual API call is handled by orderService
-            console.warn("[TradingStore] placeOrder is deprecated, use addLocalOrder instead");
-        },
-
         updatePrice: (currentPrice: number) => {
             update(state => {
                 const newPositions = state.positions.map(p => ({
