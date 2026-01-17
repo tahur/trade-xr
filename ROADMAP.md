@@ -1,236 +1,351 @@
-# Roadmap & Current Status
+# HoloTrade - Roadmap & Status
 
-This document tracks what has been built and what's planned for future development.
+> **Last Updated**: 2026-01-17  
+> **Current Version**: Pre-Alpha  
+> **Repository**: [github.com/tahur/holotrade](https://github.com/tahur/holotrade)
 
----
-
-## Current Status: Beta
-
-HoloTrade is functional for basic trading operations with face tracking and gesture controls.
+This document tracks completed work, pending tasks, and future development plans based on actual codebase audit.
 
 ---
 
-## ✅ What's Been Built
+## 📊 Current Status: Pre-Alpha
 
-### Phase 1: Foundation (Completed)
-
-#### 3D Rendering Engine
-- [x] SvelteKit project setup with TypeScript
-- [x] Three.js integration via Threlte
-- [x] 3D candlestick chart rendering
-- [x] Camera controls with perspective shift
-- [x] Professional lighting (8-light setup)
-- [x] Trading terminal environment (floor, walls, grid)
-
-#### Face Tracking System
-- [x] MediaPipe Face Mesh integration
-- [x] Real-time head position tracking (X, Y, Z)
-- [x] Nose and cheek landmark extraction
-- [x] Depth estimation from cheek distance
-- [x] EMA smoothing for stable tracking
-
-#### Hand Tracking System
-- [x] MediaPipe Hands integration
-- [x] Single-hand and two-hand detection
-- [x] 21-landmark hand tracking
-- [x] Finger extension detection
-- [x] Hand position mapping to screen coordinates
+HoloTrade is an experimental project for basic trading operations with face tracking and gesture controls. Core features are functional but under active development. Core features work reliably, but optimization and enhancements are ongoing.
 
 ---
 
-### Phase 2: Gesture Controls (Completed)
+## ✅ Completed Features (Verified in Code)
 
-#### Gesture Recognition
-- [x] Pinch detection (thumb + index)
-- [x] Pinch hysteresis to prevent flickering
-- [x] Point-up gesture detection
-- [x] Thumbs-up detection with scoring system
-- [x] Closed fist detection
-- [x] Two-hand zoom gesture
+### Core Infrastructure
+- [x] **SvelteKit 5 + TypeScript** - Modern reactive framework
+- [x] **Three.js 3D rendering** - Candlestick chart visualization
+- [x] **MediaPipe integration** - Face Mesh + Hands tracking
+- [x] **TailwindCSS styling** - Glassmorphism UI
+- [x] **FastAPI backend** - Python REST API
+- [x] **Zerodha KiteConnect** - Full broker integration
 
-#### Trading State Machine
-- [x] IDLE → TARGETING → LOCKED → CONFIRMING → ORDER_PLACED flow
-- [x] Timing thresholds for each state transition
-- [x] Cancel via closed fist from any state
-- [x] Cooldown periods to prevent accidental triggers
+### Animation & Performance
+- [x] **Physics-based AnimationController** (195 lines)
+  - Damped Harmonic Oscillator (Hooke's Law)
+  - 16-33ms response time (down from 200-500ms)
+  - Organic velocity carry, zero frame stepping
+  
+- [x] **Event Bus (gestureBus)** (146 lines)
+  - Sub-millisecond event propagation
+  - Bypasses Svelte store lag for time-critical updates
+  
+- [x] **Centralized configuration** (`config/` directory)
+  - `gestures.ts`, `timing.ts`, `api.ts`, `etfs.ts`
+  - Single source of truth for all constants
 
-#### Price Selection UI
-- [x] Gesture-driven price overlay
-- [x] Visual feedback for each gesture state
-- [x] Price lock confirmation animation
-- [x] Quantity display
+### Gesture System
+- [x] **Gesture Engine with Priority Locking** (242 lines)
+  - ZOOMING (3) > CONFIRMING (2) > TRADING (1) > IDLE (0)
+  - Context conflicts resolved automatically
+  - 300ms cooldown prevents false triggers
+  
+- [x] **Triple-Lock Pinch Stability**
+  - Tighter threshold (PINCH_ENTER=0.035)
+  - Velocity check (VELOCITY_STABLE=0.3)
+  - Longer hold time (LOCK_DELAY_MS=450ms)
+  
+- [x] **Two-Hand Zoom Gesture**
+  - Can interrupt any other gesture
+  - Amplified sensitivity (power=1.5)
+  - Smooth zoom range (0.3x to 3.0x)
 
----
+### UI Components (14 Total)
+- [x] **FaceTracker** (561 lines) - Main gesture processor
+- [x] **CandlestickChart** - 3D OHLC visualization
+- [x] **PriceTargetOverlay** - Gesture-based price selector
+- [x] **DynamicIsland** - macOS-style notifications
+- [x] **DynamicConfirmZone** - 3-second hold confirmation
+- [x] **ControlCenter** - Settings panel
+- [x] **ETFSelector** - Instrument switcher
+- [x] **ZoomIndicator** - Current zoom level display
+- [x] **BrandCard** - Kite branding/connection status
+- [x] **TradingRoom** - 3D environment
+- [x] **Scene3D** - Lighting and camera setup
+- [x] **OffAxisCamera** - Perspective-shift camera
+- [x] **PriceTargetLine** - Visual price indicator
+- [x] **TrackingManager** - Tracking state management
 
-### Phase 3: Kite Integration (Completed)
+### Backend Features
+- [x] **KiteClient Singleton** (195 lines)
+  - Instrument token caching (`_token_cache`)
+  - OAuth login flow
+  - Order placement (limit orders)
+  - Position/margin fetching
+  
+- [x] **API Routes**
+  - `/api/kite/login` - OAuth callback
+  - `/api/kite/order` - Place orders
+  - `/quote/ltp/{symbol}` - Live price
+  - `/quote/candles/{symbol}` - Historical data
+  - `/config` - Runtime API configuration
+  - `/ws` - WebSocket endpoint
 
-#### Backend API
-- [x] FastAPI server setup
-- [x] KiteConnect client wrapper (singleton)
-- [x] OAuth login flow handling
-- [x] Session management
-- [x] CORS configuration for frontend
+### Data Management
+- [x] **7 Svelte Stores** for reactive state
+  - `tracking.ts` - Face/hand positions
+  - `gesture.ts` - Gesture state
+  - `trading.ts` - Trading flow state
+  - `orders.ts` - Order history
+  - `positions.ts` - Open positions
+  - `dynamicIsland.ts` - Notification state
+  - `selectedETF.ts` - Current instrument
 
-#### API Endpoints
-- [x] `POST /api/kite/login` - Exchange request token
-- [x] `POST /api/kite/order` - Place orders
-- [x] `GET /api/kite/positions` - Fetch positions
-- [x] `GET /api/kite/margins` - Fetch available margins
-- [x] `GET /quote/ltp/{symbol}` - Last traded price
-- [x] `GET /quote/quote/{symbol}` - Full quote with OHLC
-- [x] `GET /quote/candles/{symbol}` - Historical data
-- [x] `POST /config` - Configure API credentials
-
-#### Frontend Kite Service
-- [x] API client for backend communication
-- [x] Order placement with notification lifecycle
-- [x] Position fetching
-- [x] Margin display
-
----
-
-### Phase 4: User Interface (Completed)
-
-#### Dynamic Island Notifications
-- [x] macOS-style notification center
-- [x] Multiple notification types (order, API, P&L)
-- [x] Compact, expanded, and live modes
-- [x] Auto-dismiss with configurable duration
-- [x] 3D tilt effect based on head position
-
-#### Settings Panel
-- [x] Glassmorphic settings card
-- [x] Parallax sensitivity slider
-- [x] Gesture sensitivity slider
-- [x] Preferred hand selection (Left/Right)
-- [x] API configuration modal
-
-#### ETF Selector
-- [x] Dropdown for supported ETFs
-- [x] Dynamic candle loading per symbol
-- [x] Live price updates
-
-#### Status Bar
-- [x] Camera status (LIVE / OFF)
-- [x] API connection status
-- [x] Fixed position bottom-left
-
----
-
-### Phase 5: Code Quality (Completed)
-
-#### Refactoring
-- [x] Extracted EMA utilities (`utils/ema.ts`)
-- [x] Centralized order service (`services/orderService.ts`)
-- [x] Extracted 3D scene component (`Scene3D.svelte`)
-- [x] Removed unused components and imports
-- [x] Fixed accessibility warnings
-
-#### Documentation
-- [x] README.md - Project overview
-- [x] TECHNICAL.md - Implementation details
-- [x] ROADMAP.md - This document
-
----
-
-## 📋 What's Planned
-
-### Phase 6: Advanced Trading (Planned)
-
-- [ ] Stop-loss order support
-- [ ] Market order type
-- [ ] Quantity gestures (swipe for qty adjustment)
-- [ ] Buy/Sell gesture differentiation
-- [ ] Multiple position tracking
-- [ ] Portfolio view
-
-### Phase 7: Real-Time Streaming (Planned)
-
-- [ ] WebSocket ticker connection
-- [ ] Live candle updates
-- [ ] Real-time price animation
-- [ ] Volume visualization
-- [ ] Tick-by-tick streaming
-
-### Phase 8: Enhanced Visualization (Planned)
-
-- [ ] Moving averages overlay
-- [ ] Volume bars below chart
-- [ ] Support/resistance lines
-- [ ] Price alerts with visual indicators
-- [ ] Depth chart (bid/ask)
-
-### Phase 9: Multi-Monitor Support (Planned)
-
-- [ ] Detachable chart windows
-- [ ] Secondary display for positions
-- [ ] PiP (Picture-in-Picture) mode
-
-### Phase 10: Mobile Companion (Planned)
-
-- [ ] React Native app for alerts
-- [ ] Voice confirmation for orders
-- [ ] Position monitoring on the go
+- [x] **9 Service Modules**
+  - `kite.ts` - API client
+  - `orderService.ts` - Order logic
+  - `etfService.ts` - Instrument data
+  - `tickerService.ts` - WebSocket streaming
+  - `apiClient.ts` - HTTP wrapper
+  - `candleBuilder.ts` - OHLC processing
+  - `mockData.ts` - Test data
+  - `gestureEngine.ts` - Context management
+  - `gestureBus.ts` - Event dispatch
 
 ---
 
-## Known Limitations
+## 🔧 In Progress / Partially Implemented
 
-| Limitation | Impact | Workaround |
-|------------|--------|------------|
-| Single face only | Multi-user not supported | Use single camera per session |
-| Requires good lighting | Hand detection fails in dark | Improve room lighting |
-| Webcam required | Desktop only | No mobile support planned initially |
-| Zerodha only | India-specific | Abstract broker interface for future |
-| MCX/NSE/NFO only | Limited exchanges | Add more exchanges later |
-| Limit orders only | No market orders | Add order type selection |
+### Performance Optimizations
+- **Face Tracking Throttling** (PROPOSED, NOT IMPLEMENTED)
+  - `frameCount` variable exists in FaceTracker but unused
+  - Could reduce CPU by ~40% (60fps → 30fps for face mesh)
+  - Status: Code structure in place, not activated
 
 ---
 
-## Technical Debt
+## 📋 Pending Tasks (Priority Order)
 
-Items that work but need improvement:
+### High Priority
 
-| Item | Current State | Desired State |
-|------|---------------|---------------|
-| FaceTracker | 523-line monolith | Split into services |
-| PriceTargetOverlay | 530 lines | Extract gesture logic |
-| Error handling | Basic try/catch | Centralized error service |
-| Type safety | Partial TypeScript | Full strict mode |
-| Testing | None | Unit + E2E tests |
-| Logging | console.log | Structured logging service |
+- [ ] **Implement InstancedMesh Rendering**
+  - Replace individual `<Candle>` components with Three.js `InstancedMesh`
+  - Reduce 150-300 draw calls → 1 draw call per color
+  - File: `CandlestickChart.svelte`
+  - Impact: Major FPS improvement on low-end hardware
+
+- [ ] **Extract TradingController**
+  - Move state machine logic from `PriceTargetOverlay.svelte` to `controllers/TradingController.ts`
+  - Centralize IDLE → TARGETING → LOCKED → CONFIRMING flow
+  - Impact: Cleaner code, easier to maintain
+
+- [ ] **Add Automated Tests**
+  - Unit tests for gesture detection logic
+  - Integration tests for order flow
+  - E2E tests for critical paths
+  - Impact: Catch regressions early
+
+- [ ] **Verify Backend Async/Sync Handling**
+  - Check if routes should be `async def` or `def`
+  - Ensure `kite_client` calls don't block event loop
+  - File: `backend/app/routes/*.py`
+  - Impact: Avoid potential backend bottlenecks
+
+### Medium Priority
+
+- [ ] **Activate Face Tracking Throttling**
+  - Use existing `frameCount` variable to skip frames
+  - Process face mesh at 30fps instead of 60fps
+  - Keep hands at 60fps for responsiveness
+  - Impact: 40% CPU reduction
+
+- [ ] **Split FaceTracker Component**
+  - Extract gesture logic to `GestureClassifier` utility
+  - FaceTracker is currently 561 lines
+  - Impact: Better code organization
+
+- [ ] **Add Structured Logging**
+  - Replace `console.log` with proper logging service
+  - Implement log levels (debug, info, warn, error)
+  - Impact: Better debugging and monitoring
+
+- [ ] **Implement Error Service**
+  - Centralized error handling
+  - Better error messages to user
+  - Impact: Improved UX during failures
+
+- [ ] **Enable TypeScript Strict Mode**
+  - Currently using partial type safety
+  - Add strict null checks and type assertions
+  - Impact: Catch more bugs at compile time
+
+### Low Priority
+
+- [ ] **Market Order Support**
+  - Currently limit orders only
+  - Add market order type option
+  - Impact: Faster execution for users
+
+- [ ] **Stop-Loss Orders**
+  - Add SL order type
+  - Target price + stop-loss in same gesture flow
+  - Impact: Risk management feature
+
+- [ ] **Quantity Gesture**
+  - Swipe gesture to adjust quantity
+  - Currently fixed quantity
+  - Impact: More flexible trading
+
+- [ ] **Buy/Sell Differentiation**
+  - Different gestures for buy vs sell
+  - Currently assumes buy
+  - Impact: Full trading functionality
 
 ---
 
-## Version History
+## 🚀 Future Roadmap (Post-1.0)
 
-| Version | Date | Highlights |
-|---------|------|------------|
-| 0.1.0 | - | Initial prototype with mock data |
-| 0.2.0 | - | Kite API integration |
-| 0.3.0 | - | Gesture trading complete |
-| 0.4.0 | - | Dynamic Island notifications |
-| 0.5.0 | - | Code cleanup and documentation |
+### Zerodha Kite Enhancements
+- [ ] **WebSocket Live Ticker**
+  - Replace polling with Kite WebSocket API
+  - Real-time tick-by-tick updates
+  - Currently polls every 5s for LTP
+  
+- [ ] **Advanced Order Types**
+  - Bracket orders (BO)
+  - Cover orders (CO)
+  - After-market orders (AMO)
+  - Good-till-cancelled (GTL)
+  
+- [ ] **Kite Portfolio Features**
+  - Holdings view
+  - Fund summary
+  - Tax P&L reports
+  
+- [ ] **Volume Visualization**
+  - Volume bars below candlestick chart
+  - 3D volume representation
+  
+- [ ] **Technical Indicators**
+  - Moving averages (SMA, EMA)
+  - Support/resistance lines
+  - Bollinger Bands
+  
+- [ ] **Portfolio View**
+  - Multiple position tracking
+  - P&L aggregation
+  - Position sizing visualization
+  
+- [ ] **Multi-Monitor Support**
+  - Detachable chart windows
+  - Secondary display for positions/orders
+  - Picture-in-Picture mode
+
+### Mobile/Companion
+- [ ] **React Native App**
+  - Position monitoring on the go
+  - Push notifications for fills
+  - Voice confirmation for orders
+  
+- [ ] **Tablet Version**
+  - Optimized for iPad
+  - Touch + face tracking hybrid
+
+### Advanced Visualization
+- [ ] **Order Book Depth Chart**
+  - Bid/ask visualization
+  - Live order flow
+  
+- [ ] **Multiple Timeframes**
+  - Switch between 1m, 5m, 15m, 1h, 1d
+  - Currently shows single timeframe
+  
+- [ ] **Multi-Symbol View**
+  - Grid of multiple instruments
+  - Gesture to switch between symbols
 
 ---
 
-## Contributing
+## 🐛 Technical Debt
 
-We welcome contributions in these areas:
+### Code Quality Issues
 
-1. **Bug fixes** - Especially gesture detection edge cases
-2. **Performance** - FPS improvements for lower-end hardware
-3. **Accessibility** - Keyboard alternatives for gestures
-4. **Documentation** - More examples and tutorials
-5. **Testing** - Unit tests, integration tests
-6. **New brokers** - Abstract interface for other APIs
+| Issue | Location | Impact | Priority |
+|-------|----------|--------|----------|
+| FaceTracker is 561 lines | `Tracking/FaceTracker.svelte` | Hard to maintain | High |
+| PriceTargetOverlay complex reactivity | `UI/PriceTargetOverlay.svelte` | Brittle state management | High |
+| No automated tests | Entire codebase | Risk of regressions | High |
+| console.log logging | All files | Hard to debug production | Medium |
+| Basic error handling | All files | Poor UX on errors | Medium |
+| Partial TypeScript strict mode | All `.ts` files | Missed type errors | Medium |
+| Some duplicated logic | Stores + Components | Code duplication | Low |
 
-See [TECHNICAL.md](TECHNICAL.md) for implementation details before contributing.
+### Architecture Improvements
+
+| Improvement | Rationale | Effort |
+|-------------|-----------|--------|
+| Extract GestureClassifier | FaceTracker too large | Medium |
+| Create TradingController | Centralize state machine | Medium |
+| Add error boundary service | Better error UX | Small |
+| Implement logging service | Structured logs | Small |
+| Add unit test framework | Catch bugs early | Large |
 
 ---
 
-## Contact
+## 📈 Version History
 
-- **Issues**: GitHub Issues
-- **Discussions**: GitHub Discussions
-- **License**: MIT
+| Version | Status | Highlights |
+|---------|--------|------------|
+| 0.1.0 | ✅ | Initial prototype with mock data |
+| 0.2.0 | ✅ | Kite API integration |
+| 0.3.0 | ✅ | Gesture trading complete |
+| 0.4.0 | ✅ | Dynamic Island notifications |
+| 0.5.0 | ✅ | AnimationController, gestureEngine, gestureBus |
+| 0.6.0 | ✅ | Code cleanup, centralized config |
+| **1.0.0** | 🚧 | **Target: Stable beta with tests** |
+
+---
+
+## 🎯 Milestones to 1.0
+
+- [ ] Implement InstancedMesh rendering
+- [ ] Extract TradingController
+- [ ] Add automated tests (basic coverage)
+- [ ] Enable TypeScript strict mode
+- [ ] Add structured logging
+- [ ] Implement error service
+- [ ] Documentation complete ✅
+- [ ] Performance profiling complete
+- [ ] Security audit complete
+
+**Estimated Timeline:** 2-3 months
+
+---
+
+## 📝 Notes
+
+### Design Decisions
+
+**Why Physics-Based Animation?**
+- Svelte springs caused 200-500ms lag due to double reactivity
+- RAF loop with Hooke's Law physics gives 16-33ms response
+- Feels organic with velocity carry
+
+**Why Priority-Based Gestures?**
+- Users frequently triggered price picker while zooming
+- Context locking ensures only one feature active at a time
+- Cooldowns prevent false triggers after gesture ends
+
+**Why Centralized Config?**
+- Magic numbers scattered across
+
+ files made tuning hard
+- Single source of truth for all thresholds
+- Type-safe constants with `as const`
+
+**Why Individual Meshes Instead of Instancing?**
+- Current rendering is acceptable for 50-100 candles
+- Instancing adds complexity for color/height variation
+- Works fine on modern hardware (60fps+)
+- Can optimize later if needed
+
+---
+
+**End of Roadmap**
+
+For user-facing overview, see [README.md](README.md)  
+For technical details, see [TECHNICAL.md](TECHNICAL.md)

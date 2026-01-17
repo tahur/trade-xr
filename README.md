@@ -2,8 +2,11 @@
 
 **An immersive 3D trading interface with face tracking and gesture controls for Zerodha Kite**
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Status](https://img.shields.io/badge/status-beta-orange.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)](https://github.com/tahur/holotrade)
+[![GitHub](https://img.shields.io/badge/GitHub-tahur%2Fholotrade-181717?logo=github)](https://github.com/tahur/holotrade)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.45-FF3E00?logo=svelte)](https://kit.svelte.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.182-000000?logo=three.js)](https://threejs.org/)
 
 ---
 
@@ -85,13 +88,13 @@ Full integration with India's largest discount broker:
 
 | Layer | Technology |
 |-------|------------|
-| Frontend Framework | SvelteKit 5 |
-| 3D Rendering | Three.js via Threlte |
-| Face Tracking | MediaPipe Face Mesh |
-| Hand Tracking | MediaPipe Hands |
-| Styling | TailwindCSS |
-| Backend | Python FastAPI |
-| Broker API | Zerodha KiteConnect |
+| Frontend Framework | SvelteKit 5.45.6 |
+| 3D Rendering | Three.js 0.182.0 via Threlte 8.3.1 |
+| Face Tracking | MediaPipe Face Mesh 0.4.x |
+| Hand Tracking | MediaPipe Hands 0.4.x |
+| Styling | TailwindCSS 3.4.17 |
+| Backend | FastAPI 0.109.0 + Uvicorn 0.27.0 |
+| Broker API | Zerodha KiteConnect 5.0.1 |
 
 ---
 
@@ -108,7 +111,7 @@ Full integration with India's largest discount broker:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/holotrade.git
+git clone https://github.com/tahur/holotrade.git
 cd holotrade
 
 # Backend setup
@@ -193,23 +196,30 @@ holotrade/
 
 ---
 
-## Contributing
+---
 
-We welcome contributions! This is a FOSS project.
+## Documentation
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+This README provides a user-facing overview. For in-depth technical details:
 
-See [TECHNICAL.md](TECHNICAL.md) for detailed architecture documentation.
+- **[TECHNICAL.md](TECHNICAL.md)** - Complete technical reference with:
+  - Full file inventory and architecture
+  - What we attempted and their outcomes
+  - Configuration reference
+  - Contributing guidelines
+  
+- **[ROADMAP.md](ROADMAP.md)** - Development status with:
+  - Verified completed features
+  - Pending tasks (priority-ordered)
+  - Technical debt tracking
+  - Future roadmap
 
 ---
 
 ## Safety Disclaimer
 
-⚠️ **This is experimental software for educational purposes.**
+> [!WARNING]
+> **This is experimental pre-alpha software for educational purposes.**
 
 - Always test with paper trading or small quantities first
 - Gesture recognition may have false positives
