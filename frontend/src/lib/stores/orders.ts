@@ -6,6 +6,7 @@ import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
 import type { KiteOrder } from '../types/trading';
 import { TIMING } from '../config/timing';
+import { createPoller } from '../utils/polling';
 
 export interface OrdersState {
     orders: KiteOrder[];
@@ -26,7 +27,57 @@ const initialState: OrdersState = {
 function createOrdersStore() {
     const { subscribe, set, update } = writable<OrdersState>(initialState);
 
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    /**
+     * Fetch all orders from Kite API
+     */
+    async function fetchOrders() {
+        update(state => ({ ...state, isLoading: true, error: null }));
+
+        const rawOrders = await kite.getOrders();
+
+        const orders: KiteOrder[] = rawOrders.map((o: any) => ({
+            orderId: o.order_id,
+            symbol: o.tradingsymbol,
+            transactionType: o.transaction_type,
+            quantity: o.quantity,
+            price: o.price || o.average_price,
+            status: o.status,
+            statusMessage: o.status_message || '',
+            orderTimestamp: o.order_timestamp
+        }));
+
+        // Filter pending orders (OPEN or PENDING status)
+        const pendingOrders = orders.filter(o =>
+            o.status === 'OPEN' || o.status === 'PENDING'
+        );
+
+        set({
+            orders,
+            pendingOrders,
+            isLoading: false,
+            lastUpdated: new Date(),
+            error: null
+        });
+
+        console.log(`[OrdersStore] Fetched ${orders.length} orders, ${pendingOrders.length} pending`);
+
+        return { orders, pendingOrders };
+    }
+
+    // Create polling controller
+    const poller = createPoller({
+        fetchFn: fetchOrders,
+        onUpdate: () => { }, // State already updated in fetchOrders
+        onError: (error) => {
+            console.error('[OrdersStore] Failed to fetch:', error);
+            update(state => ({
+                ...state,
+                isLoading: false,
+                error: error?.message || 'Failed to fetch orders'
+            }));
+        },
+        intervalMs: TIMING.POLLING.ORDERS_UPDATE_MS
+    });
 
     return {
         subscribe,
@@ -35,39 +86,8 @@ function createOrdersStore() {
          * Fetch all orders from Kite API
          */
         async fetch() {
-            update(state => ({ ...state, isLoading: true, error: null }));
-
             try {
-                const rawOrders = await kite.getOrders();
-
-                const orders: KiteOrder[] = rawOrders.map((o: any) => ({
-                    orderId: o.order_id,
-                    symbol: o.tradingsymbol,
-                    transactionType: o.transaction_type,
-                    quantity: o.quantity,
-                    price: o.price || o.average_price,
-                    status: o.status,
-                    statusMessage: o.status_message || '',
-                    orderTimestamp: o.order_timestamp
-                }));
-
-                // Filter pending orders (OPEN or PENDING status)
-                const pendingOrders = orders.filter(o =>
-                    o.status === 'OPEN' || o.status === 'PENDING'
-                );
-
-                set({
-                    orders,
-                    pendingOrders,
-                    isLoading: false,
-                    lastUpdated: new Date(),
-                    error: null
-                });
-
-                console.log(`[OrdersStore] Fetched ${orders.length} orders, ${pendingOrders.length} pending`);
-
-                return { orders, pendingOrders };
-
+                return await fetchOrders();
             } catch (error: any) {
                 console.error('[OrdersStore] Failed to fetch:', error);
                 update(state => ({
@@ -83,15 +103,27 @@ function createOrdersStore() {
          * Start polling orders every N seconds
          */
         startPolling(intervalMs: number = TIMING.POLLING.ORDERS_UPDATE_MS) {
-            this.stopPolling();
+            poller.stop();
 
-            // Fetch immediately
-            this.fetch();
-
-            // Then poll
-            pollInterval = setInterval(() => {
-                this.fetch();
-            }, intervalMs);
+            // Update interval if different from default
+            if (intervalMs !== TIMING.POLLING.ORDERS_UPDATE_MS) {
+                // Recreate poller with new interval
+                const newPoller = createPoller({
+                    fetchFn: fetchOrders,
+                    onUpdate: () => { },
+                    onError: (error) => {
+                        update(state => ({
+                            ...state,
+                            isLoading: false,
+                            error: error?.message || 'Failed to fetch orders'
+                        }));
+                    },
+                    intervalMs
+                });
+                newPoller.start();
+            } else {
+                poller.start();
+            }
 
             console.log(`[OrdersStore] Started polling every ${intervalMs}ms`);
         },
@@ -100,11 +132,8 @@ function createOrdersStore() {
          * Stop polling
          */
         stopPolling() {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-                console.log('[OrdersStore] Stopped polling');
-            }
+            poller.stop();
+            console.log('[OrdersStore] Stopped polling');
         },
 
         /**
@@ -122,7 +151,7 @@ function createOrdersStore() {
          * Reset store
          */
         reset() {
-            this.stopPolling();
+            poller.stop();
             set(initialState);
         }
     };

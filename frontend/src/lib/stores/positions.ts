@@ -6,6 +6,7 @@ import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
 import type { Position } from '../types/trading';
 import { TIMING } from '../config/timing';
+import { createPoller } from '../utils/polling';
 
 // Using Position from central types (RealPosition is an alias)
 export type RealPosition = Position;
@@ -31,7 +32,62 @@ const initialState: PositionsState = {
 function createPositionsStore() {
     const { subscribe, set, update } = writable<PositionsState>(initialState);
 
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    /**
+     * Fetch positions from Kite API
+     */
+    async function fetchPositions() {
+        update(state => ({ ...state, isLoading: true, error: null }));
+
+        const data = await kite.getPositions();
+
+        // Parse net positions (day + overnight combined)
+        const netPositions = data.net || [];
+
+        const positions: RealPosition[] = netPositions
+            .filter((p: any) => p.quantity !== 0) // Only positions with quantity
+            .map((p: any) => ({
+                symbol: p.tradingsymbol,
+                quantity: p.quantity,
+                averagePrice: p.average_price,
+                lastPrice: p.last_price,
+                pnl: p.pnl || ((p.last_price - p.average_price) * p.quantity),
+                dayChange: p.day_change || 0,
+                dayChangePercent: p.day_change_percentage || 0
+            }));
+
+        // Calculate totals
+        const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
+        const totalValue = positions.reduce((sum, p) => sum + (p.averagePrice * Math.abs(p.quantity)), 0);
+        const totalPnlPercent = totalValue > 0 ? (totalPnl / totalValue) * 100 : 0;
+
+        set({
+            positions,
+            totalPnl,
+            totalPnlPercent,
+            isLoading: false,
+            lastUpdated: new Date(),
+            error: null
+        });
+
+        console.log(`[PositionsStore] Fetched ${positions.length} positions, P&L: ₹${totalPnl.toFixed(2)}`);
+
+        return positions;
+    }
+
+    // Create polling controller
+    const poller = createPoller({
+        fetchFn: fetchPositions,
+        onUpdate: () => { }, // State already updated in fetchPositions
+        onError: (error) => {
+            console.error('[PositionsStore] Failed to fetch:', error);
+            update(state => ({
+                ...state,
+                isLoading: false,
+                error: error?.message || 'Failed to fetch positions'
+            }));
+        },
+        intervalMs: TIMING.POLLING.POSITIONS_UPDATE_MS
+    });
 
     return {
         subscribe,
@@ -40,44 +96,8 @@ function createPositionsStore() {
          * Fetch positions from Kite API
          */
         async fetch() {
-            update(state => ({ ...state, isLoading: true, error: null }));
-
             try {
-                const data = await kite.getPositions();
-
-                // Parse net positions (day + overnight combined)
-                const netPositions = data.net || [];
-
-                const positions: RealPosition[] = netPositions
-                    .filter((p: any) => p.quantity !== 0) // Only positions with quantity
-                    .map((p: any) => ({
-                        symbol: p.tradingsymbol,
-                        quantity: p.quantity,
-                        averagePrice: p.average_price,
-                        lastPrice: p.last_price,
-                        pnl: p.pnl || ((p.last_price - p.average_price) * p.quantity),
-                        dayChange: p.day_change || 0,
-                        dayChangePercent: p.day_change_percentage || 0
-                    }));
-
-                // Calculate totals
-                const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
-                const totalValue = positions.reduce((sum, p) => sum + (p.averagePrice * Math.abs(p.quantity)), 0);
-                const totalPnlPercent = totalValue > 0 ? (totalPnl / totalValue) * 100 : 0;
-
-                set({
-                    positions,
-                    totalPnl,
-                    totalPnlPercent,
-                    isLoading: false,
-                    lastUpdated: new Date(),
-                    error: null
-                });
-
-                console.log(`[PositionsStore] Fetched ${positions.length} positions, P&L: ₹${totalPnl.toFixed(2)}`);
-
-                return positions;
-
+                return await fetchPositions();
             } catch (error: any) {
                 console.error('[PositionsStore] Failed to fetch:', error);
                 update(state => ({
@@ -93,15 +113,27 @@ function createPositionsStore() {
          * Start polling positions every N seconds
          */
         startPolling(intervalMs: number = TIMING.POLLING.POSITIONS_UPDATE_MS) {
-            this.stopPolling();
+            poller.stop();
 
-            // Fetch immediately
-            this.fetch();
-
-            // Then poll
-            pollInterval = setInterval(() => {
-                this.fetch();
-            }, intervalMs);
+            // Update interval if different from default
+            if (intervalMs !== TIMING.POLLING.POSITIONS_UPDATE_MS) {
+                // Recreate poller with new interval
+                const newPoller = createPoller({
+                    fetchFn: fetchPositions,
+                    onUpdate: () => { },
+                    onError: (error) => {
+                        update(state => ({
+                            ...state,
+                            isLoading: false,
+                            error: error?.message || 'Failed to fetch positions'
+                        }));
+                    },
+                    intervalMs
+                });
+                newPoller.start();
+            } else {
+                poller.start();
+            }
 
             console.log(`[PositionsStore] Started polling every ${intervalMs}ms`);
         },
@@ -110,18 +142,15 @@ function createPositionsStore() {
          * Stop polling
          */
         stopPolling() {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-                console.log('[PositionsStore] Stopped polling');
-            }
+            poller.stop();
+            console.log('[PositionsStore] Stopped polling');
         },
 
         /**
          * Reset store
          */
         reset() {
-            this.stopPolling();
+            poller.stop();
             set(initialState);
         }
     };
