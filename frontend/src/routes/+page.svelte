@@ -16,11 +16,9 @@
     import BrandCard from "$lib/components/UI/BrandCard.svelte";
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
     import PriceTargetOverlay from "$lib/components/UI/PriceTargetOverlay.svelte";
-    import StatusBar from "$lib/components/UI/StatusBar.svelte";
-    import SettingsCard from "$lib/components/UI/SettingsCard.svelte";
+    import ControlCenter from "$lib/components/UI/ControlCenter.svelte";
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
-    import ApiKeyModal from "$lib/components/UI/ApiKeyModal.svelte";
     import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
 
     // Stores
@@ -41,7 +39,6 @@
     let kiteStatus = "Not Connected";
     let kiteState: "NOT_CONFIGURED" | "CONFIGURED" | "CONNECTED" =
         "NOT_CONFIGURED";
-    let showApiModal = false;
     let isConnecting = false;
 
     function updateKiteState() {
@@ -63,14 +60,11 @@
     // React to status changes
     $: kiteStatus, updateKiteState();
 
-    function handleSetup() {
-        showApiModal = true;
-    }
-
     function handleConnect() {
         const apiKey = localStorage.getItem("kite_api_key");
         if (!apiKey) {
-            showApiModal = true;
+            // Ideally should open Control Center here, but since it's user-driven usually they're already there.
+            // ControlCenter component handles the UI for missing keys.
             return;
         }
         isConnecting = true;
@@ -455,13 +449,10 @@
     >
         <!-- Top Row -->
         <div class="flex justify-between items-start pointer-events-auto">
-            <!-- Left Column: Brand + Settings (Simplified) -->
+            <!-- Left Column: Brand Only -->
             <div class="flex flex-col justify-between h-full">
                 <!-- 3D Brand Card -->
                 <BrandCard />
-
-                <!-- Settings Card -->
-                <SettingsCard />
             </div>
         </div>
 
@@ -497,22 +488,12 @@
         symbol={selectedETF.symbol}
     />
 
-    <!-- Consolidated Status Bar (bottom-left) -->
-    <StatusBar
+    <!-- NEW Control Center (Bottom Right) -->
+    <ControlCenter
         isLive={$isTracking}
         {kiteState}
         loading={isConnecting}
-        on:setup={handleSetup}
         on:connect={handleConnect}
-    />
-
-    <!-- API Key Modal (Global) -->
-    <ApiKeyModal
-        isOpen={showApiModal}
-        on:close={() => {
-            showApiModal = false;
-            updateKiteState();
-        }}
     />
 
     <!-- Face Tracker -->

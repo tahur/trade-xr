@@ -442,15 +442,12 @@
         if (videoElement) {
             camera = new Camera(videoElement, {
                 onFrame: async () => {
-                    // Safe approach: Sequential execution
-                    // Hands: Priority (Every frame for gesture fluidity)
-                    await hands.send({ image: videoElement });
-
-                    // Face: Throttled (Every 2nd frame is enough for parallax)
-                    frameCount++;
-                    if (frameCount % 2 === 0) {
+                    // Throttle face mesh to every other frame for CPU savings
+                    // Hand tracking runs every frame for responsiveness
+                    if (frameCount++ % 2 === 0) {
                         await faceMesh.send({ image: videoElement });
                     }
+                    await hands.send({ image: videoElement });
                 },
                 width: 640,
                 height: 480,
@@ -507,7 +504,7 @@
 </script>
 
 <div
-    class="fixed bottom-4 right-4 z-50 overflow-hidden rounded-lg border border-slate-700 bg-black/50 w-40 shadow-lg pointer-events-auto"
+    class="fixed bottom-6 right-6 z-50 overflow-hidden rounded-lg border border-slate-700 bg-black/50 w-40 shadow-lg pointer-events-auto"
 >
     <!-- svelte-ignore a11y-media-has-caption -->
     <video
@@ -546,6 +543,12 @@
         <div class="flex justify-between">
             <span>Hands#:</span>
             <span>{$gestureState.numHandsDetected}</span>
+        </div>
+        <div class="flex justify-between">
+            <span>Gest:</span>
+            <span class="text-cyan-400 truncate max-w-[60px]"
+                >{$gestureState.detectedGesture}</span
+            >
         </div>
     </div>
 
