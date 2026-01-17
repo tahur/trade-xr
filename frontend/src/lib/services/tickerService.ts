@@ -2,6 +2,7 @@
  * WebSocket service for real-time tick data from Kite.
  */
 import { writable, derived, type Readable } from 'svelte/store';
+import { API_CONFIG } from '$lib/config/api';
 
 export interface Tick {
     instrument_token: number;
@@ -46,7 +47,7 @@ function createTickerStore() {
         }
 
         try {
-            ws = new WebSocket('ws://127.0.0.1:8000/ws/ticks');
+            ws = new WebSocket(`${API_CONFIG.WS_URL}/ws/ticks`);
 
             ws.onopen = () => {
                 console.log('[Ticker] WebSocket connected');

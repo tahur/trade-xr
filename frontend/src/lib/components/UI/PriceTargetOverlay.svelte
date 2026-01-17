@@ -14,6 +14,7 @@
         releaseTrading,
     } from "$lib/services/gestureEngine";
     import { gestureBus } from "$lib/services/gestureBus";
+    import { TIMING } from "$lib/config/timing";
     import DynamicConfirmZone from "./DynamicConfirmZone.svelte";
     import { fade, scale } from "svelte/transition";
     import { onMount, onDestroy } from "svelte";
@@ -55,12 +56,12 @@
     let confirmDebounce: ReturnType<typeof setTimeout> | null = null;
     let orderDebounce: ReturnType<typeof setTimeout> | null = null;
 
-    // === TIMING CONSTANTS ===
-    const ENTRY_DELAY_MS = 200;
-    const LOCK_DELAY_MS = 350;
-    const CONFIRM_DELAY_MS = 400; // Faster confirm transition
-    const ORDER_DELAY_MS = 500; // Faster thumbs up response (was 800ms)
-    const POST_LOCK_COOLDOWN = 400; // Reduced cooldown (was 500ms)
+    // === TIMING CONSTANTS FROM CONFIG ===
+    const ENTRY_DELAY_MS = TIMING.GESTURE.ENTRY_DELAY_MS;
+    const LOCK_DELAY_MS = TIMING.GESTURE.LOCK_DELAY_MS;
+    const CONFIRM_DELAY_MS = TIMING.GESTURE.CONFIRM_DELAY_MS;
+    const ORDER_DELAY_MS = TIMING.GESTURE.ORDER_DELAY_MS;
+    const POST_LOCK_COOLDOWN = TIMING.GESTURE.POST_LOCK_COOLDOWN; // Reduced cooldown (was 500ms)
 
     function clearAllTimers() {
         if (entryDebounce) clearTimeout(entryDebounce);

@@ -5,6 +5,7 @@
 import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
 import type { KiteOrder } from '../types/trading';
+import { TIMING } from '../config/timing';
 
 export interface OrdersState {
     orders: KiteOrder[];
@@ -81,7 +82,7 @@ function createOrdersStore() {
         /**
          * Start polling orders every N seconds
          */
-        startPolling(intervalMs: number = 3000) {
+        startPolling(intervalMs: number = TIMING.POLLING.ORDERS_UPDATE_MS) {
             this.stopPolling();
 
             // Fetch immediately

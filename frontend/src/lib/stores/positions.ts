@@ -5,6 +5,7 @@
 import { writable, derived } from 'svelte/store';
 import { kite } from '../services/kite';
 import type { Position } from '../types/trading';
+import { TIMING } from '../config/timing';
 
 // Using Position from central types (RealPosition is an alias)
 export type RealPosition = Position;
@@ -91,7 +92,7 @@ function createPositionsStore() {
         /**
          * Start polling positions every N seconds
          */
-        startPolling(intervalMs: number = 5000) {
+        startPolling(intervalMs: number = TIMING.POLLING.POSITIONS_UPDATE_MS) {
             this.stopPolling();
 
             // Fetch immediately

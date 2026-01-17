@@ -4,6 +4,8 @@
  */
 import { writable, derived } from 'svelte/store';
 import type { ETFConfig } from '$lib/config/etfs';
+import { API_CONFIG } from '$lib/config/api';
+import { TIMING } from '$lib/config/timing';
 
 export interface CandleData {
     open: number;
@@ -25,7 +27,7 @@ export interface ETFData {
     error: string | null;
 }
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = API_CONFIG.BASE_URL;
 
 function createETFStore() {
     const { subscribe, set, update } = writable<ETFData>({
@@ -122,10 +124,10 @@ function createETFStore() {
         fetchLTP();
 
         // Poll LTP every 5 seconds
-        priceIntervalId = setInterval(fetchLTP, 5000);
+        priceIntervalId = setInterval(fetchLTP, TIMING.POLLING.PRICE_UPDATE_MS);
 
         // Poll candles every 60 seconds
-        candleIntervalId = setInterval(fetchCandles, 60000);
+        candleIntervalId = setInterval(fetchCandles, TIMING.POLLING.CANDLE_UPDATE_MS);
 
         // Dev logging only
         if (import.meta.env.DEV) {
