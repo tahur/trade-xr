@@ -212,6 +212,10 @@ function createDynamicIslandStore() {
 
         // Manually collapse to compact - restore ticker
         collapse: () => {
+            // Don't override active notifications (e.g., ETF switch, order confirmations)
+            if (notificationActive) {
+                return;
+            }
             if (collapseTimer) clearTimeout(collapseTimer);
             set({
                 mode: 'compact',

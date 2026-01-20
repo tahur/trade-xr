@@ -39,13 +39,13 @@
 
 <!-- Optimization: Simplified 3-Point Lighting Setup for Performance -->
 
-<!-- 1. Ambient - Base illumination -->
-<T.AmbientLight intensity={0.8} color="#e8ddff" />
+<!-- 1. Ambient - Base illumination (brightened for visibility) -->
+<T.AmbientLight intensity={1.2} color="#f0e8ff" />
 
 <!-- 2. Key Light - Main source (Directional) -->
 <T.DirectionalLight
     position={[40, 80, 60]}
-    intensity={1.5}
+    intensity={1.8}
     color="#ffffff"
     castShadow
     shadow.mapSize={[512, 512]}
@@ -54,16 +54,16 @@
 <!-- 3. Rim/Back Light - Depth and separation -->
 <T.PointLight
     position={[25, 10, -30]}
-    intensity={2.0}
-    color="#9d8aff"
+    intensity={2.2}
+    color="#b8a3ff"
     distance={150}
 />
 
 <!-- 4. Fill Light - Soften shadows (opposite to key) -->
 <T.PointLight
     position={[-20, 20, 40]}
-    intensity={0.6}
-    color="#6ee7f9"
+    intensity={0.8}
+    color="#7eeeff"
     distance={100}
 />
 

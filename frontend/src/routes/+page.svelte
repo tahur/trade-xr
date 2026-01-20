@@ -285,16 +285,7 @@
         selectedETFStore.set(etf); // Update store so DynamicIsland can access it
         etfStore.switchETF(etf);
 
-        // Immediately update ticker with new symbol (price will update when data arrives)
-        // This ensures the correct symbol is saved for when the notification collapses
-        dynamicIsland.updateTicker({
-            symbol: etf.symbol,
-            price: $etfStore.ltp || 0,
-            change: $etfStore.change || 0,
-            changePercent: $etfStore.changePercent || 0,
-        });
-
-        // Show confirmation in Dynamic Island
+        // Show confirmation in Dynamic Island FIRST (takes priority over ticker)
         dynamicIsland.show(
             {
                 type: "api",
@@ -303,6 +294,14 @@
             },
             1500,
         );
+
+        // Update ticker with new symbol (saved for when notification collapses)
+        dynamicIsland.updateTicker({
+            symbol: etf.symbol,
+            price: $etfStore.ltp || 0,
+            change: $etfStore.change || 0,
+            changePercent: $etfStore.changePercent || 0,
+        });
     }
 
     // Import zoomLevel for scroll wheel control
