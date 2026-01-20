@@ -143,6 +143,30 @@ function createDynamicIslandStore() {
         setLiveActivity: (pnl: Omit<PnLContent, 'type'>) => {
             const pnlContent: PnLContent = { type: 'pnl', ...pnl };
 
+            // Check if content matches current state to prevent flickering
+            let currentState: DynamicIslandState = initialState;
+            subscribe(s => currentState = s)();
+
+            // Deep equality check for P&L content
+            const isContentEqual = (a: IslandContent, b: IslandContent): boolean => {
+                if (a.type !== 'pnl' || b.type !== 'pnl') return false;
+
+                // Check all relevant fields for change
+                return (
+                    a.symbol === b.symbol &&
+                    Math.abs(a.pnl - b.pnl) < 0.01 &&
+                    Math.abs(a.pnlPercent - b.pnlPercent) < 0.01 &&
+                    Math.abs(a.avgPrice - b.avgPrice) < 0.01 &&
+                    Math.abs(a.currentPrice - b.currentPrice) < 0.01 &&
+                    a.position === b.position
+                );
+            };
+
+            // If mode is 'live' and content is effectively the same, ignore update
+            if (currentState.mode === 'live' && isContentEqual(currentState.content, pnlContent)) {
+                return;
+            }
+
             // If notification is active, queue P&L to show after it expires
             if (notificationActive) {
                 queuedPnL = pnlContent;

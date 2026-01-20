@@ -35,7 +35,7 @@
     $: effectiveMin = ltp > 0 ? ltp - priceRange : minPrice;
     $: effectiveMax = ltp > 0 ? ltp + priceRange : maxPrice;
 
-    // === STATE MACHINE (BUY ONLY) ===
+    // === STATE MACHINE (BUY/SELL based on gesture) ===
     type State =
         | "IDLE"
         | "TARGETING"
@@ -45,6 +45,7 @@
     let state: State = "IDLE";
     let lockedPrice: number | null = null;
     let lockTime: number | null = null; // Track when locked for cooldown
+    let confirmedOrderSide: "BUY" | "SELL" = "BUY"; // Track which gesture triggered order
 
     // === EMA SMOOTHING - FASTER for snappy response ===
     let smoothedHandY = 0.5;
@@ -258,19 +259,30 @@
             confirmDebounce = null;
         }
 
-        // CONFIRMING → ORDER_PLACED (Thumbs Up)
-        else if (state === "CONFIRMING" && currentGesture === "Thumbs_Up") {
+        // CONFIRMING → ORDER_PLACED (Thumbs Up = BUY, Thumbs Down = SELL)
+        else if (
+            state === "CONFIRMING" &&
+            (currentGesture === "Thumbs_Up" || currentGesture === "Thumbs_Down")
+        ) {
             if (!orderDebounce) {
+                const gestureForOrder = currentGesture; // Capture current gesture
                 orderDebounce = setTimeout(async () => {
+                    const currentG = $gestureState.detectedGesture;
                     if (
-                        $gestureState.detectedGesture === "Thumbs_Up" &&
+                        (currentG === "Thumbs_Up" ||
+                            currentG === "Thumbs_Down") &&
                         state === "CONFIRMING"
                     ) {
                         if (lockedPrice) {
+                            // Determine side based on gesture
+                            const orderSide =
+                                currentG === "Thumbs_Up" ? "BUY" : "SELL";
+                            confirmedOrderSide = orderSide;
+
                             // Use centralized order service - await result
                             const result = await placeOrder({
                                 symbol,
-                                side: "BUY",
+                                side: orderSide,
                                 quantity: 1,
                                 price: lockedPrice,
                             });
@@ -295,6 +307,7 @@
         } else if (
             state === "CONFIRMING" &&
             currentGesture !== "Thumbs_Up" &&
+            currentGesture !== "Thumbs_Down" &&
             orderDebounce
         ) {
             clearTimeout(orderDebounce);
@@ -318,9 +331,14 @@
     // === DYNAMIC ZONE HANDLERS ===
     async function handleConfirmZoneConfirm() {
         if (lockedPrice && state === "CONFIRMING") {
+            // Determine order side based on current gesture
+            const currentG = $gestureState.detectedGesture;
+            const orderSide = currentG === "Thumbs_Down" ? "SELL" : "BUY";
+            confirmedOrderSide = orderSide;
+
             const result = await placeOrder({
                 symbol,
-                side: "BUY",
+                side: orderSide,
                 quantity: 1,
                 price: lockedPrice,
             });
@@ -359,7 +377,14 @@
 <DynamicConfirmZone
     isActive={showConfirmZone}
     orderDetails={lockedPrice
-        ? { side: "BUY", quantity: 1, price: lockedPrice }
+        ? {
+              side:
+                  $gestureState.detectedGesture === "Thumbs_Down"
+                      ? "SELL"
+                      : "BUY",
+              quantity: 1,
+              price: lockedPrice,
+          }
         : null}
     on:confirm={handleConfirmZoneConfirm}
     on:cancel={handleConfirmZoneCancel}
@@ -379,7 +404,7 @@
                     {state === 'CONFIRMING'
                     ? 'bg-gradient-to-r from-transparent via-amber-400 to-transparent'
                     : isLocked
-                      ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent'
+                      ? 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent' // Locked = Cyan (Neutral/Frozen)
                       : 'bg-gradient-to-r from-transparent via-violet-500 to-transparent'}"
                 style="opacity: {isLocked ? 0.8 : 0.5}"
             ></div>
@@ -389,7 +414,7 @@
                     {state === 'CONFIRMING'
                     ? 'bg-gradient-to-r from-transparent via-amber-300 to-transparent'
                     : isLocked
-                      ? 'bg-gradient-to-r from-transparent via-emerald-300 to-transparent'
+                      ? 'bg-gradient-to-r from-transparent via-cyan-300 to-transparent' // Locked = Cyan
                       : 'bg-gradient-to-r from-transparent via-violet-400 to-transparent'}"
             ></div>
         </div>
@@ -403,9 +428,9 @@
                 <div
                     class="px-5 py-2 backdrop-blur-xl rounded-full border flex items-center gap-3 shadow-2xl
                         {state === 'CONFIRMING'
-                        ? 'bg-amber-950/60 border-amber-500/40'
-                        : isLocked
-                          ? 'bg-emerald-950/60 border-emerald-500/40'
+                        ? 'bg-amber-950/60 border-amber-500/40' // Confirming = Amber (Warning/Action)
+                        : state === 'LOCKED'
+                          ? 'bg-cyan-950/60 border-cyan-500/40' // Locked = Cyan (Neutral/Ready)
                           : 'bg-slate-950/60 border-violet-500/40'}"
                 >
                     {#if isTargeting}
@@ -418,16 +443,16 @@
                     {:else if state === "LOCKED"}
                         <span class="text-lg">☝️</span>
                         <span
-                            class="text-xs font-bold uppercase tracking-widest text-emerald-300"
+                            class="text-xs font-bold uppercase tracking-widest text-cyan-300"
                         >
                             Point Up to Confirm
                         </span>
                     {:else if showConfirmZone}
-                        <span class="text-lg animate-pulse">👍</span>
+                        <span class="text-lg animate-pulse">👍/👎</span>
                         <span
                             class="text-xs font-bold uppercase tracking-widest text-amber-300 animate-pulse"
                         >
-                            Hold in Zone
+                            Hold: UP=Buy / DOWN=Sell
                         </span>
                     {/if}
                 </div>
@@ -439,11 +464,16 @@
                 transition:fade={{ duration: 150 }}
             >
                 <!-- Holographic Price Plate -->
+                <!-- Holographic Price Plate -->
                 <div
                     class="relative pl-6 pr-5 py-3 rounded-l-2xl border-y border-l backdrop-blur-xl shadow-2xl
-                        {isLocked
-                        ? 'bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-emerald-500/50'
-                        : 'bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-violet-500/40'}"
+                        {state === 'LOCKED' || state === 'CONFIRMING'
+                        ? 'bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-violet-500/50' // Locked/Confirming = Violet
+                        : state === 'ORDER_PLACED'
+                          ? confirmedOrderSide === 'BUY'
+                              ? 'bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-emerald-500/50'
+                              : 'bg-gradient-to-r from-rose-950/80 to-rose-900/60 border-rose-500/50'
+                          : 'bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-violet-500/40'}"
                 >
                     <!-- Inner Shine -->
                     <div
@@ -453,13 +483,14 @@
                     <!-- Status Badge -->
                     <div class="flex items-center gap-2 mb-1">
                         {#if isLocked}
+                            <!-- Locked State (Neutral/Ready) -->
                             <span
-                                class="px-2 py-0.5 rounded-md bg-emerald-500/30 text-[9px] font-black uppercase tracking-wider text-emerald-400 border border-emerald-500/30"
+                                class="px-2 py-0.5 rounded-md bg-violet-500/30 text-[9px] font-black uppercase tracking-wider text-violet-300 border border-violet-500/30"
                             >
-                                BUY
+                                LOCKED
                             </span>
                             <svg
-                                class="w-3 h-3 text-emerald-400"
+                                class="w-3 h-3 text-violet-300"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke-width="2.5"
@@ -471,11 +502,6 @@
                                     d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
                                 />
                             </svg>
-                            <span
-                                class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80"
-                            >
-                                Locked
-                            </span>
                         {:else}
                             <svg
                                 class="w-3 h-3 text-violet-400"
@@ -507,13 +533,13 @@
                     <div class="flex items-baseline gap-1">
                         <span
                             class="text-sm font-medium {isLocked
-                                ? 'text-emerald-400/60'
+                                ? 'text-violet-400/60'
                                 : 'text-violet-400/60'}">₹</span
                         >
                         <span
                             class="text-3xl font-mono font-black tracking-tight text-white
                             {isLocked
-                                ? 'drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                ? 'drop-shadow-[0_0_15px_rgba(139,92,246,0.5)]'
                                 : 'drop-shadow-[0_0_10px_rgba(139,92,246,0.4)]'}"
                         >
                             {displayPrice.toFixed(2)}
@@ -552,7 +578,7 @@
                 <!-- Edge Connector -->
                 <div
                     class="w-1 h-10 {isLocked
-                        ? 'bg-emerald-500/50'
+                        ? 'bg-cyan-500/50'
                         : 'bg-violet-500/40'} rounded-r"
                 ></div>
             </div>
@@ -580,12 +606,16 @@
     >
         <div
             class="relative px-12 py-10 rounded-[32px] backdrop-blur-2xl
-                bg-gradient-to-br from-emerald-950/90 via-emerald-900/80 to-cyan-950/70
-                border border-emerald-400/40 shadow-[0_0_60px_rgba(16,185,129,0.4)]"
+                {confirmedOrderSide === 'BUY'
+                ? 'bg-gradient-to-br from-emerald-950/90 via-emerald-900/80 to-cyan-950/70 border-emerald-400/40 shadow-[0_0_60px_rgba(16,185,129,0.4)]'
+                : 'bg-gradient-to-br from-rose-950/90 via-rose-900/80 to-purple-950/70 border-rose-400/40 shadow-[0_0_60px_rgba(244,63,94,0.4)]'}"
         >
             <!-- Ambient Glow -->
             <div
-                class="absolute inset-0 bg-emerald-500/10 blur-3xl -z-10 rounded-full"
+                class="absolute inset-0 blur-3xl -z-10 rounded-full
+                {confirmedOrderSide === 'BUY'
+                    ? 'bg-emerald-500/10'
+                    : 'bg-rose-500/10'}"
             ></div>
 
             <!-- Inner Shine -->
@@ -597,47 +627,86 @@
                 <!-- Animated Checkmark Ring -->
                 <div class="mb-5 relative">
                     <div
-                        class="absolute inset-0 bg-emerald-500/30 blur-xl rounded-full animate-pulse"
+                        class="absolute inset-0 blur-xl rounded-full animate-pulse
+                        {confirmedOrderSide === 'BUY'
+                            ? 'bg-emerald-500/30'
+                            : 'bg-rose-500/30'}"
                     ></div>
                     <div
-                        class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400/60 flex items-center justify-center relative z-10"
+                        class="w-20 h-20 rounded-full border-2 flex items-center justify-center relative z-10
+                        {confirmedOrderSide === 'BUY'
+                            ? 'bg-emerald-500/20 border-emerald-400/60'
+                            : 'bg-rose-500/20 border-rose-400/60'}"
                     >
-                        <svg
-                            class="w-10 h-10 text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="3"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12.75l6 6 9-13.5"
-                            />
-                        </svg>
+                        {#if confirmedOrderSide === "BUY"}
+                            <svg
+                                class="w-10 h-10 text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke-width="3"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M4.5 12.75l6 6 9-13.5"
+                                />
+                            </svg>
+                        {:else}
+                            <!-- Sell Icon / Down Arrow -->
+                            <svg
+                                class="w-10 h-10 text-rose-300 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke-width="3"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3"
+                                />
+                            </svg>
+                        {/if}
                     </div>
                 </div>
 
                 <div
-                    class="text-3xl font-black text-white tracking-tight mb-1 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                    class="text-3xl font-black text-white tracking-tight mb-1
+                    {confirmedOrderSide === 'BUY'
+                        ? 'drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                        : 'drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]'}"
                 >
-                    ORDER SENT
+                    {confirmedOrderSide === "BUY"
+                        ? "BUY ORDER SENT"
+                        : "SELL ORDER SENT"}
                 </div>
                 <div
-                    class="text-[11px] font-semibold text-emerald-300/70 uppercase tracking-[0.2em] mb-4"
+                    class="text-[11px] font-semibold uppercase tracking-[0.2em] mb-4
+                    {confirmedOrderSide === 'BUY'
+                        ? 'text-emerald-300/70'
+                        : 'text-rose-300/70'}"
                 >
                     Executed Successfully
                 </div>
 
                 <div
-                    class="px-6 py-3 rounded-xl bg-slate-950/50 border border-emerald-500/30 flex flex-col items-center gap-1"
+                    class="px-6 py-3 rounded-xl bg-slate-950/50 flex flex-col items-center gap-1
+                    {confirmedOrderSide === 'BUY'
+                        ? 'border border-emerald-500/30'
+                        : 'border border-rose-500/30'}"
                 >
                     <span
-                        class="text-[10px] text-emerald-400/60 uppercase font-bold tracking-wider"
-                        >Fill Price</span
+                        class="text-[10px] uppercase font-bold tracking-wider
+                        {confirmedOrderSide === 'BUY'
+                            ? 'text-emerald-400/60'
+                            : 'text-rose-400/60'}">Fill Price</span
                     >
                     <span
-                        class="text-2xl font-mono font-black text-emerald-200 tracking-tight drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                        class="text-2xl font-mono font-black tracking-tight
+                        {confirmedOrderSide === 'BUY'
+                            ? 'text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                            : 'text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]'}"
                     >
                         ₹{(lockedPrice ?? 0).toFixed(2)}
                     </span>

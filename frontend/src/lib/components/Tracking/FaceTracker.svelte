@@ -327,9 +327,8 @@
                 ].filter(Boolean).length;
 
                 if (fingersUp === 0) {
-                    // Check for Thumbs Up vs Fist
-                    // === IMPROVED THUMBS UP DETECTION ===
-                    // Check multiple conditions for reliable thumbs up
+                    // Check for Thumbs Up vs Thumbs Down vs Fist
+                    // === IMPROVED THUMBS UP/DOWN DETECTION ===
                     const thumbTip = primaryHand[4];
                     const thumbIP = primaryHand[3];
                     const thumbMCP = primaryHand[2];
@@ -338,34 +337,26 @@
                     const indexTip = primaryHand[8];
                     const pinkyTip = primaryHand[20];
 
-                    // 1. Thumb tip is higher than thumb IP (thumb is pointing up)
-                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.015; // Slightly more lenient
-
-                    // 2. Thumb tip is higher than wrist (hand orientation)
-                    const thumbAboveWrist = thumbTip.y < wrist.y - 0.02;
-
-                    // 3. Thumb is extended outward from palm
+                    // Common checks
                     const thumbExtended =
                         Math.hypot(
                             thumbTip.x - indexKnuckle.x,
                             thumbTip.y - indexKnuckle.y,
-                        ) > 0.08; // Slightly more lenient
+                        ) > 0.08;
 
-                    // 4. Other fingers are closed (curled into fist)
-                    // Index, middle, ring, pinky tips should be below their MCPs
                     const otherFingersClosed =
                         primaryHand[8].y > primaryHand[5].y && // Index
                         primaryHand[12].y > primaryHand[9].y && // Middle
                         primaryHand[16].y > primaryHand[13].y && // Ring
                         primaryHand[20].y > primaryHand[17].y; // Pinky
 
-                    // 5. Thumb is on the correct side (left/right hand aware)
-                    // For right hand: thumb should be to the left of index knuckle
-                    // For left hand: thumb should be to the right of index knuckle
                     const thumbOnSide =
                         Math.abs(thumbTip.x - indexKnuckle.x) > 0.05;
 
-                    // Combine checks - more lenient: only need 2-3 conditions
+                    // === THUMBS UP CHECKS ===
+                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.015;
+                    const thumbAboveWrist = thumbTip.y < wrist.y - 0.02;
+
                     const thumbsUpScore =
                         (thumbPointingUp ? 1 : 0) +
                         (thumbAboveWrist ? 1 : 0) +
@@ -373,12 +364,31 @@
                         (otherFingersClosed ? 1 : 0) +
                         (thumbOnSide ? 0.5 : 0);
 
-                    // Score of 2.5+ = thumbs up (was requiring all conditions before)
+                    // === THUMBS DOWN CHECKS ===
+                    const thumbPointingDown = thumbTip.y > thumbIP.y + 0.015;
+                    const thumbBelowWrist = thumbTip.y > wrist.y + 0.02;
+
+                    const thumbsDownScore =
+                        (thumbPointingDown ? 1 : 0) +
+                        (thumbBelowWrist ? 1 : 0) +
+                        (thumbExtended ? 1 : 0) +
+                        (otherFingersClosed ? 1 : 0) +
+                        (thumbOnSide ? 0.5 : 0);
+
+                    // Determine gesture - thumbs up takes priority if both score high
                     if (thumbsUpScore >= 2.5) {
                         primaryGesture = "Thumbs_Up";
+                    } else if (thumbsDownScore >= 2.5) {
+                        primaryGesture = "Thumbs_Down";
                     } else if (otherFingersClosed && thumbExtended) {
-                        // Fallback: if fist is closed and thumb is out, likely thumbs up
-                        primaryGesture = "Thumbs_Up";
+                        // Fallback: if fist is closed and thumb is out, check direction
+                        if (thumbPointingUp) {
+                            primaryGesture = "Thumbs_Up";
+                        } else if (thumbPointingDown) {
+                            primaryGesture = "Thumbs_Down";
+                        } else {
+                            primaryGesture = "Closed_Fist";
+                        }
                     } else {
                         primaryGesture = "Closed_Fist";
                     }

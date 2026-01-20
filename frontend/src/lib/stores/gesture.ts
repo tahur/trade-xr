@@ -14,7 +14,7 @@ export interface GestureState {
     // Order Side (BUY/SELL based on hand)
     orderSide: 'BUY' | 'SELL' | null;
     // Gesture Recognition
-    detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm' | 'Thumbs_Up';
+    detectedGesture: 'None' | 'Pointing_Up' | 'Victory' | 'Closed_Fist' | 'Open_Palm' | 'Thumbs_Up' | 'Thumbs_Down';
     fingerCount: number;
     // Hand identification
     primaryHandSide: HandSide;

@@ -14,6 +14,7 @@ export type GestureType =
     | 'None'
     | 'Closed_Fist'
     | 'Thumbs_Up'
+    | 'Thumbs_Down'
     | 'Pointing_Up'
     | 'Victory'
     | 'Open_Palm';
@@ -120,6 +121,51 @@ export function isThumbsUp(landmarks: HandLandmarks): boolean {
     return getThumbsUpScore(landmarks) >= GESTURE_THRESHOLDS.THUMBS_UP_SCORE;
 }
 
+// ===================== THUMBS DOWN DETECTION =====================
+
+/**
+ * Score-based thumbs down detection (inverse of thumbs up)
+ * Returns a score 0-5 where >= 2.5 is considered thumbs down
+ */
+export function getThumbsDownScore(landmarks: HandLandmarks): number {
+    const thumbTip = landmarks[4];
+    const thumbIP = landmarks[3];
+    const wrist = landmarks[0];
+    const indexKnuckle = landmarks[5];
+
+    let score = 0;
+
+    // 1. Thumb tip is LOWER than thumb IP (thumb pointing down)
+    if (thumbTip.y > thumbIP.y + 0.015) score += 1;
+
+    // 2. Thumb tip is LOWER than wrist (hand inverted or thumb down)
+    if (thumbTip.y > wrist.y + 0.02) score += 1;
+
+    // 3. Thumb is extended outward from palm
+    const thumbDist = distance(thumbTip, indexKnuckle);
+    if (thumbDist > 0.08) score += 1;
+
+    // 4. Other fingers are closed
+    const otherFingersClosed =
+        landmarks[8].y > landmarks[5].y &&   // Index
+        landmarks[12].y > landmarks[9].y &&  // Middle
+        landmarks[16].y > landmarks[13].y && // Ring
+        landmarks[20].y > landmarks[17].y;   // Pinky
+    if (otherFingersClosed) score += 1;
+
+    // 5. Thumb is on correct side (partial point)
+    if (Math.abs(thumbTip.x - indexKnuckle.x) > 0.05) score += 0.5;
+
+    return score;
+}
+
+/**
+ * Detect thumbs down gesture
+ */
+export function isThumbsDown(landmarks: HandLandmarks): boolean {
+    return getThumbsDownScore(landmarks) >= GESTURE_THRESHOLDS.THUMBS_UP_SCORE;
+}
+
 // ===================== FINGER COUNTING =====================
 
 /**
@@ -157,9 +203,12 @@ export function classifyGesture(landmarks: HandLandmarks, isPinching: boolean): 
 
     // No fingers up
     if (fingersUp === 0) {
-        // Check thumbs up vs closed fist
+        // Check thumbs up vs thumbs down vs closed fist
         if (isThumbsUp(landmarks)) {
             return 'Thumbs_Up';
+        }
+        if (isThumbsDown(landmarks)) {
+            return 'Thumbs_Down';
         }
         return 'Closed_Fist';
     }

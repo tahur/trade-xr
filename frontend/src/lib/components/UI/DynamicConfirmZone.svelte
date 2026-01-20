@@ -26,6 +26,9 @@
         price: number;
     } | null = null;
 
+    // Track which gesture triggered the zone (for BUY vs SELL)
+    let activeGesture: "Thumbs_Up" | "Thumbs_Down" | null = null;
+
     // === ZONE STATE ===
     // Use spring for smooth, jitter-free positioning
     const zonePosition = spring(
@@ -63,6 +66,7 @@
         progress = 0;
         holdStartTime = null;
         isComplete = false;
+        activeGesture = null;
     }
 
     // === MAIN LOGIC ===
@@ -75,6 +79,8 @@
         const currentGesture = $gestureState.detectedGesture;
         const handPos = $gestureState.handPosition;
         const isThumbsUp = currentGesture === "Thumbs_Up";
+        const isThumbsDown = currentGesture === "Thumbs_Down";
+        const isConfirmGesture = isThumbsUp || isThumbsDown;
         const isClosedFist = currentGesture === "Closed_Fist";
 
         // Cancel on closed fist
@@ -84,17 +90,23 @@
             return;
         }
 
-        // Step 1: Spawn zone at FIXED CENTER when thumbs up first detected
-        if (isThumbsUp && !zoneSpawned && $gestureState.isHandDetected) {
+        // Step 1: Spawn zone at FIXED CENTER when thumbs up/down first detected
+        if (isConfirmGesture && !zoneSpawned && $gestureState.isHandDetected) {
             // Fixed center position - not following hand
             lockedCenter = { x: 0.5, y: 0.5 };
             zonePosition.set({ x: 50, y: 50 }, { hard: true });
             zoneSpawned = true;
             holdStartTime = performance.now();
+            // Track which gesture started the zone
+            activeGesture = isThumbsUp ? "Thumbs_Up" : "Thumbs_Down";
         }
 
-        // Step 2: Track progress while thumbs up in zone
-        if (zoneSpawned && isThumbsUp && $gestureState.isHandDetected) {
+        // Step 2: Track progress while same gesture is held in zone
+        const isSameGesture =
+            (activeGesture === "Thumbs_Up" && isThumbsUp) ||
+            (activeGesture === "Thumbs_Down" && isThumbsDown);
+
+        if (zoneSpawned && isSameGesture && $gestureState.isHandDetected) {
             const dist = distance(handPos, lockedCenter);
 
             if (dist < ZONE_RADIUS) {
@@ -119,8 +131,8 @@
             }
         }
 
-        // Step 3: Reset if thumbs up released
-        if (!isThumbsUp && zoneSpawned && !isComplete) {
+        // Step 3: Reset if gesture released (neither thumbs up nor down)
+        if (!isConfirmGesture && zoneSpawned && !isComplete) {
             resetZone();
         }
 
@@ -154,6 +166,8 @@
     $: isHandInZone =
         zoneSpawned &&
         distance($gestureState.handPosition, lockedCenter) < ZONE_RADIUS;
+    $: isSellMode = activeGesture === "Thumbs_Down";
+    $: currentEmoji = isSellMode ? "👎" : "👍";
 </script>
 
 {#if isActive && zoneSpawned}
@@ -167,6 +181,7 @@
             class="zone-ring"
             class:hand-inside={isHandInZone}
             class:complete={isComplete}
+            class:sell-mode={isSellMode}
         >
             <!-- Background Circle -->
             <svg viewBox="0 0 100 100" class="progress-svg">
@@ -187,11 +202,13 @@
             <!-- Center Content -->
             <div class="center-content">
                 {#if isComplete}
-                    <span class="checkmark" transition:scale={{ duration: 200 }}
-                        >✓</span
+                    <span
+                        class="checkmark"
+                        class:sell={isSellMode}
+                        transition:scale={{ duration: 200 }}>✓</span
                     >
                 {:else}
-                    <span class="emoji">👍</span>
+                    <span class="emoji">{currentEmoji}</span>
                 {/if}
             </div>
         </div>
@@ -243,34 +260,62 @@
         border-radius: 50%;
         position: relative;
 
-        /* Holographic base */
+        /* Holographic base (BUY - Emerald) */
         background: radial-gradient(
             circle,
-            rgba(139, 92, 246, 0.15) 0%,
-            rgba(139, 92, 246, 0.05) 60%,
+            rgba(16, 185, 129, 0.15) 0%,
+            rgba(16, 185, 129, 0.05) 60%,
             transparent 80%
         );
-        border: 2px solid rgba(139, 92, 246, 0.4);
+        border: 2px solid rgba(16, 185, 129, 0.4);
         box-shadow:
-            0 0 50px rgba(139, 92, 246, 0.2),
-            inset 0 0 30px rgba(139, 92, 246, 0.1);
+            0 0 50px rgba(16, 185, 129, 0.2),
+            inset 0 0 30px rgba(16, 185, 129, 0.1);
 
         transition: all 0.3s ease;
     }
 
     .zone-ring.hand-inside {
-        border-color: rgba(167, 139, 250, 0.8);
+        border-color: rgba(52, 211, 153, 0.8);
         box-shadow:
-            0 0 70px rgba(167, 139, 250, 0.4),
-            inset 0 0 40px rgba(167, 139, 250, 0.2);
+            0 0 70px rgba(52, 211, 153, 0.4),
+            inset 0 0 40px rgba(52, 211, 153, 0.2);
     }
 
     .zone-ring.complete {
-        border-color: rgba(167, 139, 250, 1);
+        border-color: rgba(52, 211, 153, 1);
         box-shadow:
-            0 0 100px rgba(167, 139, 250, 0.6),
-            inset 0 0 60px rgba(167, 139, 250, 0.4);
+            0 0 100px rgba(52, 211, 153, 0.6),
+            inset 0 0 60px rgba(52, 211, 153, 0.4);
         animation: pulse 0.5s ease;
+    }
+
+    /* SELL mode - rose/red colors */
+    .zone-ring.sell-mode {
+        background: radial-gradient(
+            circle,
+            rgba(244, 63, 94, 0.15) 0%,
+            rgba(244, 63, 94, 0.05) 60%,
+            transparent 80%
+        );
+        border: 2px solid rgba(244, 63, 94, 0.4);
+        box-shadow:
+            0 0 50px rgba(244, 63, 94, 0.2),
+            inset 0 0 30px rgba(244, 63, 94, 0.1);
+    }
+
+    .zone-ring.sell-mode.hand-inside {
+        border-color: rgba(251, 113, 133, 0.8);
+        box-shadow:
+            0 0 70px rgba(251, 113, 133, 0.4),
+            inset 0 0 40px rgba(251, 113, 133, 0.2);
+    }
+
+    .zone-ring.sell-mode.complete {
+        border-color: rgba(251, 113, 133, 1);
+        box-shadow:
+            0 0 100px rgba(251, 113, 133, 0.6),
+            inset 0 0 60px rgba(251, 113, 133, 0.4);
     }
 
     @keyframes pulse {
@@ -291,20 +336,20 @@
 
     .track-ring {
         fill: none;
-        stroke: rgba(139, 92, 246, 0.1);
+        stroke: rgba(16, 185, 129, 0.1);
         stroke-width: 3;
     }
 
     .progress-ring {
         fill: none;
-        stroke: #8b5cf6;
+        stroke: #10b981;
         stroke-width: 4;
         stroke-linecap: round;
         transition: stroke-dashoffset 0.1s linear;
     }
 
     .progress-ring.filling {
-        filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.8));
+        filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.8));
     }
 
     .center-content {
@@ -322,10 +367,15 @@
 
     .checkmark {
         font-size: 56px;
-        color: #8b5cf6;
+        color: #10b981;
         font-weight: bold;
-        filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.5));
+        filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.5));
         animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .checkmark.sell {
+        color: #f43f5e;
+        filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.5));
     }
 
     @keyframes pop {
@@ -350,8 +400,8 @@
         background: rgba(2, 6, 23, 0.85);
         backdrop-filter: blur(12px);
         border-radius: 12px;
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
     }
 
     .side {
@@ -364,9 +414,9 @@
     }
 
     .side.buy {
-        background: rgba(167, 139, 250, 0.1);
-        color: #a78bfa;
-        border: 1px solid rgba(167, 139, 250, 0.3);
+        background: rgba(52, 211, 153, 0.1);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.3);
     }
 
     .side.sell {
@@ -384,10 +434,10 @@
     }
 
     .status-text {
-        color: rgba(167, 139, 250, 0.8);
+        color: rgba(52, 211, 153, 0.8);
         font-size: 14px;
         font-weight: 600;
         text-align: center;
-        text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
     }
 </style>
