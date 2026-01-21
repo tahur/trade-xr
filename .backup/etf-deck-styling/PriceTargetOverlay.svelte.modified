@@ -81,15 +81,6 @@
         lockTime = null;
     }
 
-    // Reset state WITH cooldown - prevents immediate re-triggering after order flow completes
-    function resetWithCooldown(cooldownMs: number = 3000) {
-        resetState();
-        orderCooldownActive = true;
-        setTimeout(() => {
-            orderCooldownActive = false;
-        }, cooldownMs);
-    }
-
     onDestroy(clearAllTimers);
 
     // Subscribe to gestureBus for immediate zoom blocking
@@ -137,18 +128,26 @@
 
     // Is hand valid? Block during zoom cooldown and check hand preference
     // CRITICAL: Use BOTH store check AND event-based flag for reliable blocking
+    import { uiState } from "$lib/stores/uiState";
+
+    // ... (existing imports)
+
+    // Is hand valid? Block during zoom cooldown and check hand preference
+    // CRITICAL: Use BOTH store check AND event-based flag for reliable blocking
     $: isZooming =
         $twoHandPinch.isActive ||
         $zoomCooldownActive ||
         isZoomBlocking ||
         $gestureState.numHandsDetected >= 2;
+    $: isDeckOpen = $uiState.isDeckOpen; // Block if deck is open
     $: isPreferredHand =
         $gestureState.primaryHandSide === $tradingHandPreference;
     $: isValidHand =
         $gestureState.isHandDetected &&
         $gestureState.numHandsDetected === 1 &&
         isPreferredHand &&
-        !isZooming;
+        !isZooming &&
+        !isDeckOpen;
 
     // Combined check including order cooldown and engine lock
     function canActivate(): boolean {
@@ -185,11 +184,10 @@
             resetState();
         }
 
-        // IDLE → TARGETING (only with Pointing_Up gesture)
+        // IDLE → TARGETING (only when not in order cooldown)
         else if (
             state === "IDLE" &&
             canActivate() &&
-            currentGesture === "Pointing_Up" &&
             $gestureState.isHandStable &&
             !isPinching
         ) {
@@ -197,7 +195,6 @@
                 entryDebounce = setTimeout(() => {
                     if (
                         $gestureState.isHandDetected &&
-                        $gestureState.detectedGesture === "Pointing_Up" &&
                         state === "IDLE" &&
                         acquireTrading()
                     ) {
@@ -300,11 +297,15 @@
 
                             if (result.success) {
                                 state = "ORDER_PLACED";
-                                // Show success modal, then reset with cooldown
-                                setTimeout(() => resetWithCooldown(), 2500);
+                                // Activate post-order cooldown to prevent re-triggering
+                                orderCooldownActive = true;
+                                setTimeout(() => {
+                                    orderCooldownActive = false;
+                                }, 3000);
+                                setTimeout(resetState, 2500);
                             } else {
-                                // Order failed - reset with cooldown to prevent immediate re-trigger
-                                resetWithCooldown();
+                                // Order failed - go back to LOCKED state
+                                state = "LOCKED";
                             }
                         }
                     }
@@ -352,11 +353,14 @@
 
             if (result.success) {
                 state = "ORDER_PLACED";
-                // Show success modal, then reset with cooldown
-                setTimeout(() => resetWithCooldown(), 2500);
+                orderCooldownActive = true;
+                setTimeout(() => {
+                    orderCooldownActive = false;
+                }, 3000);
+                setTimeout(resetState, 2500);
             } else {
-                // Order failed - reset with cooldown to prevent immediate re-trigger
-                resetWithCooldown();
+                // Order failed - go back to LOCKED state
+                state = "LOCKED";
             }
         }
     }
@@ -394,10 +398,11 @@
     on:cancel={handleConfirmZoneCancel}
 />
 
-{#if state !== "IDLE" && state !== "ORDER_PLACED"}
+{#if state !== "IDLE"}
     <!-- === HOLOGRAPHIC TARGETING LINE === -->
     <div
-        class="fixed left-0 right-0 pointer-events-none z-40"
+        class="fixed left-0 right-0 pointer-events-none z-40 transition-opacity duration-300"
+        class:opacity-0={isDeckOpen}
         style="top: 0; transform: translateY({screenY}vh); will-change: transform;"
     >
         <!-- Main Line with Glow -->
