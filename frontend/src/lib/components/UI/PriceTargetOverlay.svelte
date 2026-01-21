@@ -82,11 +82,14 @@
     }
 
     // Reset state WITH cooldown - prevents immediate re-triggering after order flow completes
+    let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
     function resetWithCooldown(cooldownMs: number = 3000) {
         resetState();
         orderCooldownActive = true;
-        setTimeout(() => {
+        if (cooldownTimer) clearTimeout(cooldownTimer);
+        cooldownTimer = setTimeout(() => {
             orderCooldownActive = false;
+            cooldownTimer = null;
         }, cooldownMs);
     }
 
@@ -94,7 +97,9 @@
 
     // Subscribe to gestureBus for immediate zoom blocking
     let unsubZoomStart: (() => void) | null = null;
+    let unsubZoomUpdate: (() => void) | null = null;
     let unsubZoomEnd: (() => void) | null = null;
+    let zoomBlockingTimer: ReturnType<typeof setTimeout> | null = null;
 
     onMount(() => {
         // Zoom starts - immediately cancel any trading state
@@ -106,7 +111,7 @@
         });
 
         // Also cancel on zoom update (in case we missed ZOOM_START)
-        gestureBus.on("ZOOM_UPDATE", () => {
+        unsubZoomUpdate = gestureBus.on("ZOOM_UPDATE", () => {
             isZoomBlocking = true;
             if (state !== "IDLE" && state !== "ORDER_PLACED") {
                 resetState();
@@ -116,15 +121,20 @@
         // Zoom ends - allow trading after cooldown
         unsubZoomEnd = gestureBus.on("ZOOM_END", () => {
             // Keep blocking for cooldown period
-            setTimeout(() => {
+            if (zoomBlockingTimer) clearTimeout(zoomBlockingTimer);
+            zoomBlockingTimer = setTimeout(() => {
                 isZoomBlocking = false;
+                zoomBlockingTimer = null;
             }, 300); // Match ZOOM_COOLDOWN_MS
         });
     });
 
     onDestroy(() => {
         unsubZoomStart?.();
+        unsubZoomUpdate?.();
         unsubZoomEnd?.();
+        if (cooldownTimer) clearTimeout(cooldownTimer);
+        if (zoomBlockingTimer) clearTimeout(zoomBlockingTimer);
     });
 
     // === EMA SMOOTHED HAND POSITION ===

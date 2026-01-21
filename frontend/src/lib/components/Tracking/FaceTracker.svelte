@@ -21,10 +21,19 @@
     import { gestureBus } from "$lib/services/gestureBus";
 
     let videoElement: HTMLVideoElement;
+    let canvasElement: HTMLCanvasElement;
+    let canvasCtx: CanvasRenderingContext2D | null = null;
     let faceMesh: FaceMesh;
     let hands: Hands;
     let camera: Camera | null = null;
     let isCameraRunning = false;
+
+    // Toggle for visualization overlays
+    let showOverlays = true;
+
+    // Store latest results for drawing
+    let latestFaceResults: any = null;
+    let latestHandResults: any = null;
 
     // Two-hand zoom state
     let wasZooming = false;
@@ -70,6 +79,177 @@
         alpha: number = EMA_ALPHA,
     ) => alpha * current + (1 - alpha) * previous;
 
+    // === VISUALIZATION DRAWING FUNCTIONS ===
+
+    // Hand connections for skeleton
+    const HAND_CONNECTIONS = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4], // Thumb
+        [0, 5],
+        [5, 6],
+        [6, 7],
+        [7, 8], // Index
+        [0, 9],
+        [9, 10],
+        [10, 11],
+        [11, 12], // Middle
+        [0, 13],
+        [13, 14],
+        [14, 15],
+        [15, 16], // Ring
+        [0, 17],
+        [17, 18],
+        [18, 19],
+        [19, 20], // Pinky
+        [5, 9],
+        [9, 13],
+        [13, 17], // Palm connections
+    ];
+
+    // Face mesh key contour connections (simplified for performance)
+    const FACE_OVAL = [
+        10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365,
+        379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234,
+        127, 162, 21, 54, 103, 67, 109, 10,
+    ];
+    const LEFT_EYE = [
+        33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161,
+        246, 33,
+    ];
+    const RIGHT_EYE = [
+        362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385,
+        384, 398, 362,
+    ];
+    const LIPS_OUTER = [
+        61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267,
+        0, 37, 39, 40, 185, 61,
+    ];
+
+    function drawOverlays() {
+        if (!canvasCtx || !canvasElement || !showOverlays) return;
+
+        const width = canvasElement.width;
+        const height = canvasElement.height;
+
+        // Clear canvas
+        canvasCtx.clearRect(0, 0, width, height);
+
+        // Draw face mesh
+        if (latestFaceResults?.multiFaceLandmarks?.[0]) {
+            drawFaceMesh(
+                latestFaceResults.multiFaceLandmarks[0],
+                width,
+                height,
+            );
+        }
+
+        // Draw hands
+        if (latestHandResults?.multiHandLandmarks) {
+            latestHandResults.multiHandLandmarks.forEach(
+                (landmarks: any, idx: number) => {
+                    drawHandSkeleton(landmarks, width, height, idx);
+                },
+            );
+        }
+    }
+
+    function drawFaceMesh(landmarks: any[], width: number, height: number) {
+        if (!canvasCtx) return;
+
+        // Draw face oval
+        canvasCtx.strokeStyle = "rgba(0, 255, 255, 0.6)";
+        canvasCtx.lineWidth = 1;
+        drawContour(landmarks, FACE_OVAL, width, height);
+
+        // Draw eyes
+        canvasCtx.strokeStyle = "rgba(0, 255, 100, 0.8)";
+        drawContour(landmarks, LEFT_EYE, width, height);
+        drawContour(landmarks, RIGHT_EYE, width, height);
+
+        // Draw lips
+        canvasCtx.strokeStyle = "rgba(255, 100, 150, 0.7)";
+        drawContour(landmarks, LIPS_OUTER, width, height);
+
+        // Draw nose tip marker
+        const nose = landmarks[1];
+        canvasCtx.fillStyle = "rgba(255, 255, 0, 0.9)";
+        canvasCtx.beginPath();
+        canvasCtx.arc(nose.x * width, nose.y * height, 3, 0, 2 * Math.PI);
+        canvasCtx.fill();
+    }
+
+    function drawContour(
+        landmarks: any[],
+        indices: number[],
+        width: number,
+        height: number,
+    ) {
+        if (!canvasCtx || indices.length < 2) return;
+
+        canvasCtx.beginPath();
+        const first = landmarks[indices[0]];
+        canvasCtx.moveTo(first.x * width, first.y * height);
+
+        for (let i = 1; i < indices.length; i++) {
+            const pt = landmarks[indices[i]];
+            canvasCtx.lineTo(pt.x * width, pt.y * height);
+        }
+        canvasCtx.stroke();
+    }
+
+    function drawHandSkeleton(
+        landmarks: any[],
+        width: number,
+        height: number,
+        handIdx: number,
+    ) {
+        if (!canvasCtx) return;
+
+        // Different colors for each hand
+        const colors = [
+            { line: "rgba(255, 0, 255, 0.8)", joint: "rgba(255, 100, 255, 1)" }, // Magenta for hand 1
+            { line: "rgba(0, 255, 255, 0.8)", joint: "rgba(100, 255, 255, 1)" }, // Cyan for hand 2
+        ];
+        const color = colors[handIdx % 2];
+
+        // Draw connections (skeleton lines)
+        canvasCtx.strokeStyle = color.line;
+        canvasCtx.lineWidth = 2;
+
+        for (const [start, end] of HAND_CONNECTIONS) {
+            const p1 = landmarks[start];
+            const p2 = landmarks[end];
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(p1.x * width, p1.y * height);
+            canvasCtx.lineTo(p2.x * width, p2.y * height);
+            canvasCtx.stroke();
+        }
+
+        // Draw joints (landmarks)
+        canvasCtx.fillStyle = color.joint;
+        for (let i = 0; i < landmarks.length; i++) {
+            const pt = landmarks[i];
+            const radius = [0, 4, 8, 12, 16, 20].includes(i) ? 4 : 2; // Larger for fingertips
+            canvasCtx.beginPath();
+            canvasCtx.arc(pt.x * width, pt.y * height, radius, 0, 2 * Math.PI);
+            canvasCtx.fill();
+        }
+
+        // Draw thumb-index line for pinch visualization
+        const thumb = landmarks[4];
+        const index = landmarks[8];
+        canvasCtx.strokeStyle = "rgba(255, 255, 0, 0.9)";
+        canvasCtx.lineWidth = 1;
+        canvasCtx.setLineDash([3, 3]);
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(thumb.x * width, thumb.y * height);
+        canvasCtx.lineTo(index.x * width, index.y * height);
+        canvasCtx.stroke();
+        canvasCtx.setLineDash([]);
+    }
+
     onMount(async () => {
         // --- Face Mesh Setup ---
         faceMesh = new FaceMesh({
@@ -84,6 +264,9 @@
         });
 
         faceMesh.onResults((results) => {
+            // Store for drawing
+            latestFaceResults = results;
+
             if (
                 results.multiFaceLandmarks &&
                 results.multiFaceLandmarks.length > 0
@@ -108,6 +291,9 @@
             } else {
                 $isTracking = false;
             }
+
+            // Draw overlays
+            drawOverlays();
         });
 
         // --- Hands Setup ---
@@ -123,6 +309,9 @@
         });
 
         hands.onResults((results) => {
+            // Store for drawing
+            latestHandResults = results;
+
             // ============ TWO-HAND PINCH ZOOM ============
             if (
                 results.multiHandLandmarks &&
@@ -514,6 +703,11 @@
             $isTracking = false;
         }
     }
+
+    // Initialize canvas context when element is bound
+    $: if (canvasElement && !canvasCtx) {
+        canvasCtx = canvasElement.getContext("2d");
+    }
 </script>
 
 <div
@@ -525,6 +719,15 @@
         class="w-full h-24 object-cover opacity-50"
         playsinline
     ></video>
+
+    <!-- Detection Overlay Canvas -->
+    <canvas
+        bind:this={canvasElement}
+        width="160"
+        height="96"
+        class="absolute top-0 left-0 w-full h-24 pointer-events-none"
+        class:hidden={!showOverlays}
+    ></canvas>
 
     <!-- Debug Info Overlay -->
     <div
@@ -565,9 +768,23 @@
         </div>
     </div>
 
-    <div class="absolute top-1 right-1">
+    <div class="absolute top-1 right-1 flex gap-1">
+        <!-- Overlay Toggle -->
+        <button
+            class="h-4 w-4 rounded text-[8px] font-bold flex items-center justify-center transition-colors
+                {showOverlays
+                ? 'bg-cyan-500/80 text-white'
+                : 'bg-slate-600/60 text-white/50'}"
+            on:click={() => (showOverlays = !showOverlays)}
+            title="Toggle detection overlays"
+        >
+            👁
+        </button>
+        <!-- Tracking Status -->
         <div
-            class={`h-2 w-2 rounded-full ${$isTracking ? "bg-green-500" : "bg-red-500"}`}
-        ></div>
+            class={`h-4 w-4 rounded-full flex items-center justify-center ${$isTracking ? "bg-green-500" : "bg-red-500"}`}
+        >
+            <div class="h-2 w-2 rounded-full bg-white/50"></div>
+        </div>
     </div>
 </div>
