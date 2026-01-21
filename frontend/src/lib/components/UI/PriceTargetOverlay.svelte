@@ -81,6 +81,15 @@
         lockTime = null;
     }
 
+    // Reset state WITH cooldown - prevents immediate re-triggering after order flow completes
+    function resetWithCooldown(cooldownMs: number = 3000) {
+        resetState();
+        orderCooldownActive = true;
+        setTimeout(() => {
+            orderCooldownActive = false;
+        }, cooldownMs);
+    }
+
     onDestroy(clearAllTimers);
 
     // Subscribe to gestureBus for immediate zoom blocking
@@ -289,15 +298,11 @@
 
                             if (result.success) {
                                 state = "ORDER_PLACED";
-                                // Activate post-order cooldown to prevent re-triggering
-                                orderCooldownActive = true;
-                                setTimeout(() => {
-                                    orderCooldownActive = false;
-                                }, 3000);
-                                setTimeout(resetState, 2500);
+                                // Show success modal, then reset with cooldown
+                                setTimeout(() => resetWithCooldown(), 2500);
                             } else {
-                                // Order failed - go back to LOCKED state
-                                state = "LOCKED";
+                                // Order failed - reset with cooldown to prevent immediate re-trigger
+                                resetWithCooldown();
                             }
                         }
                     }
@@ -345,14 +350,11 @@
 
             if (result.success) {
                 state = "ORDER_PLACED";
-                orderCooldownActive = true;
-                setTimeout(() => {
-                    orderCooldownActive = false;
-                }, 3000);
-                setTimeout(resetState, 2500);
+                // Show success modal, then reset with cooldown
+                setTimeout(() => resetWithCooldown(), 2500);
             } else {
-                // Order failed - go back to LOCKED state
-                state = "LOCKED";
+                // Order failed - reset with cooldown to prevent immediate re-trigger
+                resetWithCooldown();
             }
         }
     }
@@ -390,7 +392,7 @@
     on:cancel={handleConfirmZoneCancel}
 />
 
-{#if state !== "IDLE"}
+{#if state !== "IDLE" && state !== "ORDER_PLACED"}
     <!-- === HOLOGRAPHIC TARGETING LINE === -->
     <div
         class="fixed left-0 right-0 pointer-events-none z-40"

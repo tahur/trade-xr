@@ -151,6 +151,9 @@
                         zoomStartDistance = handDist;
                         baseZoom = $zoomLevel;
                         lastHandDist = handDist;
+
+                        // Emit ZOOM_START event to immediately cancel any trading state
+                        gestureBus.emit("ZOOM_START");
                     }
                 }
 
