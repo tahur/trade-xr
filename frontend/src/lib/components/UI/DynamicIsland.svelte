@@ -36,32 +36,37 @@
 
     // React to positions store changes and update P&L display
     $: {
-        const selectedSymbol = $selectedETFStore.symbol;
-        const positions = $positionsStore.positions;
+        // Skip if portfolio mode is active
+        if (dynamicIsland.isPortfolioMode()) {
+            // Do nothing
+        } else {
+            const selectedSymbol = $selectedETFStore.symbol;
+            const positions = $positionsStore.positions;
 
-        // Find position matching selected ETF
-        const matchingPosition = positions.find(
-            (p) => p.symbol === selectedSymbol,
-        );
+            // Find position matching selected ETF
+            const matchingPosition = positions.find(
+                (p) => p.symbol === selectedSymbol,
+            );
 
-        if (matchingPosition && matchingPosition.quantity !== 0) {
-            const pnlPercent =
-                matchingPosition.averagePrice > 0
-                    ? (matchingPosition.pnl /
-                          (matchingPosition.averagePrice *
-                              Math.abs(matchingPosition.quantity))) *
-                      100
-                    : 0;
+            if (matchingPosition && matchingPosition.quantity !== 0) {
+                const pnlPercent =
+                    matchingPosition.averagePrice > 0
+                        ? (matchingPosition.pnl /
+                              (matchingPosition.averagePrice *
+                                  Math.abs(matchingPosition.quantity))) *
+                          100
+                        : 0;
 
-            // Update Dynamic Island with P&L
-            dynamicIsland.setLiveActivity({
-                symbol: matchingPosition.symbol,
-                pnl: matchingPosition.pnl,
-                pnlPercent: pnlPercent,
-                avgPrice: matchingPosition.averagePrice,
-                currentPrice: matchingPosition.lastPrice,
-                position: "OPEN",
-            });
+                // Update Dynamic Island with P&L
+                dynamicIsland.setLiveActivity({
+                    symbol: matchingPosition.symbol,
+                    pnl: matchingPosition.pnl,
+                    pnlPercent: pnlPercent,
+                    avgPrice: matchingPosition.averagePrice,
+                    currentPrice: matchingPosition.lastPrice,
+                    position: "OPEN",
+                });
+            }
         }
     }
 
@@ -321,6 +326,56 @@
                             >
                                 {content.message}
                             </span>
+                        </div>
+                    {:else if content.type === "portfolio"}
+                        <!-- Portfolio Mode - Net Value & P&L -->
+                        <div
+                            class="flex items-center justify-between px-6 w-full h-full"
+                            in:scale={{
+                                start: 0.95,
+                                duration: 150,
+                                easing: snappyEase,
+                            }}
+                        >
+                            <!-- Left: Portfolio Label -->
+                            <div class="flex flex-col gap-0.5">
+                                <span
+                                    class="text-[10px] font-bold text-white/50 uppercase tracking-widest"
+                                >
+                                    Portfolio
+                                </span>
+                                <span
+                                    class="text-xl font-mono font-bold text-white"
+                                >
+                                    ₹{content.totalValue.toLocaleString(
+                                        "en-IN",
+                                        { maximumFractionDigits: 0 },
+                                    )}
+                                </span>
+                            </div>
+
+                            <!-- Right: P&L Pill -->
+                            <div
+                                class="flex items-center gap-2 px-4 py-2 rounded-xl {content.totalPnL >=
+                                0
+                                    ? 'bg-emerald-500/20 border border-emerald-500/30'
+                                    : 'bg-rose-500/20 border border-rose-500/30'}"
+                            >
+                                <span
+                                    class="text-lg font-mono font-bold {content.totalPnL >=
+                                    0
+                                        ? 'text-emerald-400'
+                                        : 'text-rose-400'}"
+                                >
+                                    {content.totalPnL >= 0
+                                        ? "+"
+                                        : ""}₹{Math.abs(
+                                        content.totalPnL,
+                                    ).toLocaleString("en-IN", {
+                                        maximumFractionDigits: 0,
+                                    })}
+                                </span>
+                            </div>
                         </div>
                     {/if}
 

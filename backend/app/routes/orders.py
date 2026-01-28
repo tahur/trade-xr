@@ -14,6 +14,13 @@ class OrderRequest(BaseModel):
     price: float
     transaction_type: str # BUY or SELL
 
+@router.get("/login-url")
+def get_login_url():
+    """Get the Kite Connect login URL for OAuth."""
+    if not kite_client.kite:
+        raise HTTPException(status_code=500, detail="Kite client not initialized")
+    return {"login_url": kite_client.kite.login_url()}
+
 @router.post("/login")
 def login(data: LoginRequest):
     try:

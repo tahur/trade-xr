@@ -17,6 +17,7 @@ export type GestureEventType =
     | 'FIST_DETECTED'
     | 'POINT_UP_DETECTED'
     | 'THUMBS_UP_DETECTED'
+    | 'VICTORY_DETECTED'
     | 'GESTURE_CHANGED';
 
 export interface GestureEvent {

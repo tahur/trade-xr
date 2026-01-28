@@ -48,7 +48,14 @@ export interface PendingOrderContent {
     pendingCount: number;  // Total pending orders
 }
 
-export type IslandContent = TickerContent | OrderContent | ApiContent | PnLContent | PendingOrderContent;
+export interface PortfolioContent {
+    type: 'portfolio';
+    totalValue: number;
+    totalPnL: number;
+    holdingsCount: number;
+}
+
+export type IslandContent = TickerContent | OrderContent | ApiContent | PnLContent | PendingOrderContent | PortfolioContent;
 
 interface DynamicIslandState {
     mode: IslandMode;
@@ -76,6 +83,7 @@ function createDynamicIslandStore() {
     let collapseTimer: ReturnType<typeof setTimeout> | null = null;
     let liveActivityTimeout: ReturnType<typeof setTimeout> | null = null;
     let notificationActive = false; // Prevent P&L from overriding error/order notifications
+    let portfolioModeActive = false; // Prevent ticker/P&L from overriding portfolio mode
 
     // Store the last ticker content so we can restore it after notifications
     let lastTickerContent: TickerContent = defaultTickerContent;
@@ -88,6 +96,9 @@ function createDynamicIslandStore() {
 
         // Update ticker (compact mode)
         updateTicker: (ticker: Omit<TickerContent, 'type'>) => {
+            // Don't update ticker when portfolio mode is active
+            if (portfolioModeActive) return;
+
             // Always save the latest ticker data
             lastTickerContent = { type: 'ticker', ...ticker };
 
@@ -141,6 +152,9 @@ function createDynamicIslandStore() {
 
         // Set live activity (persistent P&L) - queues if notification is active
         setLiveActivity: (pnl: Omit<PnLContent, 'type'>) => {
+            // Don't update P&L when portfolio mode is active
+            if (portfolioModeActive) return;
+
             const pnlContent: PnLContent = { type: 'pnl', ...pnl };
 
             // Check if content matches current state to prevent flickering
@@ -210,12 +224,25 @@ function createDynamicIslandStore() {
             });
         },
 
+        // Set portfolio mode (shows total value and P&L)
+        setPortfolio: (portfolio: Omit<PortfolioContent, 'type'>) => {
+            if (collapseTimer) clearTimeout(collapseTimer);
+            portfolioModeActive = true; // Block ticker/P&L updates
+
+            set({
+                mode: 'expanded',
+                content: { type: 'portfolio', ...portfolio },
+                isVisible: true
+            });
+        },
+
         // Manually collapse to compact - restore ticker
         collapse: () => {
             // Don't override active notifications (e.g., ETF switch, order confirmations)
             if (notificationActive) {
                 return;
             }
+            portfolioModeActive = false; // Re-enable ticker/P&L updates
             if (collapseTimer) clearTimeout(collapseTimer);
             set({
                 mode: 'compact',
@@ -238,7 +265,10 @@ function createDynamicIslandStore() {
                 ...state,
                 isVisible: true
             }));
-        }
+        },
+
+        // Check if portfolio mode is active (blocks other updates)
+        isPortfolioMode: () => portfolioModeActive
     };
 }
 

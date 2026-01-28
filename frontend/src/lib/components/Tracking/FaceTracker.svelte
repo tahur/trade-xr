@@ -45,6 +45,12 @@
     let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
     const ZOOM_COOLDOWN_MS = 300; // 0.3 seconds cooldown after zoom
 
+    // Victory gesture detection state
+    let lastVictoryEmitTime = 0;
+    const VICTORY_COOLDOWN_MS = 800; // Prevent rapid toggling
+    let victoryHoldStart: number | null = null;
+    const VICTORY_HOLD_MS = 300; // Must hold Victory for 300ms to trigger
+
     // Frame throttling for MediaPipe CPU optimization
     let frameCount = 0;
 
@@ -628,6 +634,38 @@
                     handVelocity: { x: velocityX, y: velocityY },
                     isHandStable,
                 }));
+
+                // === VICTORY GESTURE EMISSION LOGIC ===
+                // Check if Victory gesture is detected and stable
+                if (primaryGesture === "Victory" && isHandStable) {
+                    const now = performance.now();
+
+                    // Start holding timer if not already started
+                    if (victoryHoldStart === null) {
+                        victoryHoldStart = now;
+                    }
+
+                    // Check if held long enough and cooldown passed
+                    const duration = now - victoryHoldStart;
+                    const timeSinceLastEmit = now - lastVictoryEmitTime;
+
+                    if (
+                        duration >= VICTORY_HOLD_MS &&
+                        timeSinceLastEmit > VICTORY_COOLDOWN_MS
+                    ) {
+                        console.log("✌️ Victory Gesture Confirmed!");
+                        gestureBus.emit("VICTORY_DETECTED", {
+                            timestamp: now,
+                            handSide: primaryHandSide,
+                        });
+
+                        lastVictoryEmitTime = now;
+                        victoryHoldStart = null; // Reset hold to require re-trigger
+                    }
+                } else {
+                    // Reset hold timer if gesture changes or hand moves too fast
+                    victoryHoldStart = null;
+                }
             } else {
                 gestureState.update((s) => ({
                     ...s,

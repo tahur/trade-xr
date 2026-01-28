@@ -1,6 +1,5 @@
 <script lang="ts">
     import { T } from "@threlte/core";
-    import { OrbitControls } from "@threlte/extras";
     import CandlestickChart from "$lib/components/Chart3D/CandlestickChart.svelte";
     import type { CandleData } from "$lib/services/mockData";
 
@@ -13,29 +12,7 @@
     };
     // Parallax offset (subtle position adjustment based on head tracking)
     export let cameraRotation: { x: number; y: number } = { x: 0, y: 0 };
-
-    // Apply parallax as subtle position offset (not rotation - conflicts with OrbitControls)
-    $: parallaxX = cameraRotation.y * 15; // Convert rotation to position offset
-    $: parallaxY = -cameraRotation.x * 10;
 </script>
-
-<!-- Camera with OrbitControls (parallax applied via position offset) -->
-<T.PerspectiveCamera
-    makeDefault
-    position={[
-        cameraPosition.x + parallaxX,
-        cameraPosition.y + parallaxY,
-        cameraPosition.z,
-    ]}
-    fov={55}
->
-    <OrbitControls
-        target={[25, 0, 0]}
-        enableDamping
-        enablePan={false}
-        maxPolarAngle={Math.PI / 2.2}
-    />
-</T.PerspectiveCamera>
 
 <!-- Optimization: Simplified 3-Point Lighting Setup for Performance -->
 

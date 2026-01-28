@@ -113,3 +113,55 @@ def get_candles(symbol: str, exchange: str = "NSE", interval: str = "5minute", d
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/portfolio/holdings")
+def get_holdings():
+    """Fetches portfolio holdings (long-term investments)."""
+    kite = KiteClient()
+    
+    if not kite.kite or not kite.access_token:
+        raise HTTPException(status_code=401, detail="Kite session not active. Please login first.")
+    
+    try:
+        holdings = kite.get_holdings()
+        return {"status": "success", "count": len(holdings), "holdings": holdings}
+    except Exception as e:
+        print(f"DEBUG: get_holdings error: {e}") 
+        error_msg = str(e).lower()
+        if "token" in error_msg or "session" in error_msg or "auth" in error_msg or "login" in error_msg:
+             raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/portfolio/positions")
+def get_positions():
+    """Fetches current day positions."""
+    kite = KiteClient()
+    
+    if not kite.kite or not kite.access_token:
+        raise HTTPException(status_code=401, detail="Kite session not active. Please login first.")
+    
+    try:
+        positions = kite.get_positions()
+        return {"status": "success", "positions": positions}
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "token" in error_msg or "session" in error_msg or "auth" in error_msg or "login" in error_msg:
+             raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/portfolio/margins")
+def get_margins():
+    """Fetches account margins."""
+    kite = KiteClient()
+    
+    if not kite.kite or not kite.access_token:
+        raise HTTPException(status_code=401, detail="Kite session not active. Please login first.")
+    
+    try:
+        margins = kite.get_margins()
+        return {"status": "success", "margins": margins}
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "token" in error_msg or "session" in error_msg or "auth" in error_msg or "login" in error_msg:
+             raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+        raise HTTPException(status_code=500, detail=str(e))

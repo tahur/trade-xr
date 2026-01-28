@@ -146,6 +146,17 @@ class KiteClient:
             logger.error(f"Error fetching positions: {e}")
             raise e
 
+    def get_holdings(self):
+        """Fetches portfolio holdings (long-term investments)."""
+        if not self.kite or not self.access_token:
+            raise Exception("Kite session not active")
+        
+        try:
+            return self.kite.holdings()
+        except Exception as e:
+            logger.error(f"Error fetching holdings: {e}")
+            raise e
+
     def get_margins(self):
         """Fetches available margins."""
         if not self.kite or not self.access_token:

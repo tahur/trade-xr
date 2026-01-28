@@ -1,7 +1,14 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import { Canvas } from "@threlte/core";
+    import { Canvas, T } from "@threlte/core";
     import { spring } from "svelte/motion"; // Keep spring for rotation only
+    import { fade } from "svelte/transition";
+    import { OrbitControls } from "@threlte/extras";
+    import {
+        holdingsStore,
+        totalPortfolioValue,
+        totalPnL,
+    } from "$lib/stores/holdings";
     import {
         animationController,
         type CameraState,
@@ -20,6 +27,7 @@
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
     import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
+    import PortfolioTreemap from "$lib/components/UI/PortfolioTreemap.svelte";
 
     // Stores
     import {
@@ -257,7 +265,7 @@
 
     // Sync Dynamic Island with ETF data
     $: {
-        if ($etfStore.ltp > 0) {
+        if ($etfStore.ltp > 0 && !dynamicIsland.isPortfolioMode()) {
             dynamicIsland.updateTicker({
                 symbol: selectedETF.symbol,
                 price: $etfStore.ltp,
@@ -376,6 +384,62 @@
         // Update parallax via AnimationController
         animationController.setParallax(xOffset, yOffset);
     }
+
+    // === PORTFOLIO BUBBLE CLOUD STATE ===
+    let showPortfolioCloud = false;
+    let lastToggleTime = 0;
+    const TOGGLE_COOLDOWN_MS = 1500; // 1.5 second cooldown
+
+    onMount(() => {
+        // Listen for Victory gesture to toggle bubble cloud
+        const unsubVictory = gestureBus.on("VICTORY_DETECTED", () => {
+            const now = Date.now();
+            if (now - lastToggleTime < TOGGLE_COOLDOWN_MS) {
+                console.log("[Victory] Ignored - cooldown active");
+                return;
+            }
+            lastToggleTime = now;
+            showPortfolioCloud = !showPortfolioCloud;
+            console.log(
+                "[Victory] Toggled showPortfolioCloud:",
+                showPortfolioCloud,
+            );
+
+            // Update Dynamic Island based on state
+            if (showPortfolioCloud) {
+                dynamicIsland.setPortfolio({
+                    totalValue: $totalPortfolioValue,
+                    totalPnL: $totalPnL,
+                    holdingsCount: $holdingsStore.holdings.length,
+                });
+            } else {
+                dynamicIsland.collapse();
+            }
+
+            // Haptic feedback if available (macOS WebKit)
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(20);
+            }
+        });
+
+        // Listen for Fist gesture to close if open
+        const unsubFist = gestureBus.on("FIST_DETECTED", () => {
+            const now = Date.now();
+            if (now - lastToggleTime < TOGGLE_COOLDOWN_MS) {
+                return;
+            }
+            if (showPortfolioCloud) {
+                lastToggleTime = now;
+                showPortfolioCloud = false;
+                console.log("[Fist] Closed portfolio view");
+            }
+        });
+
+        return () => {
+            unsubVictory();
+            unsubFist();
+        };
+    });
 </script>
 
 <!-- Keyboard handler -->
@@ -392,55 +456,131 @@
     on:wheel={handleWheel}
 >
     <!-- 3D Scene Layer -->
+    <!-- 3D Scene Layer -->
     <div class="absolute inset-0 z-0">
         <Canvas shadows>
-            <Scene3D
-                {candles}
-                cameraPosition={camPos}
-                cameraRotation={$camRot}
-            />
+            <!-- Global Camera (Shared) -->
+            <T.PerspectiveCamera
+                makeDefault
+                position={showPortfolioCloud
+                    ? [0, 0, 120]
+                    : [camPos.x, camPos.y, camPos.z]}
+                fov={55}
+            >
+                <OrbitControls
+                    target={showPortfolioCloud ? [0, 0, 0] : [25, 0, 0]}
+                    enableDamping
+                    enablePan={false}
+                    maxPolarAngle={Math.PI / 2.2}
+                />
+            </T.PerspectiveCamera>
+
+            <!-- Only render normal scene if cloud is NOT visible -->
+            {#if !showPortfolioCloud}
+                <Scene3D
+                    {candles}
+                    cameraPosition={camPos}
+                    cameraRotation={$camRot}
+                />
+            {/if}
+
+            <!-- Portfolio Treemap (3D Content) -->
+            <PortfolioTreemap visible={showPortfolioCloud} />
         </Canvas>
     </div>
 
-    <!-- Zoom Indicator -->
-    <ZoomIndicator
-        zoomLevel={zoomPercent}
-        isPinching={$twoHandPinch.isActive}
-    />
+    <!-- Portfolio Treemap Overlay (HTML) - TEXT ONLY, no blocking background -->
+    {#if showPortfolioCloud}
+        <div
+            class="fixed inset-0 z-30 overflow-hidden pointer-events-none"
+            transition:fade={{ duration: 400 }}
+        >
+            <!-- Title Only (Values now in Dynamic Island) -->
+            <div class="absolute top-10 w-full text-center z-50">
+                <h1
+                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 tracking-widest uppercase"
+                >
+                    Portfolio Hologram
+                </h1>
+            </div>
 
-    <!-- Holographic Frame Border -->
-    <div class="absolute inset-0 pointer-events-none z-5">
-        <!-- Top edge glow -->
-        <div
-            class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"
-        ></div>
-        <!-- Bottom edge glow -->
-        <div
-            class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"
-        ></div>
-        <!-- Left edge glow -->
-        <div
-            class="absolute top-0 bottom-0 left-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent"
-        ></div>
-        <!-- Right edge glow -->
-        <div
-            class="absolute top-0 bottom-0 right-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent"
-        ></div>
+            <!-- Loading/Error State -->
+            {#if $holdingsStore.isLoading}
+                <div
+                    class="absolute inset-0 flex items-center justify-center z-50"
+                >
+                    <div class="text-white/60 text-lg font-mono animate-pulse">
+                        Loading portfolio data...
+                    </div>
+                </div>
+            {:else if $holdingsStore.error}
+                <div
+                    class="absolute inset-0 flex items-center justify-center z-50"
+                >
+                    <div class="text-rose-400 text-lg font-mono">
+                        Error: {$holdingsStore.error}
+                    </div>
+                </div>
+            {:else if $holdingsStore.holdings.length === 0}
+                <div
+                    class="absolute inset-0 flex items-center justify-center z-50"
+                >
+                    <div class="text-white/40 text-lg font-mono">
+                        No holdings found. Please login to Kite first.
+                    </div>
+                </div>
+            {/if}
 
-        <!-- Corner accents -->
-        <div
-            class="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-cyan-500/40"
-        ></div>
-        <div
-            class="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-cyan-500/40"
-        ></div>
-        <div
-            class="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-cyan-500/40"
-        ></div>
-        <div
-            class="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-cyan-500/40"
-        ></div>
-    </div>
+            <!-- Hint -->
+            <div
+                class="absolute bottom-10 w-full text-center text-white/30 text-xs font-mono tracking-widest uppercase animate-pulse"
+            >
+                Head Movement Enabled • Pinch to Zoom • Fist to Close
+            </div>
+        </div>
+    {/if}
+
+    {#if !showPortfolioCloud}
+        <!-- Zoom Indicator -->
+        <ZoomIndicator
+            zoomLevel={zoomPercent}
+            isPinching={$twoHandPinch.isActive}
+        />
+
+        <!-- Holographic Frame Border -->
+        <div class="absolute inset-0 pointer-events-none z-5">
+            <!-- Top edge glow -->
+            <div
+                class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"
+            ></div>
+            <!-- Bottom edge glow -->
+            <div
+                class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"
+            ></div>
+            <!-- Left edge glow -->
+            <div
+                class="absolute top-0 bottom-0 left-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent"
+            ></div>
+            <!-- Right edge glow -->
+            <div
+                class="absolute top-0 bottom-0 right-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent"
+            ></div>
+
+            <!-- Corner accents -->
+            <div
+                class="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-cyan-500/40"
+            ></div>
+            <div
+                class="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-cyan-500/40"
+            ></div>
+            <div
+                class="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-cyan-500/40"
+            ></div>
+            <div
+                class="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-cyan-500/40"
+            ></div>
+        </div>
+    {/if}
 
     <!-- UI Layer -->
     <div
@@ -451,41 +591,51 @@
             <!-- Left Column: Brand Only -->
             <div class="flex flex-col justify-between h-full">
                 <!-- 3D Brand Card -->
-                <BrandCard />
+                {#if !showPortfolioCloud}
+                    <BrandCard />
+                {/if}
             </div>
         </div>
 
         <!-- Zoom indicator -->
-        <div class="text-right mb-2">
-            <p class="text-[10px] text-slate-500 uppercase tracking-widest">
-                Zoom
-            </p>
-            <p
-                class={`text-sm font-mono transition-colors ${$twoHandPinch.isActive ? "text-yellow-400" : "text-cyan-400/70"}`}
-            >
-                {(100 / $zoomLevel).toFixed(0)}%
-            </p>
-            {#if $twoHandPinch.isActive}
-                <p class="text-[9px] text-yellow-400/60 mt-1 animate-pulse">
-                    ✋ PINCH ZOOM ✋
+        {#if !showPortfolioCloud}
+            <div class="text-right mb-2">
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest">
+                    Zoom
                 </p>
-            {/if}
-        </div>
+                <p
+                    class={`text-sm font-mono transition-colors ${$twoHandPinch.isActive ? "text-yellow-400" : "text-cyan-400/70"}`}
+                >
+                    {(100 / $zoomLevel).toFixed(0)}%
+                </p>
+                {#if $twoHandPinch.isActive}
+                    <p class="text-[9px] text-yellow-400/60 mt-1 animate-pulse">
+                        ✋ PINCH ZOOM ✋
+                    </p>
+                {/if}
+            </div>
+        {/if}
     </div>
 
     <!-- Dynamic Island Notification Center -->
     <DynamicIsland />
 
-    <!-- ETF Selector -->
-    <ETFSelector etfs={SUPPORTED_ETFS} {selectedETF} onSelect={switchToETF} />
+    {#if !showPortfolioCloud}
+        <!-- ETF Selector -->
+        <ETFSelector
+            etfs={SUPPORTED_ETFS}
+            {selectedETF}
+            onSelect={switchToETF}
+        />
 
-    <!-- Hover-to-Target Price Selector -->
-    <PriceTargetOverlay
-        minPrice={minLow}
-        maxPrice={maxHigh}
-        ltp={$etfStore.ltp}
-        symbol={selectedETF.symbol}
-    />
+        <!-- Hover-to-Target Price Selector -->
+        <PriceTargetOverlay
+            minPrice={minLow}
+            maxPrice={maxHigh}
+            ltp={$etfStore.ltp}
+            symbol={selectedETF.symbol}
+        />
+    {/if}
 
     <!-- NEW Control Center (Bottom Right) -->
     <ControlCenter
