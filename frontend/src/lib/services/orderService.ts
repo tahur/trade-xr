@@ -6,6 +6,8 @@
 import { kite } from './kite';
 import { dynamicIsland } from '../stores/dynamicIsland';
 import { tradingStore } from '../stores/trading';
+import { requireActiveTab } from '../utils/TabGuard';
+import { requireOrderAllowed } from '../utils/RateLimiter';
 
 export interface OrderParams {
     symbol: string;
@@ -28,6 +30,30 @@ export interface OrderResult {
 export async function placeOrder(params: OrderParams): Promise<OrderResult> {
     const { symbol, side, quantity, price } = params;
     const orderValue = quantity * price;
+
+    // === SAFETY GUARD: Require active tab ===
+    try {
+        requireActiveTab('Order placement');
+    } catch (error: any) {
+        dynamicIsland.show({
+            type: 'api',
+            message: error.message,
+            severity: 'error'
+        }, 4000);
+        return { success: false, error: error.message };
+    }
+
+    // === SAFETY GUARD: Rate limiting ===
+    try {
+        requireOrderAllowed();
+    } catch (error: any) {
+        dynamicIsland.show({
+            type: 'api',
+            message: error.message,
+            severity: 'error'
+        }, 4000);
+        return { success: false, error: error.message };
+    }
 
     console.log(`[OrderService] Placing ${side} order:`, params);
 

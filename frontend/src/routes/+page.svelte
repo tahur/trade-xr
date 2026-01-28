@@ -28,6 +28,7 @@
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
     import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
     import PortfolioTreemap from "$lib/components/UI/PortfolioTreemap.svelte";
+    import { isDeviceSupported } from "$lib/utils/DeviceGuard";
 
     // Stores
     import {
@@ -80,7 +81,18 @@
         window.location.href = `https://kite.trade/connect/login?v=3&api_key=${apiKey}`;
     }
 
+    // Device support check
+    let deviceSupport: { supported: boolean; reason?: string } = {
+        supported: true,
+    };
+
     onMount(async () => {
+        // Check device compatibility first
+        deviceSupport = isDeviceSupported();
+        if (!deviceSupport.supported) {
+            return; // Don't initialize if device not supported
+        }
+
         updateKiteState();
 
         // --- BYOK: Auto-configure Backend ---
@@ -444,6 +456,30 @@
 
 <!-- Keyboard handler -->
 <svelte:window on:keydown={handleKeyDown} />
+
+<!-- Device Not Supported Overlay -->
+{#if !deviceSupport.supported}
+    <div
+        class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center"
+    >
+        <div class="max-w-md mx-auto p-8 text-center">
+            <div class="text-6xl mb-6">🖥️</div>
+            <h1 class="text-2xl font-bold text-white mb-4">Desktop Required</h1>
+            <p class="text-white/70 text-lg mb-6">{deviceSupport.reason}</p>
+            <div class="flex flex-col gap-3 text-white/50 text-sm">
+                <div class="flex items-center justify-center gap-2">
+                    <span>✓</span> Desktop/Laptop computer
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <span>✓</span> Webcam for gesture tracking
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <span>✓</span> Chrome or Safari browser
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <div
     class="h-screen w-full overflow-hidden relative font-sans"
