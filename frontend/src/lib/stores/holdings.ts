@@ -99,3 +99,8 @@ export const totalPortfolioValue = derived(holdingsStore, $store =>
 export const totalPnL = derived(holdingsStore, $store =>
     $store.holdings.reduce((sum, h) => sum + h.pnl, 0)
 );
+
+// Derived store for total invested value
+export const totalInvestedValue = derived(holdingsStore, $store =>
+    $store.holdings.reduce((sum, h) => sum + (h.investedValue || h.quantity * h.average_price), 0)
+);

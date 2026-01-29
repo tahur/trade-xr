@@ -27,7 +27,7 @@
     import DynamicIsland from "$lib/components/UI/DynamicIsland.svelte";
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
     import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
-    import PortfolioTreemap from "$lib/components/UI/PortfolioTreemap.svelte";
+    import PortfolioSolarSystem from "$lib/components/UI/PortfolioSolarSystem.svelte";
     import { isDeviceSupported } from "$lib/utils/DeviceGuard";
 
     // Stores
@@ -483,12 +483,14 @@
 
 <div
     class="h-screen w-full overflow-hidden relative font-sans"
-    style="background: 
+    style={showPortfolioCloud
+        ? "background: #0F1115;"
+        : `background: 
         radial-gradient(ellipse at 40% 20%, rgba(139, 92, 246, 0.18) 0%, transparent 45%),
         radial-gradient(ellipse at 80% 70%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
         radial-gradient(ellipse at 20% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 35%),
         linear-gradient(135deg, #1e1b2e 0%, #181526 35%, #13111f 70%, #0e0c18 100%);
-    "
+    `}
     on:wheel={handleWheel}
 >
     <!-- 3D Scene Layer -->
@@ -520,8 +522,8 @@
                 />
             {/if}
 
-            <!-- Portfolio Treemap (3D Content) -->
-            <PortfolioTreemap visible={showPortfolioCloud} />
+            <!-- Portfolio Solar System (3D Content) -->
+            <PortfolioSolarSystem visible={showPortfolioCloud} />
         </Canvas>
     </div>
 
