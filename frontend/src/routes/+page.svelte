@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
+    import { goto } from "$app/navigation";
     import { Canvas, T } from "@threlte/core";
     import { spring } from "svelte/motion"; // Keep spring for rotation only
     import { fade } from "svelte/transition";
@@ -403,7 +404,7 @@
     const TOGGLE_COOLDOWN_MS = 1500; // 1.5 second cooldown
 
     onMount(() => {
-        // Listen for Victory gesture to toggle bubble cloud
+        // Listen for Victory gesture to navigate to Portfolio page
         const unsubVictory = gestureBus.on("VICTORY_DETECTED", () => {
             const now = Date.now();
             if (now - lastToggleTime < TOGGLE_COOLDOWN_MS) {
@@ -411,27 +412,15 @@
                 return;
             }
             lastToggleTime = now;
-            showPortfolioCloud = !showPortfolioCloud;
-            console.log(
-                "[Victory] Toggled showPortfolioCloud:",
-                showPortfolioCloud,
-            );
+            console.log("[Victory] Navigating to /portfolio");
 
-            // Update Dynamic Island based on state
-            if (showPortfolioCloud) {
-                dynamicIsland.setPortfolio({
-                    totalValue: $totalPortfolioValue,
-                    totalPnL: $totalPnL,
-                    holdingsCount: $holdingsStore.holdings.length,
-                });
-            } else {
-                dynamicIsland.collapse();
-            }
-
-            // Haptic feedback if available (macOS WebKit)
+            // Haptic feedback if available
             if (window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(20);
             }
+
+            // Navigate to portfolio page
+            goto("/portfolio");
         });
 
         // Listen for Fist gesture to close if open

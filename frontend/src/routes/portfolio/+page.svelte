@@ -1,11 +1,16 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
+    import { goto } from "$app/navigation";
+    import { spring } from "svelte/motion";
     import {
         holdingsStore,
         totalPortfolioValue,
         totalInvestedValue,
         type Holding,
     } from "$lib/stores/holdings";
+    import { headPosition, zoomLevel, isTracking } from "$lib/stores/tracking";
+    import { gestureBus } from "$lib/services/gestureBus";
+    import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
 
     // Reactive data
     $: holdings = $holdingsStore.holdings;
@@ -14,11 +19,79 @@
     $: totalValue = $totalPortfolioValue;
     $: investedValue = $totalInvestedValue;
 
-    // Fetch on mount
+    // Parallax configuration
+    const PARALLAX_MULTIPLIERS = [0.3, 0.6, 1.0]; // inner, middle, outer
+    const PARALLAX_STRENGTH = 18; // pixels of movement
+
+    // Spring configs for smooth, bouncy motion
+    const springConfig = { stiffness: 0.08, damping: 0.35 };
+
+    // Spring-animated offsets for each ring
+    const innerSpring = spring({ x: 0, y: 0 }, springConfig);
+    const middleSpring = spring({ x: 0, y: 0 }, springConfig);
+    const outerSpring = spring(
+        { x: 0, y: 0 },
+        { stiffness: 0.06, damping: 0.3 },
+    ); // Outer moves slower
+
+    // Update springs when head position changes
+    $: if ($isTracking) {
+        innerSpring.set({
+            x: $headPosition.x * PARALLAX_MULTIPLIERS[0] * PARALLAX_STRENGTH,
+            y:
+                $headPosition.y *
+                PARALLAX_MULTIPLIERS[0] *
+                PARALLAX_STRENGTH *
+                0.7,
+        });
+        middleSpring.set({
+            x: $headPosition.x * PARALLAX_MULTIPLIERS[1] * PARALLAX_STRENGTH,
+            y:
+                $headPosition.y *
+                PARALLAX_MULTIPLIERS[1] *
+                PARALLAX_STRENGTH *
+                0.7,
+        });
+        outerSpring.set({
+            x: $headPosition.x * PARALLAX_MULTIPLIERS[2] * PARALLAX_STRENGTH,
+            y:
+                $headPosition.y *
+                PARALLAX_MULTIPLIERS[2] *
+                PARALLAX_STRENGTH *
+                0.7,
+        });
+    } else {
+        innerSpring.set({ x: 0, y: 0 });
+        middleSpring.set({ x: 0, y: 0 });
+        outerSpring.set({ x: 0, y: 0 });
+    }
+
+    // Reactive spring values
+    $: innerOffset = $innerSpring;
+    $: middleOffset = $middleSpring;
+    $: outerOffset = $outerSpring;
+
+    // Gesture navigation
+    let lastGestureTime = 0;
+    const GESTURE_COOLDOWN = 1500;
+
     onMount(() => {
         if (holdings.length === 0) {
             holdingsStore.fetch();
         }
+
+        // Listen for Fist gesture to go back
+        const unsubFist = gestureBus.on("FIST_DETECTED", () => {
+            const now = Date.now();
+            if (now - lastGestureTime < GESTURE_COOLDOWN) return;
+            lastGestureTime = now;
+            console.log("[Portfolio] Fist detected - navigating back");
+            goto("/");
+        });
+
+        return () => {
+            unsubFist();
+        };
     });
 
     // Layout configuration - SCALED DOWN to fit viewport
@@ -152,10 +225,16 @@
 </svelte:head>
 
 <div class="portfolio-page">
+    <!-- FaceTracker for camera, gestures, and head tracking -->
+    <FaceTracker />
+
     <!-- Header -->
     <header class="header">
         <h1>Portfolio Map</h1>
-        <a href="/" class="back-link">← Back to Trading</a>
+        <div class="header-right">
+            <span class="gesture-hint">✌️ Victory → here | 👊 Fist → back</span>
+            <a href="/" class="back-link">← Back</a>
+        </div>
     </header>
 
     <!-- Main Content -->
@@ -169,21 +248,24 @@
                 No holdings found. Please login to Kite first.
             </div>
         {:else}
-            <!-- Solar System Container -->
+            <!-- Solar System Container with Zoom -->
             <div class="solar-system-wrapper">
-                <div class="solar-system">
-                    <!-- Orbital Rings -->
+                <div
+                    class="solar-system"
+                    style="transform: rotateX(12deg) rotateY(-8deg) scale({$zoomLevel})"
+                >
+                    <!-- Orbital Rings with Parallax -->
                     <div
                         class="ring ring-outer"
-                        style="--size: {RING_SIZES[2]}%"
+                        style="--size: {RING_SIZES[2]}%; transform: translate(calc(-50% + {outerOffset.x}px), calc(-50% + {outerOffset.y}px))"
                     ></div>
                     <div
                         class="ring ring-middle"
-                        style="--size: {RING_SIZES[1]}%"
+                        style="--size: {RING_SIZES[1]}%; transform: translate(calc(-50% + {middleOffset.x}px), calc(-50% + {middleOffset.y}px))"
                     ></div>
                     <div
                         class="ring ring-inner"
-                        style="--size: {RING_SIZES[0]}%"
+                        style="--size: {RING_SIZES[0]}%; transform: translate(calc(-50% + {innerOffset.x}px), calc(-50% + {innerOffset.y}px))"
                     ></div>
 
                     <!-- Center Hub -->
@@ -413,6 +495,18 @@
         margin: 0;
     }
 
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .gesture-hint {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.35);
+        font-weight: 500;
+    }
+
     .back-link {
         color: rgba(255, 255, 255, 0.5);
         text-decoration: none;
@@ -453,8 +547,8 @@
         position: relative;
         width: 100%;
         height: 100%;
-        transform: rotateX(12deg) rotateY(-8deg);
         transform-style: preserve-3d;
+        transition: transform 0.15s ease-out;
     }
 
     /* Glass Ring Styles */
@@ -464,11 +558,11 @@
         top: 50%;
         width: var(--size);
         height: var(--size);
-        transform: translate(-50%, -50%);
         border-radius: 50%;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         background: rgba(255, 255, 255, 0.02);
+        transition: transform 0.1s ease-out;
         border: 1.5px solid rgba(255, 255, 255, 0.08);
         box-shadow:
             inset 0 0 20px rgba(255, 255, 255, 0.03),
