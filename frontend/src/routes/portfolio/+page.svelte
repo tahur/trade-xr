@@ -10,7 +10,10 @@
     } from "$lib/stores/holdings";
     import { headPosition, zoomLevel, isTracking } from "$lib/stores/tracking";
     import { gestureBus } from "$lib/services/gestureBus";
+    import { gestureBar } from "$lib/stores/gestureBar";
     import FaceTracker from "$lib/components/Tracking/FaceTracker.svelte";
+    import BrandCard from "$lib/components/UI/BrandCard.svelte";
+    import GestureGuide from "$lib/components/UI/GestureGuide.svelte";
 
     // Reactive data
     $: holdings = $holdingsStore.holdings;
@@ -76,6 +79,9 @@
     const GESTURE_COOLDOWN = 1500;
 
     onMount(() => {
+        // Set gesture bar to portfolio mode
+        gestureBar.setPortfolio();
+
         if (holdings.length === 0) {
             holdingsStore.fetch();
         }
@@ -91,6 +97,8 @@
 
         return () => {
             unsubFist();
+            // Reset gesture bar when leaving
+            gestureBar.setIdle();
         };
     });
 
@@ -228,14 +236,13 @@
     <!-- FaceTracker for camera, gestures, and head tracking -->
     <FaceTracker />
 
-    <!-- Header -->
-    <header class="header">
-        <h1>Portfolio Map</h1>
-        <div class="header-right">
-            <span class="gesture-hint">✌️ Victory → here | 👊 Fist → back</span>
-            <a href="/" class="back-link">← Back</a>
-        </div>
-    </header>
+    <!-- Brand Logo (Top Left) -->
+    <div class="absolute top-6 left-6 z-50">
+        <BrandCard />
+    </div>
+
+    <!-- Context-Aware Gesture Guide -->
+    <GestureGuide />
 
     <!-- Main Content -->
     <main class="main-content">

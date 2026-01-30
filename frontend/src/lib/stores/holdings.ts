@@ -45,6 +45,9 @@ function createHoldingsStore() {
                 const response = await fetch('http://localhost:8000/portfolio/holdings');
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('API not connected. Please login to Kite first.');
+                    }
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 

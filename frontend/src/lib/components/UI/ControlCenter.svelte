@@ -1,7 +1,50 @@
 <script lang="ts">
     import { slide, scale, fade } from "svelte/transition";
     import { createEventDispatcher, onMount } from "svelte";
-    import { quintOut } from "svelte/easing";
+    import { spring } from "svelte/motion";
+    import { cubicOut } from "svelte/easing";
+    import { goto } from "$app/navigation";
+
+    // Dynamic Island spring config for buttery smooth animations
+    const islandSpring = spring(
+        { scale: 1, opacity: 1 },
+        {
+            stiffness: 0.08,
+            damping: 0.4,
+        },
+    );
+
+    // Custom Dynamic Island-style expand transition - uses cubic bezier for smooth spring feel
+    function dynamicExpand(node: Element, { duration = 600 } = {}) {
+        return {
+            duration,
+            css: (t: number) => {
+                // Custom spring-like easing curve
+                const springT =
+                    1 - Math.pow(1 - t, 3) * Math.cos(t * Math.PI * 0.5);
+                const scale = 0.85 + 0.15 * springT;
+                const y = (1 - springT) * 8;
+
+                return `
+                    opacity: ${springT};
+                    transform: scale(${scale}) translateY(${y}px);
+                    transform-origin: bottom left;
+                `;
+            },
+        };
+    }
+
+    function dynamicCollapse(node: Element, { duration = 400 } = {}) {
+        return {
+            duration,
+            easing: cubicOut,
+            css: (t: number) => `
+                opacity: ${t};
+                transform: scale(${0.9 + 0.1 * t});
+                transform-origin: bottom left;
+            `,
+        };
+    }
 
     // Stores
     import {
@@ -118,7 +161,11 @@
     >
         <!-- CONTENT: API CONFIG -->
         {#if currentState === "API_CONFIG"}
-            <div class="p-5 w-[320px]" transition:slide|local>
+            <div
+                class="p-5 w-[320px]"
+                in:dynamicExpand={{ duration: 450 }}
+                out:dynamicCollapse={{ duration: 300 }}
+            >
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-bold text-white tracking-wide">
                         API Configuration
@@ -188,7 +235,11 @@
 
         <!-- CONTENT: SETTINGS -->
         {#if currentState === "SETTINGS"}
-            <div class="p-5 w-[320px]" transition:slide|local>
+            <div
+                class="p-5 w-[320px]"
+                in:dynamicExpand={{ duration: 450 }}
+                out:dynamicCollapse={{ duration: 300 }}
+            >
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-bold text-white tracking-wide">
                         Control Settings
@@ -306,7 +357,11 @@
 
         <!-- COMPACT BAR -->
         {#if currentState === "COMPACT"}
-            <div class="flex items-center gap-1 p-1.5" transition:fade|local>
+            <div
+                class="flex items-center gap-1 p-1.5"
+                in:dynamicExpand={{ duration: 350 }}
+                out:dynamicCollapse={{ duration: 250 }}
+            >
                 <!-- Camera Toggle -->
                 <button
                     class="flex items-center gap-2 px-3 py-2 rounded-xl transition-all group {$isCameraEnabled
@@ -425,6 +480,34 @@
                                 ? "Connect"
                                 : "Setup"}
                     </span>
+                </button>
+
+                <div class="w-px h-4 bg-white/10 mx-1"></div>
+
+                <!-- Portfolio Navigation -->
+                <button
+                    class="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-white hover:bg-violet-500/10 transition-all group"
+                    on:click={() => goto("/portfolio")}
+                    title="View Portfolio"
+                >
+                    <svg
+                        class="w-4.5 h-4.5 transition-transform group-hover:scale-110"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z"
+                        />
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z"
+                        />
+                    </svg>
                 </button>
 
                 <div class="w-px h-4 bg-white/10 mx-1"></div>

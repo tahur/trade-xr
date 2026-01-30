@@ -29,6 +29,7 @@
     import ETFSelector from "$lib/components/UI/ETFSelector.svelte";
     import ZoomIndicator from "$lib/components/UI/ZoomIndicator.svelte";
     import PortfolioSolarSystem from "$lib/components/UI/PortfolioSolarSystem.svelte";
+    import GestureGuide from "$lib/components/UI/GestureGuide.svelte";
     import { isDeviceSupported } from "$lib/utils/DeviceGuard";
 
     // Stores
@@ -44,6 +45,7 @@
     import { ordersStore, hasPendingOrders } from "$lib/stores/orders";
     import { dynamicIsland } from "$lib/stores/dynamicIsland";
     import { selectedETFStore } from "$lib/stores/selectedETF";
+    import { gestureBar } from "$lib/stores/gestureBar";
 
     // Kite Login State
     let kiteStatus = "Not Connected";
@@ -369,6 +371,16 @@
             : 100,
     );
 
+    // Update gesture bar when zooming
+    $: {
+        if ($twoHandPinch.isActive) {
+            gestureBar.setZoom(zoomPercent);
+        } else if ($gestureBar.mode === "zoom") {
+            // Return to idle when zoom ends (only if we were in zoom mode)
+            gestureBar.setIdle();
+        }
+    }
+
     // Connect AnimationController to camera position
     onMount(() => {
         animationController.onUpdate = (state: CameraState) => {
@@ -402,6 +414,15 @@
     let showPortfolioCloud = false;
     let lastToggleTime = 0;
     const TOGGLE_COOLDOWN_MS = 1500; // 1.5 second cooldown
+
+    // Sync gesture bar with portfolio mode
+    $: {
+        if (showPortfolioCloud) {
+            gestureBar.setPortfolio();
+        } else if ($gestureBar.mode === "portfolio") {
+            gestureBar.setIdle();
+        }
+    }
 
     onMount(() => {
         // Listen for Victory gesture to navigate to Portfolio page
@@ -522,13 +543,9 @@
             class="fixed inset-0 z-30 overflow-hidden pointer-events-none"
             transition:fade={{ duration: 400 }}
         >
-            <!-- Title Only (Values now in Dynamic Island) -->
-            <div class="absolute top-10 w-full text-center z-50">
-                <h1
-                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 tracking-widest uppercase"
-                >
-                    Portfolio Hologram
-                </h1>
+            <!-- Brand Logo (Top Left) -->
+            <div class="absolute top-6 left-6 z-50 pointer-events-auto">
+                <BrandCard />
             </div>
 
             <!-- Loading/Error State -->
@@ -558,21 +575,12 @@
                 </div>
             {/if}
 
-            <!-- Hint -->
-            <div
-                class="absolute bottom-10 w-full text-center text-white/30 text-xs font-mono tracking-widest uppercase animate-pulse"
-            >
-                Head Movement Enabled • Pinch to Zoom • Fist to Close
-            </div>
+            <!-- GestureGuide handles hints now -->
         </div>
     {/if}
 
     {#if !showPortfolioCloud}
-        <!-- Zoom Indicator -->
-        <ZoomIndicator
-            zoomLevel={zoomPercent}
-            isPinching={$twoHandPinch.isActive}
-        />
+        <!-- Zoom Indicator - Now handled by GestureGuide -->
 
         <!-- Holographic Frame Border -->
         <div class="absolute inset-0 pointer-events-none z-5">
@@ -671,6 +679,9 @@
         loading={isConnecting}
         on:connect={handleConnect}
     />
+
+    <!-- Gesture Guide (Bottom Left) -->
+    <GestureGuide />
 
     <!-- Face Tracker -->
     <FaceTracker />

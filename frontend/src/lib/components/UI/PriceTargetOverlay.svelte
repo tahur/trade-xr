@@ -15,6 +15,7 @@
     } from "$lib/services/gestureEngine";
     import { gestureBus } from "$lib/services/gestureBus";
     import { TIMING } from "$lib/config/timing";
+    import { gestureBar } from "$lib/stores/gestureBar";
     import DynamicConfirmZone from "./DynamicConfirmZone.svelte";
     import { fade, scale } from "svelte/transition";
     import { onMount, onDestroy } from "svelte";
@@ -79,6 +80,8 @@
         state = "IDLE";
         lockedPrice = null;
         lockTime = null;
+        // Reset gesture bar to idle
+        gestureBar.setIdle();
     }
 
     // Reset state WITH cooldown - prevents immediate re-triggering after order flow completes
@@ -212,6 +215,7 @@
                         acquireTrading()
                     ) {
                         state = "TARGETING";
+                        gestureBar.setTargeting();
                     }
                     entryDebounce = null;
                 }, ENTRY_DELAY_MS);
@@ -241,6 +245,7 @@
                         lockedPrice = hoverPrice;
                         lockTime = Date.now(); // Track when locked
                         state = "LOCKED";
+                        gestureBar.setLocked(hoverPrice);
                     }
                     lockDebounce = null;
                 }, LOCK_DELAY_MS);
@@ -267,6 +272,7 @@
                         acquireConfirming()
                     ) {
                         state = "CONFIRMING";
+                        if (lockedPrice) gestureBar.setConfirming(lockedPrice);
                     }
                     confirmDebounce = null;
                 }, CONFIRM_DELAY_MS);

@@ -45,16 +45,34 @@ def get_quote(symbol: str, exchange: str = "MCX"):
         
         if instrument in data:
             quote = data[instrument]
+            
+            # Get OHLC data
+            ohlc = quote.get("ohlc", {})
+            previous_close = ohlc.get("close", 0)
+            last_price = quote.get("last_price", 0)
+            
+            # Calculate change - prefer net_change from Kite, else calculate from LTP and previous close
+            net_change = quote.get("net_change", 0)
+            if net_change == 0 and previous_close > 0 and last_price > 0:
+                # Calculate change from last price and previous close
+                net_change = last_price - previous_close
+            
+            # Calculate change percent
+            if previous_close > 0:
+                change_percent = (net_change / previous_close) * 100
+            else:
+                change_percent = 0
+            
             return {
                 "symbol": symbol,
                 "exchange": exchange,
-                "ltp": quote.get("last_price", 0),
-                "open": quote.get("ohlc", {}).get("open", 0),
-                "high": quote.get("ohlc", {}).get("high", 0),
-                "low": quote.get("ohlc", {}).get("low", 0),
-                "close": quote.get("ohlc", {}).get("close", 0),
-                "change": quote.get("net_change", 0),
-                "change_percent": quote.get("net_change", 0) / quote.get("ohlc", {}).get("close", 1) * 100 if quote.get("ohlc", {}).get("close") else 0,
+                "ltp": last_price,
+                "open": ohlc.get("open", 0),
+                "high": ohlc.get("high", 0),
+                "low": ohlc.get("low", 0),
+                "close": previous_close,
+                "change": net_change,
+                "change_percent": change_percent,
                 "volume": quote.get("volume", 0),
                 "upper_circuit": quote.get("upper_circuit_limit", 0),
                 "lower_circuit": quote.get("lower_circuit_limit", 0)

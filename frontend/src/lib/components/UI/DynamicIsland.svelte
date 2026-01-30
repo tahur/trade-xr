@@ -12,22 +12,37 @@
     // Available margin state
     let availableMargin: number | null = null;
     let marginInterval: ReturnType<typeof setInterval> | null = null;
+    let isKiteConnected = false;
 
     // Fetch margin only (positions come from store)
     async function fetchMargin() {
         try {
             const data = await kite.getMargins();
             availableMargin = data.available_cash || data.available_margin || 0;
+
+            // If we successfully got margins, we're connected
+            if (!isKiteConnected) {
+                isKiteConnected = true;
+                // Start polling only after first successful fetch
+                if (!marginInterval) {
+                    marginInterval = setInterval(fetchMargin, 5000);
+                }
+            }
         } catch {
-            // Silently fail - margin not available if not logged in
+            // Not logged in or error - stop polling to prevent console spam
             availableMargin = null;
+            isKiteConnected = false;
+            if (marginInterval) {
+                clearInterval(marginInterval);
+                marginInterval = null;
+            }
         }
     }
 
+    // Check connection status once on mount, don't poll until connected
     onMount(() => {
+        // Try once to check if already connected
         fetchMargin();
-        // Refresh margin every 5s
-        marginInterval = setInterval(fetchMargin, 5000);
     });
 
     onDestroy(() => {
@@ -377,6 +392,77 @@
                                 </span>
                             </div>
                         </div>
+                    {:else if content.type === "pending"}
+                        <!-- Pending Order Mode -->
+                        <div
+                            class="flex flex-col px-5 py-2 w-full h-full gap-2"
+                            in:scale={{
+                                start: 0.95,
+                                duration: 150,
+                                easing: snappyEase,
+                            }}
+                        >
+                            <!-- Top row: Symbol + Pending Status -->
+                            <div
+                                class="flex items-center justify-between w-full"
+                            >
+                                <span
+                                    class="text-sm font-semibold text-white tracking-wide"
+                                >
+                                    {content.symbol}
+                                </span>
+                                <div
+                                    class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30"
+                                >
+                                    <svg
+                                        class="w-3 h-3 text-amber-400 animate-pulse"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                    >
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"
+                                        ></polyline>
+                                    </svg>
+                                    <span
+                                        class="text-[10px] font-bold text-amber-400 uppercase tracking-wider"
+                                    >
+                                        Order Pending
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Bottom row: Order Details -->
+                            <div
+                                class="flex items-center justify-center w-full pt-1 border-t border-white/10"
+                            >
+                                <span
+                                    class="text-xs font-bold {content.action ===
+                                    'BUY'
+                                        ? 'text-green-400'
+                                        : 'text-red-400'}"
+                                >
+                                    {content.action}
+                                </span>
+                                <span class="text-white/80 text-xs mx-2">
+                                    {content.quantity}
+                                </span>
+                                <span class="text-white/40 text-xs">@</span>
+                                <span
+                                    class="text-white font-mono text-sm font-medium ml-1"
+                                >
+                                    ₹{content.price.toFixed(2)}
+                                </span>
+                                {#if content.pendingCount > 1}
+                                    <span
+                                        class="text-amber-400/70 text-xs ml-2"
+                                    >
+                                        (+{content.pendingCount - 1} more)
+                                    </span>
+                                {/if}
+                            </div>
+                        </div>
                     {/if}
 
                     <!-- Live Activity Mode - P&L (Refined) -->
@@ -474,74 +560,6 @@
                                     ({content.pnlPercent.toFixed(2)}%)
                                 </span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Pending Order Mode -->
-                {:else if content.type === "pending"}
-                    <div
-                        class="flex flex-col px-5 py-2 w-full h-full gap-2"
-                        in:scale={{
-                            start: 0.95,
-                            duration: 150,
-                            easing: snappyEase,
-                        }}
-                    >
-                        <!-- Top row: Symbol + Pending Status -->
-                        <div class="flex items-center justify-between w-full">
-                            <span
-                                class="text-sm font-semibold text-white tracking-wide"
-                            >
-                                {content.symbol}
-                            </span>
-                            <div
-                                class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30"
-                            >
-                                <svg
-                                    class="w-3 h-3 text-amber-400 animate-pulse"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 16 14"
-                                    ></polyline>
-                                </svg>
-                                <span
-                                    class="text-[10px] font-bold text-amber-400 uppercase tracking-wider"
-                                >
-                                    Order Pending
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Bottom row: Order Details -->
-                        <div
-                            class="flex items-center justify-center w-full pt-1 border-t border-white/10"
-                        >
-                            <span
-                                class="text-xs font-bold {content.action ===
-                                'BUY'
-                                    ? 'text-green-400'
-                                    : 'text-red-400'}"
-                            >
-                                {content.action}
-                            </span>
-                            <span class="text-white/80 text-xs mx-2">
-                                {content.quantity}
-                            </span>
-                            <span class="text-white/40 text-xs">@</span>
-                            <span
-                                class="text-white font-mono text-sm font-medium ml-1"
-                            >
-                                ₹{content.price.toFixed(2)}
-                            </span>
-                            {#if content.pendingCount > 1}
-                                <span class="text-amber-400/70 text-xs ml-2">
-                                    (+{content.pendingCount - 1} more)
-                                </span>
-                            {/if}
                         </div>
                     </div>
                 {/if}
