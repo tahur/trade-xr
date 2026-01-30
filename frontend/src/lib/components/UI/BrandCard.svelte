@@ -39,18 +39,11 @@
     on:mouseleave={handleMouseLeave}
 >
     <div
-        class="relative px-5 py-2.5 rounded-xl backdrop-blur-xl transition-transform duration-75
-            bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)]"
+        class="relative transition-transform duration-75 select-none"
         style="transform: rotateX({$tilt.x}deg) rotateY({$tilt.y}deg); transform-style: preserve-3d;"
     >
-        <!-- Glass Tint/Sheen -->
-        <div
-            class="absolute inset-0 rounded-xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"
-        ></div>
-
-        <!-- TradeXR Logo with Orange Ribbon -->
-        <div class="relative flex items-center gap-0">
-            <span class="text-xl font-bold text-white/90 tracking-tight mr-1.5">
+        <div class="relative flex items-center gap-1">
+            <span class="text-lg font-bold text-white/80 tracking-tight">
                 Trade
             </span>
             <!-- Orange Ribbon Badge -->
@@ -59,10 +52,10 @@
                     class="absolute inset-0 bg-orange-500 blur-sm opacity-40 group-hover:opacity-60 transition-opacity rounded-sm"
                 ></div>
                 <div
-                    class="relative px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-sm shadow-lg transform -skew-x-12"
+                    class="relative px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-sm shadow-lg transform -skew-x-12"
                 >
                     <span
-                        class="block text-sm font-black text-white transform skew-x-12 tracking-wide"
+                        class="block text-xs font-black text-white transform skew-x-12 tracking-wide"
                     >
                         XR
                     </span>
