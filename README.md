@@ -2,10 +2,12 @@
 
 > **Gesture-controlled 3D trading interface for Zerodha Kite**
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Zerodha Kite](https://img.shields.io/badge/Zerodha-Kite%20API-orange)](https://kite.trade)
-[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.x-ff3e00)](https://kit.svelte.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688)](https://fastapi.tiangolo.com)
+[![Status](https://img.shields.io/badge/Status-Pre--Alpha-7000ff.svg?style=for-the-badge)](https://github.com/tahur/trade-xr)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Zerodha Kite](https://img.shields.io/badge/Zerodha-Kite%20API-orange?style=for-the-badge)](https://kite.trade)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.x-ff3e00?style=for-the-badge)](https://kit.svelte.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge)](https://fastapi.tiangolo.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
 
 ---
 
