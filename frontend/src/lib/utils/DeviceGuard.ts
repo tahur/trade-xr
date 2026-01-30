@@ -2,7 +2,7 @@
  * DeviceGuard - Device Capability Detection
  * 
  * Detects mobile/touch devices and blocks trading UI.
- * HoloTrade requires webcam and desktop for reliable gesture detection.
+ * TradeXR requires webcam and desktop for reliable gesture detection.
  */
 
 export interface DeviceCapabilities {
@@ -60,7 +60,7 @@ export function detectDevice(): DeviceCapabilities {
 }
 
 /**
- * Check if device is suitable for HoloTrade
+ * Check if device is suitable for TradeXR
  */
 export function isDeviceSupported(): { supported: boolean; reason?: string } {
     const caps = detectDevice();
@@ -68,21 +68,21 @@ export function isDeviceSupported(): { supported: boolean; reason?: string } {
     if (caps.isMobile) {
         return {
             supported: false,
-            reason: 'HoloTrade requires a desktop computer with webcam. Mobile devices are not supported.'
+            reason: 'TradeXR requires a desktop computer with webcam. Mobile devices are not supported.'
         };
     }
 
     if (caps.isTouchOnly) {
         return {
             supported: false,
-            reason: 'HoloTrade requires a mouse or trackpad for precise interactions. Touch-only devices are not supported.'
+            reason: 'TradeXR requires a mouse or trackpad for precise interactions. Touch-only devices are not supported.'
         };
     }
 
     if (caps.screenTooSmall) {
         return {
             supported: false,
-            reason: 'HoloTrade requires a screen width of at least 1024 pixels. Please use a larger display.'
+            reason: 'TradeXR requires a screen width of at least 1024 pixels. Please use a larger display.'
         };
     }
 

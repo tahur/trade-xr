@@ -1,9 +1,13 @@
 /**
- * Unified API Client - Single source of truth for all HTTP requests
- * Centralizes error handling, logging, and configuration
+ * API Client - Unified HTTP client for backend communication
+ * 
+ * Provides consistent error handling, response formatting, and
+ * centralized configuration for all API calls.
  */
+import { API_CONFIG } from '$lib/config/api';
 
-const API_BASE = 'http://127.0.0.1:8000';
+// Use centralized API configuration
+const API_BASE = API_CONFIG.BASE_URL;
 
 interface ApiResponse<T> {
     data: T | null;

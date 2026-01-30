@@ -1,294 +1,280 @@
-# HoloTrade 🌐
+# TradeXR
 
-**An immersive 3D trading interface with face tracking and gesture controls for Zerodha Kite**
+> **Gesture-controlled 3D trading interface for Zerodha Kite**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)](https://github.com/tahur/holotrade)
-[![GitHub](https://img.shields.io/badge/GitHub-tahur%2Fholotrade-181717?logo=github)](https://github.com/tahur/holotrade)
-[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.45-FF3E00?logo=svelte)](https://kit.svelte.dev/)
-[![Three.js](https://img.shields.io/badge/Three.js-0.182-000000?logo=three.js)](https://threejs.org/)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Zerodha Kite](https://img.shields.io/badge/Zerodha-Kite%20API-orange)](https://kite.trade)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.x-ff3e00)](https://kit.svelte.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688)](https://fastapi.tiangolo.com)
 
 ---
 
-## How It Works
+## The Story
 
-### Gesture-Based Trading Flow
+TradeXR was born out of **boredom and curiosity** — a weekend experiment that grew into a fully functional trading interface. The idea was simple: *What if you could trade with your hands instead of clicks?*
 
-```mermaid
-flowchart TD
-    A[Show Hand] --> B{Gesture Detected?}
-    B -->|Pinch| C[Price Locked]
-    B -->|Point Up| D[Open Confirmation]
-    B -->|Thumbs Up| E[Hold 3s]
-    B -->|Closed Fist| F[Cancel]
-    
-    C --> G{Hold Stable?}
-    G -->|450ms| H[✓ Price Confirmed]
-    G -->|Move Hand| B
-    
-    D --> E
-    E --> I[Order Placed]
-    
-    F --> A
-    H --> D
-    I --> J[Dynamic Island Shows Status]
-    
-    style A fill:#e8f5e9
-    style C fill:#fff3e0
-    style H fill:#e3f2fd
-    style I fill:#c8e6c9
-    style F fill:#ffebee
+Built entirely on top of the [Zerodha Kite API](https://kite.trade), this project explores **computer vision**, **3D visualization**, and **real-time trading**. Open-sourced for transparency and learning.
+
+**This is not financial advice. Trade at your own risk.**
+
+---
+
+## The Experience
+
+### Gesture-First Interaction
+
+No mouse. No keyboard. Just your hands.
+
+| Gesture | What It Does |
+|---------|--------------|
+| 👐 Two-Hand Pinch | Zoom in/out on the 3D candlestick chart |
+| ☝️ Point + Pinch | Select and lock a target price |
+| 👍 Thumbs Up | Confirm BUY order |
+| 👎 Thumbs Down | Confirm SELL order |
+| ✌️ Victory | Open portfolio view |
+| ✊ Fist | Cancel / Go back |
+
+### Dynamic Island (Context-Aware Notifications)
+
+Inspired by Apple's Dynamic Island, the notification center **adapts to your trading context**:
+
+| State | What It Shows |
+|-------|---------------|
+| Idle | Live ticker — Symbol + Price + Change% |
+| Order Placed | Confirmation with order details |
+| Position Open | Real-time P&L tracking |
+| Order Pending | Pulsing amber indicator |
+
+The island **expands**, **morphs**, and **animates** based on what's happening — no static banners, just fluid context.
+
+**Head Tracking**: Move your head and the Dynamic Island tilts in 3D space, following your gaze with smooth spring physics.
+
+---
+
+### Portfolio Solar System
+
+Navigate to `/portfolio` with a ✌️ Victory gesture to see your holdings as **orbiting planets**:
+
+- **Planet Size** — Proportional to holding value
+- **Orbit Radius** — Based on number of holdings  
+- **Colors** — Green gradient (profit) / Red gradient (loss)
+- **Center Sun** — Total portfolio value + Day's P&L
+
+Move your head to **explore with parallax**. Make a ✊ Fist to return to trading.
+
+---
+
+### Micro-Interactions
+
+| Interaction | Visual Feedback |
+|-------------|-----------------|
+| Hand detected | GestureGuide appears at bottom |
+| Pinch starts | Price line locks with glow effect |
+| Price confirmed | Haptic pulse + color shift |
+| Zoom active | Percentage badge in gesture bar |
+| Mode changes | Smooth transitions between states |
+
+Every state change has a **purpose** and a **polish**.
+
+---
+
+## Supported ETFs
+
+TradeXR supports **5 low-cost ETFs** priced under ₹50 — perfect for experimenting:
+
+| Symbol | Name | Approx. Price |
+|--------|------|---------------|
+| SILVERCASE | Silver ETF | ~₹30 |
+| GOLDCASE | Gold ETF | ~₹25 |
+| NIFTYCASE | Nifty 50 ETF | ~₹28 |
+| TOP100CASE | Top 100 ETF | ~₹22 |
+| MID150CASE | Midcap 150 ETF | ~₹18 |
+
+> **Default quantity: 1 unit** — Maximum exposure under ₹50 per order.
+
+---
+
+## Engineering
+
+### Physics-Based Animation
+
+We built a custom `AnimationController` using **Damped Harmonic Oscillator** physics (Hooke's Law: `F = -kx - dv`):
+
+- RequestAnimationFrame loop running at 60fps
+- Direct Three.js camera control, bypassing Svelte reactivity
+- 16ms response time (down from 200ms with double Svelte springs)
+
+```
+stiffness: 220  // Snappy response
+damping: 20     // No overshoot (critical damping)
+mass: 1.2       // Slight momentum feel
 ```
 
-### Face Tracking → Camera Parallax
+Svelte's reactive system was adding 16-32ms delay per store subscription. For gesture-driven camera movement, that felt like lag. The physics controller operates outside the reactive chain.
 
-```mermaid
-flowchart LR
-    A[Webcam] --> B[MediaPipe Face Mesh]
-    B --> C[Nose Landmark]
-    C --> D[Calculate Offset]
-    D --> E[Physics Controller]
-    E --> F[3D Camera Position]
-    
-    G[Head Movement] -.->|X: ±25°| F
-    G -.->|Y: ±20°| F
-    
-    style A fill:#e3f2fd
-    style E fill:#fff3e0
-    style F fill:#c8e6c9
-```
+### Noise Control
 
-**Result:** Natural depth perception as your head moves - the chart appears to float in 3D space.
+Gesture detection is inherently noisy. Here's what we did:
 
----
+| Problem | Solution |
+|---------|----------|
+| Jittery hand tracking | EMA smoothing (α=0.7) |
+| False two-hand detection | 3-frame hysteresis to enter zoom |
+| Accidental price locks | Triple Lock: threshold + velocity + 450ms hold |
+| Gesture flickering | Frame counters for all gestures |
+| Zoom vs trade conflicts | Priority-based context locking |
 
-## What is HoloTrade?
+### Optimizations
 
-HoloTrade is an experimental trading interface that transforms how you interact with stock market data. Instead of clicking buttons and typing numbers, you:
+| What | Result |
+|------|--------|
+| Event bus for gestures | Sub-millisecond propagation |
+| Shadow map 512px (from 2048px) | 75% VRAM savings |
+| Instrument token caching | Reduced API latency |
 
-- **Move your head** → The 3D chart shifts perspective like looking through a window
-- **Pinch your fingers** → Select a price level
-- **Point up** → Confirm your selection  
-- **Thumbs up** → Place the order
-
-It's like having a holographic trading terminal on your screen.
+All thresholds live in `frontend/src/lib/config/` — tune the entire system from one place.
 
 ---
 
-## Quick Demo
+## Requirements
 
-```
-1. Load the app → 3D candlestick chart appears
-2. Move your head → Chart perspective shifts in real-time
-3. Show one hand → Price selector follows your hand position
-4. Pinch → Lock in a price
-5. Point up → Open order confirmation
-6. Thumbs up → Hold 3 seconds in the zone to confirm!
-7. Closed fist → Cancel anytime
-```
+> **Paid API Required** — Zerodha Kite data subscription costs ₹500/month
+
+- Desktop with webcam (no mobile)
+- [Zerodha Kite Connect](https://kite.trade) developer access
+- Node.js 20+ and Python 3.10+
+- Good lighting for hand detection
 
 ---
 
-## Features
+## Quick Start
 
-### 🎯 Face Tracking Perspective
-Your webcam tracks your face position. Move your head left/right/up/down in front of the screen, and the 3D chart adjusts its perspective accordingly—creating a "window into 3D space" effect.
+### 1. Get Zerodha API Keys
 
-### 🎮 Gesture Engine
-Centralized gesture management prevents conflicts:
-- **Context locking** - Only one feature uses gestures at a time
-- **Priority system** - Zoom gestures always take priority over trading
-- **Cooldowns** - Prevents accidental triggers after gestures end
+1. Go to [Kite Connect Developer Console](https://developers.kite.trade)
+2. Create a new app
+3. Set **Redirect URL** to: `http://localhost:5173`
+4. Note your **API Key** and **API Secret**
+5. Subscribe to Historical + Live data (₹500/month)
 
-### ✋ Dynamic Zone Confirmation
-Order confirmation uses a deliberate 3-second hold:
-| Step | Gesture | Action |
-|------|---------|--------|
-| 1 | Show hand | Show price selector |
-| 2 | Pinch | Lock price |
-| 3 | Point up | Open confirmation |
-| 4 | Thumbs up | Zone appears at your hand |
-| 5 | Hold 3s | Progress ring fills → Order placed! |
-| Cancel | Closed fist | Cancel anytime |
-
-### ⚡️ High Performance
-Optimized for 60fps+ tracking and rendering:
-- GPU-accelerated smooth animations (`will-change`, transforms only)
-- Optimized glassmorphism effects (12px blur sweet spot)
-- Snappy, jitter-free gesture tracking
-
-### 📊 3D Candlestick Chart
-OHLC data rendered as 3D boxes with wicks. Green for bullish, red for bearish. Smooth camera controls with zoom support.
-
-### 🔔 Dynamic Island Notifications
-macOS-style notification center showing:
-- Order status (pending/success/error)
-- API connection status
-- Live P&L for open positions
-
-### 🔌 Zerodha Kite Integration
-Full integration with India's largest discount broker:
-- **One-Click Connect**: Branded Kite button with 3-state flow (Setup → Connect → Connected)
-- OAuth login flow managed entirely within the app
-- Real-time LTP (Last Traded Price)
-- Order placement (Limit orders, CNC product type)
-- Position and margin tracking
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend Framework | SvelteKit 5.45.6 |
-| 3D Rendering | Three.js 0.182.0 via Threlte 8.3.1 |
-| Face Tracking | MediaPipe Face Mesh 0.4.x |
-| Hand Tracking | MediaPipe Hands 0.4.x |
-| Styling | TailwindCSS 3.4.17 |
-| Backend | FastAPI 0.109.0 + Uvicorn 0.27.0 |
-| Broker API | Zerodha KiteConnect 5.0.1 |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Python 3.10+
-- Zerodha Kite Connect API credentials ([Get them here](https://kite.trade/))
-- Webcam
-
-### Installation
+### 2. Clone & Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/tahur/holotrade.git
-cd holotrade
+git clone https://github.com/tahur/tradexr.git
+cd tradexr
+```
 
-# Backend setup
+### 3. Backend
+
+```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 
-# Frontend setup
-cd ../frontend
-npm install
+# Configure credentials
+echo "KITE_API_KEY=your_key" > .env
+echo "KITE_API_SECRET=your_secret" >> .env
+
+# Start server
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Configuration
-
-1. **Backend** - Create `backend/.env`:
-```env
-KITE_API_KEY=your_api_key
-KITE_API_SECRET=your_api_secret
-SECRET_KEY=any_random_string
-```
-
-2. **Frontend** - Create `frontend/.env`:
-```env
-VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000
-```
-
-### Running
+### 4. Frontend
 
 ```bash
-# Terminal 1 - Backend
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload
-
-# Terminal 2 - Frontend
 cd frontend
+npm install
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+Open **http://localhost:5173** in Chrome.
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/config` | Configure API credentials |
+| `POST` | `/api/kite/order` | Place limit order |
+| `GET` | `/api/kite/positions` | Current positions |
+| `GET` | `/api/holdings` | Portfolio holdings |
+| `GET` | `/quote/ltp/{symbol}` | Last traded price |
+| `GET` | `/quote/candles/{symbol}` | Historical candles |
+
+---
+
+## Safety Features
+
+| Feature | Purpose |
+|---------|---------|
+| Rate Limiter | Prevents rapid-fire orders |
+| Tab Guard | Disables trading when tab inactive |
+| Device Guard | Desktop-only enforcement |
+| Encrypted Vault | Fernet encryption for credentials |
+| Gesture Cooldowns | Prevents accidental repeats |
 
 ---
 
 ## Project Structure
 
 ```
-holotrade/
-├── frontend/                 # SvelteKit application
-│   ├── src/
-│   │   ├── routes/          # Page components
-│   │   ├── lib/
-│   │   │   ├── components/  # UI and 3D components
-│   │   │   ├── stores/      # Svelte stores (state management)
-│   │   │   ├── services/    # API and business logic
-│   │   │   └── utils/       # Helper functions
-│   │   └── app.html
-│   └── package.json
-│
-├── backend/                  # FastAPI application
+tradexr/
+├── backend/           # FastAPI + Zerodha SDK
 │   ├── app/
-│   │   ├── main.py          # Entry point
-│   │   ├── kite_client.py   # Zerodha API wrapper
-│   │   ├── ticker_service.py # WebSocket streaming
-│   │   └── routes/          # API endpoints
+│   │   ├── main.py
+│   │   ├── kite_client.py
+│   │   └── routes/
 │   └── requirements.txt
 │
-└── docs/                     # Documentation
+├── frontend/          # SvelteKit + Three.js
+│   └── src/lib/
+│       ├── config/    # All thresholds
+│       ├── services/  # GestureBus, GestureEngine
+│       ├── stores/    # Reactive state
+│       └── components/
+│
+├── ARCHITECTURE.md    # Technical deep-dive
+└── README.md          # You are here
 ```
 
 ---
 
-## How It Works (Simplified)
+## Tech Stack
 
-1. **Camera captures your face** → MediaPipe extracts 468 facial landmarks
-2. **Nose position mapped to X/Y/Z** → Stored in Svelte reactive store
-3. **3D camera position updates** → Chart perspective shifts smoothly
-4. **Hand gestures detected** → MediaPipe Hands tracks 21 hand landmarks
-5. **Gesture classified** → Pinch distance, finger positions analyzed
-6. **Order placed** → FastAPI backend calls Zerodha Kite API
-
----
-
----
-
-## Documentation
-
-This README provides a user-facing overview. For in-depth technical details:
-
-- **[TECHNICAL.md](TECHNICAL.md)** - Complete technical reference with:
-  - Full file inventory and architecture
-  - What we attempted and their outcomes
-  - Configuration reference
-  - Contributing guidelines
-  
-- **[ROADMAP.md](ROADMAP.md)** - Development status with:
-  - Verified completed features
-  - Pending tasks (priority-ordered)
-  - Technical debt tracking
-  - Future roadmap
+| Layer | Technology | Why |
+|-------|------------|-----|
+| Frontend | SvelteKit 5 | Compiler-based reactivity |
+| 3D Engine | Three.js + Threlte | Mature WebGL, Svelte bindings |
+| ML Tracking | MediaPipe | Real-time face/hand (60fps) |
+| Backend | FastAPI | Async Python, auto-docs |
+| Broker | Zerodha KiteConnect | Official SDK |
 
 ---
 
-## Safety Disclaimer
+## Known Limitations
 
-> [!WARNING]
-> **This is experimental pre-alpha software for educational purposes.**
+- **Zerodha only** — Built for Kite Connect API
+- **India markets** — NSE/BSE symbols
+- **Desktop only** — Requires webcam + mouse
+- **Limit orders** — No market orders (safety)
+- **Good lighting** — Hand detection needs visibility
 
-- Always test with paper trading or small quantities first
-- Gesture recognition may have false positives
-- Network delays can affect order execution
-- The developers are not responsible for any trading losses
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — do whatever you want, just don't blame me if you lose money.
 
 ---
 
-## Acknowledgments
-
-- [Zerodha](https://zerodha.com/) for their excellent KiteConnect API
-- [MediaPipe](https://mediapipe.dev/) for the ML models
-- [Threlte](https://threlte.xyz/) for the Svelte + Three.js integration
-- The open source community 💚
+<p align="center">
+  <i>Built with curiosity. Trade responsibly.</i>
+</p>

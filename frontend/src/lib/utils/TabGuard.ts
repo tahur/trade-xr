@@ -39,6 +39,6 @@ if (typeof document !== 'undefined') {
  */
 export function requireActiveTab(operation: string = 'Trading operation'): void {
     if (!isTabActive()) {
-        throw new Error(`${operation} blocked: Browser tab is not active. Please return to the HoloTrade tab.`);
+        throw new Error(`${operation} blocked: Browser tab is not active. Please return to the TradeXR tab.`);
     }
 }

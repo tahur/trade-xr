@@ -4,17 +4,13 @@
  */
 import { writable, derived } from 'svelte/store';
 import type { ETFConfig } from '$lib/config/etfs';
+import type { CandleData } from '$lib/types/trading';
 import { API_CONFIG } from '$lib/config/api';
 import { TIMING } from '$lib/config/timing';
 
-export interface CandleData {
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-    timestamp: number;
-}
+// Re-export for convenience
+export type { CandleData };
+
 
 export interface ETFData {
     symbol: string;

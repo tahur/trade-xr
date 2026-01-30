@@ -1,4 +1,11 @@
-const API_URL = "http://localhost:8000/api/kite";
+/**
+ * Kite API Service - Zerodha trading operations
+ * 
+ * Provides methods for authentication, order placement, and account data.
+ */
+import { API_CONFIG } from '$lib/config/api';
+
+const API_URL = `${API_CONFIG.BASE_URL}/api/kite`;
 
 export const kite = {
     async login(requestToken: string) {

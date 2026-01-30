@@ -2,6 +2,7 @@
  * Holdings Store - Portfolio holdings from Kite API
  */
 import { writable, derived } from 'svelte/store';
+import { API_CONFIG } from '$lib/config/api';
 
 export interface Holding {
     tradingsymbol: string;
@@ -42,7 +43,7 @@ function createHoldingsStore() {
             update(s => ({ ...s, isLoading: true, error: null }));
 
             try {
-                const response = await fetch('http://localhost:8000/portfolio/holdings');
+                const response = await fetch(`${API_CONFIG.BASE_URL}/portfolio/holdings`);
 
                 if (!response.ok) {
                     if (response.status === 401) {

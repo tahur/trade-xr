@@ -1,12 +1,12 @@
-# HoloTrade - Technical Documentation
+# TradeXR - Technical Documentation
 
-> **Last Updated**: 2026-01-17  
-> **Repository**: [github.com/tahur/holotrade](https://github.com/tahur/holotrade)  
+> **Last Updated**: 2026-01-30  
+> **Repository**: [github.com/tahur/tradexr](https://github.com/tahur/tradexr)  
 
-[![GitHub](https://img.shields.io/badge/GitHub-tahur%2Fholotrade-181717?logo=github)](https://github.com/tahur/holotrade)
+[![GitHub](https://img.shields.io/badge/GitHub-tahur%2Ftradexr-181717?logo=github)](https://github.com/tahur/tradexr)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This document provides comprehensive technical details about HoloTrade's implementation.
+This document provides comprehensive technical details about TradeXR's implementation.
 
 ---
 
@@ -705,7 +705,7 @@ Hands: {
 
 ### Glassmorphism CSS System
 
-HoloTrade uses glassmorphism (frosted glass effect) across all UI components for a premium, modern aesthetic. All values are from actual codebase inspection.
+TradeXR uses glassmorphism (frosted glass effect) across all UI components for a premium, modern aesthetic. All values are from actual codebase inspection.
 
 #### Core Glassmorphism Formula
 
@@ -1402,5 +1402,5 @@ function updateCamera(state: CameraState): void {
 
 - 📖 [README.md](README.md) - User-facing overview
 - 🗺️ [ROADMAP.md](ROADMAP.md) - Development status & pending tasks
-- 📦 [GitHub Repository](https://github.com/tahur/holotrade)
+- 📦 [GitHub Repository](https://github.com/tahur/tradexr)
 - 📄 [License](LICENSE) - MIT License

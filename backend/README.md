@@ -1,6 +1,6 @@
-# HoloTrade Backend
+# TradeXR Backend
 
-FastAPI backend for the HoloTrade trading interface.
+FastAPI backend for the TradeXR trading interface.
 
 ## Tech Stack
 
@@ -92,9 +92,9 @@ app/
 curl http://localhost:8000/
 
 # Expected response:
-# {"status":"ok","message":"HoloTrade Backend Running"}
+# {"status":"ok","message":"TradeXR Backend Running"}
 ```
 
 ---
 
-Part of [HoloTrade](../README.md) | See [TECHNICAL.md](../TECHNICAL.md) for implementation details
+Part of [TradeXR](../README.md) | See [TECHNICAL.md](../TECHNICAL.md) for implementation details

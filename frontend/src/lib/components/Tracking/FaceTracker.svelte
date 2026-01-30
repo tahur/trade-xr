@@ -41,6 +41,13 @@
     let baseZoom = 1.0;
     let lastHandDist = 0; // For velocity calculation
 
+    // === TWO-HAND HYSTERESIS ===
+    // Prevents false 2-hand detection when MediaPipe flaps between 1-2 hands
+    let consecutiveTwoHandFrames = 0;
+    let consecutiveOneHandFrames = 0;
+    const TWO_HAND_ENTER_FRAMES = 3; // Require 3 frames (~100ms) of 2 hands to enter zoom
+    const TWO_HAND_EXIT_FRAMES = 2; // Require 2 frames (~66ms) of 1 hand to exit zoom
+
     // Cooldown timer after zoom ends
     let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
     const ZOOM_COOLDOWN_MS = 300; // 0.3 seconds cooldown after zoom
@@ -50,6 +57,19 @@
     const VICTORY_COOLDOWN_MS = 800; // Prevent rapid toggling
     let victoryHoldStart: number | null = null;
     const VICTORY_HOLD_MS = 300; // Must hold Victory for 300ms to trigger
+
+    // === GESTURE HYSTERESIS ===
+    // Frame counters to prevent gesture flickering (same pattern as 2-hand zoom)
+    let consecutiveVictoryFrames = 0;
+    let consecutivePointingFrames = 0;
+    let consecutiveFistFrames = 0;
+    let lastConfirmedGesture = "None";
+    const GESTURE_CONFIRM_FRAMES = 3; // Require 3 consecutive frames to confirm gesture
+    const GESTURE_EXIT_FRAMES = 2; // Require 2 frames of different gesture to exit
+
+    // Fist gesture emission state (for "Back" action)
+    let lastFistEmitTime = 0;
+    const FIST_COOLDOWN_MS = 1000; // 1 second between fist actions
 
     // Frame throttling for MediaPipe CPU optimization
     let frameCount = 0;
@@ -318,11 +338,16 @@
             // Store for drawing
             latestHandResults = results;
 
-            // ============ TWO-HAND PINCH ZOOM ============
-            if (
+            // ============ TWO-HAND PINCH ZOOM (WITH HYSTERESIS) ============
+            const detectedTwoHands =
                 results.multiHandLandmarks &&
-                results.multiHandLandmarks.length === 2
-            ) {
+                results.multiHandLandmarks.length === 2;
+
+            if (detectedTwoHands) {
+                // Increment 2-hand counter, reset 1-hand counter
+                consecutiveTwoHandFrames++;
+                consecutiveOneHandFrames = 0;
+
                 // Calculate center of each hand (using middle finger MCP landmark 9)
                 const hand1Center = {
                     x: results.multiHandLandmarks[0][9].x,
@@ -339,7 +364,11 @@
                         Math.pow(hand1Center.y - hand2Center.y, 2),
                 );
 
-                if (!wasZooming) {
+                // Only enter zoom mode after sustained 2-hand detection
+                if (
+                    !wasZooming &&
+                    consecutiveTwoHandFrames >= TWO_HAND_ENTER_FRAMES
+                ) {
                     // Try to acquire zoom context
                     if (acquireZoom()) {
                         wasZooming = true;
@@ -352,42 +381,53 @@
                     }
                 }
 
-                // Calculate velocity for momentum (smoothed)
-                const velocity = (handDist - (lastHandDist || handDist)) * 10;
-                lastHandDist = handDist;
-
-                // Calculate zoom factor with INCREASED sensitivity
-                // Amplify the ratio difference for faster zoom response
-                const distanceRatio = zoomStartDistance / handDist;
-                // Power of 1.5 makes small movements more impactful
-                const amplifiedRatio = Math.pow(distanceRatio, 1.5);
-                const newZoom = Math.max(
-                    0.3,
-                    Math.min(3.0, baseZoom * amplifiedRatio),
-                );
-
-                // DIRECT RAF UPDATE - bypasses spring for instant response
-                animationController.setZoom(newZoom);
-
-                // Emit event for any listeners
-                gestureBus.emit("ZOOM_UPDATE", {
-                    handDistance: handDist,
-                    initialDistance: zoomStartDistance,
-                    delta: distanceRatio - 1,
-                    zoomFactor: newZoom,
-                });
-
-                // Still update stores for UI display
-                zoomLevel.set(newZoom);
-                twoHandPinch.set({
-                    isActive: true,
-                    handDistance: handDist,
-                    initialDistance: zoomStartDistance,
-                    velocity: velocity,
-                });
-            } else {
-                // Less than 2 hands - end zoom gesture
+                // Only process zoom if we're actually in zoom mode
                 if (wasZooming) {
+                    // Calculate velocity for momentum (smoothed)
+                    const velocity =
+                        (handDist - (lastHandDist || handDist)) * 10;
+                    lastHandDist = handDist;
+
+                    // Calculate zoom factor with INCREASED sensitivity
+                    // Amplify the ratio difference for faster zoom response
+                    const distanceRatio = zoomStartDistance / handDist;
+                    // Power of 1.5 makes small movements more impactful
+                    const amplifiedRatio = Math.pow(distanceRatio, 1.5);
+                    const newZoom = Math.max(
+                        0.3,
+                        Math.min(3.0, baseZoom * amplifiedRatio),
+                    );
+
+                    // DIRECT RAF UPDATE - bypasses spring for instant response
+                    animationController.setZoom(newZoom);
+
+                    // Emit event for any listeners
+                    gestureBus.emit("ZOOM_UPDATE", {
+                        handDistance: handDist,
+                        initialDistance: zoomStartDistance,
+                        delta: distanceRatio - 1,
+                        zoomFactor: newZoom,
+                    });
+
+                    // Still update stores for UI display
+                    zoomLevel.set(newZoom);
+                    twoHandPinch.set({
+                        isActive: true,
+                        handDistance: handDist,
+                        initialDistance: zoomStartDistance,
+                        velocity: velocity,
+                    });
+                }
+            } else {
+                // Less than 2 hands detected
+                consecutiveOneHandFrames++;
+                consecutiveTwoHandFrames = 0;
+
+                // Only exit zoom mode after sustained single-hand detection
+                if (
+                    wasZooming &&
+                    consecutiveOneHandFrames >= TWO_HAND_EXIT_FRAMES
+                ) {
                     wasZooming = false;
                     // Release zoom context with cooldown
                     releaseZoom();
@@ -401,12 +441,16 @@
                         zoomCooldownActive.set(false);
                     }, ZOOM_COOLDOWN_MS);
                 }
-                twoHandPinch.set({
-                    isActive: false,
-                    handDistance: 0,
-                    initialDistance: 0,
-                    velocity: 0,
-                });
+
+                // Only clear twoHandPinch if we're not zooming
+                if (!wasZooming) {
+                    twoHandPinch.set({
+                        isActive: false,
+                        handDistance: 0,
+                        initialDistance: 0,
+                        velocity: 0,
+                    });
+                }
             }
 
             // ============ SINGLE HAND GESTURES ============
@@ -590,11 +634,24 @@
                     } else {
                         primaryGesture = "Closed_Fist";
                     }
-                } else if (fingersUp === 1 && idxOpen) {
+                } else if (
+                    fingersUp === 1 &&
+                    idxOpen &&
+                    !ringOpen &&
+                    !pinkyOpen
+                ) {
+                    // STRICTER: Only index up, ring and pinky must be closed
                     primaryGesture = "Pointing_Up";
-                } else if (fingersUp === 2 && idxOpen && midOpen) {
+                } else if (
+                    fingersUp === 2 &&
+                    idxOpen &&
+                    midOpen &&
+                    !ringOpen &&
+                    !pinkyOpen
+                ) {
+                    // STRICTER: Only index and middle up, ring and pinky must be closed
                     primaryGesture = "Victory";
-                } else if (fingersUp === 4 || fingersUp === 5) {
+                } else if (fingersUp >= 4) {
                     // broad open
                     primaryGesture = "Open_Palm";
                 }
@@ -666,7 +723,54 @@
                     // Reset hold timer if gesture changes or hand moves too fast
                     victoryHoldStart = null;
                 }
+
+                // === GESTURE HYSTERESIS LOGIC ===
+                // Update frame counters based on detected gesture
+                if (primaryGesture === "Victory") {
+                    consecutiveVictoryFrames++;
+                    consecutivePointingFrames = 0;
+                    consecutiveFistFrames = 0;
+                } else if (primaryGesture === "Pointing_Up") {
+                    consecutivePointingFrames++;
+                    consecutiveVictoryFrames = 0;
+                    consecutiveFistFrames = 0;
+                } else if (primaryGesture === "Closed_Fist") {
+                    consecutiveFistFrames++;
+                    consecutiveVictoryFrames = 0;
+                    consecutivePointingFrames = 0;
+                } else {
+                    // Reset all counters for other gestures
+                    consecutiveVictoryFrames = 0;
+                    consecutivePointingFrames = 0;
+                    consecutiveFistFrames = 0;
+                }
+
+                // === FIST GESTURE EMISSION (for "Back" action) ===
+                // Emit fist event after sustained detection + stability + cooldown
+                if (
+                    consecutiveFistFrames >= GESTURE_CONFIRM_FRAMES &&
+                    isHandStable
+                ) {
+                    const now = performance.now();
+                    const timeSinceLastFist = now - lastFistEmitTime;
+
+                    if (timeSinceLastFist > FIST_COOLDOWN_MS) {
+                        console.log("✊ Fist Gesture Confirmed!");
+                        gestureBus.emit("FIST_DETECTED", {
+                            timestamp: now,
+                            handSide: primaryHandSide,
+                        });
+                        lastFistEmitTime = now;
+                        consecutiveFistFrames = 0; // Reset to require re-trigger
+                    }
+                }
             } else {
+                // No hands detected - reset all gesture state
+                consecutiveVictoryFrames = 0;
+                consecutivePointingFrames = 0;
+                consecutiveFistFrames = 0;
+                victoryHoldStart = null;
+
                 gestureState.update((s) => ({
                     ...s,
                     isHandDetected: false,

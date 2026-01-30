@@ -1,6 +1,6 @@
-# HoloTrade Frontend
+# TradeXR Frontend
 
-SvelteKit application for the HoloTrade trading interface.
+SvelteKit application for the TradeXR trading interface.
 
 ## Tech Stack
 
@@ -75,4 +75,4 @@ See `.env.example` for required variables.
 
 ---
 
-Part of [HoloTrade](../README.md) | See [TECHNICAL.md](../TECHNICAL.md) for implementation details
+Part of [TradeXR](../README.md) | See [TECHNICAL.md](../TECHNICAL.md) for implementation details

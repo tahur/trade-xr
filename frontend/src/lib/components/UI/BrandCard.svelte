@@ -39,26 +39,35 @@
     on:mouseleave={handleMouseLeave}
 >
     <div
-        class="relative px-4 py-2.5 rounded-2xl backdrop-blur-2xl transition-transform duration-75
-            bg-gradient-to-br from-white/10 via-violet-500/5 to-cyan-500/5
-            border border-white/15 shadow-[0_8px_32px_rgba(139,92,246,0.1)]"
+        class="relative px-5 py-2.5 rounded-xl backdrop-blur-xl transition-transform duration-75
+            bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)]"
         style="transform: rotateX({$tilt.x}deg) rotateY({$tilt.y}deg); transform-style: preserve-3d;"
     >
-        <!-- Inner glow -->
+        <!-- Glass Tint/Sheen -->
         <div
-            class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none"
+            class="absolute inset-0 rounded-xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"
         ></div>
 
-        <!-- Text Logo -->
-        <div class="relative flex items-baseline gap-0.5">
-            <span class="text-xl font-black text-white tracking-tight">
-                Holo
-            </span>
-            <span
-                class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400"
-            >
+        <!-- TradeXR Logo with Orange Ribbon -->
+        <div class="relative flex items-center gap-0">
+            <span class="text-xl font-bold text-white/90 tracking-tight mr-1.5">
                 Trade
             </span>
+            <!-- Orange Ribbon Badge -->
+            <div class="relative group">
+                <div
+                    class="absolute inset-0 bg-orange-500 blur-sm opacity-40 group-hover:opacity-60 transition-opacity rounded-sm"
+                ></div>
+                <div
+                    class="relative px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-sm shadow-lg transform -skew-x-12"
+                >
+                    <span
+                        class="block text-sm font-black text-white transform skew-x-12 tracking-wide"
+                    >
+                        XR
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -1,11 +1,19 @@
+"""
+TradeXR Quote Routes - Market Data Endpoints
+
+Provides endpoints for:
+- LTP (Last Traded Price) - /ltp/{symbol}
+- Full Quote (OHLC, volume) - /quote/{symbol}
+- Historical Candles - /candles/{symbol}
+- Portfolio Holdings - /portfolio/holdings
+- Positions - /portfolio/positions
+- Margins - /portfolio/margins
+"""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from app.kite_client import KiteClient
 
 router = APIRouter()
-
-# Cache headers for short-lived market data (1 second cache)
-CACHE_HEADERS = {"Cache-Control": "private, max-age=1"}
 
 @router.get("/ltp/{symbol}")
 def get_ltp(symbol: str, exchange: str = "MCX"):
