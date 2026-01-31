@@ -180,14 +180,20 @@ class AnimationController {
 
     /**
      * Preserve zoom momentum for smooth coast when zoom gesture ends
-     * Instead of abruptly stopping, reduce velocity and let physics decay naturally
+     * Resets target to base position but allows smooth coast back
      */
     preserveZoomMomentum(): void {
-        // Reduce Z velocity to 40% for controlled coast (not too fast, not too slow)
-        this.velocity.z *= 0.4;
-        // Also dampen X/Y slightly for consistency
-        this.velocity.x *= 0.3;
-        this.velocity.y *= 0.3;
+        // Reset target to base position - we want to coast BACK to normal
+        this.target.z = this.config.basePosition.z;
+        this.target.x = this.config.basePosition.x;
+        this.target.y = this.config.basePosition.y;
+
+        // Limit velocity to prevent runaway zoom when hands suddenly removed
+        // Only preserve small velocity for natural deceleration feeling
+        const maxVelocity = 5; // Cap velocity to prevent sudden jumps
+        this.velocity.z = Math.max(-maxVelocity, Math.min(maxVelocity, this.velocity.z * 0.2));
+        this.velocity.x = Math.max(-maxVelocity, Math.min(maxVelocity, this.velocity.x * 0.1));
+        this.velocity.y = Math.max(-maxVelocity, Math.min(maxVelocity, this.velocity.y * 0.1));
     }
 }
 

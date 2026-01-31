@@ -436,6 +436,9 @@
                     // Preserve momentum for smooth coast (instead of abrupt stop)
                     animationController.preserveZoomMomentum();
 
+                    // Reset zoom level store to 1.0 (normal)
+                    zoomLevel.set(1.0);
+
                     // Emit zoom end event
                     gestureBus.emit("ZOOM_END");
 
