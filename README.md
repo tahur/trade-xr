@@ -22,9 +22,8 @@ This is not a full trading terminal. It focuses on two core experiences:
 
 Built on top of the [Zerodha Kite API](https://kite.trade). Open-sourced for transparency and learning.
 
-**This is not financial advice. Trade at your own risk.**
 
-> **A note on how this was built:** This project was made through a lot of trial and error — trying things, breaking them, and trying again. Some parts were written with AI assistance, but every decision, every threshold, every "why does this feel wrong" moment was human judgment. The code reflects that messy, iterative process. It's not perfect, and that's fine.
+> **How this was really built:** This project grew through a lot of experimenting—trying things, breaking them, fixing them, and starting over more times than I can count. AI helped along the way, but every choice, every tweak, and every “this doesn’t feel right” moment came from human judgment. The code carries all those small mistakes, lessons, and iterations. It’s not perfect—and that’s exactly what makes it real.
 
 ---
 
