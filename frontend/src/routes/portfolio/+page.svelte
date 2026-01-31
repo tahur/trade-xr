@@ -479,7 +479,34 @@
 
     .portfolio-page {
         min-height: 100vh;
-        background: #0f1115;
+        /* Cosmic space gradient with subtle nebula-like effects */
+        background: radial-gradient(
+                ellipse at 20% 30%,
+                rgba(99, 102, 241, 0.15) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                ellipse at 80% 20%,
+                rgba(139, 92, 246, 0.12) 0%,
+                transparent 45%
+            ),
+            radial-gradient(
+                ellipse at 60% 70%,
+                rgba(59, 130, 246, 0.08) 0%,
+                transparent 40%
+            ),
+            radial-gradient(
+                ellipse at 30% 80%,
+                rgba(168, 85, 247, 0.06) 0%,
+                transparent 35%
+            ),
+            linear-gradient(
+                180deg,
+                #0a0d12 0%,
+                #0f1419 30%,
+                #121820 60%,
+                #0a0d12 100%
+            );
         color: #fff;
         display: flex;
         flex-direction: column;
