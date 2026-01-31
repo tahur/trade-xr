@@ -583,12 +583,12 @@
                     const indexTip = primaryHand[8];
                     const pinkyTip = primaryHand[20];
 
-                    // Common checks
+                    // Common checks - RELAXED thumb extended threshold for better fist detection
                     const thumbExtended =
                         Math.hypot(
                             thumbTip.x - indexKnuckle.x,
                             thumbTip.y - indexKnuckle.y,
-                        ) > 0.08;
+                        ) > 0.06; // Reduced from 0.08 to catch more extended thumbs
 
                     const otherFingersClosed =
                         primaryHand[8].y > primaryHand[5].y && // Index
@@ -596,47 +596,61 @@
                         primaryHand[16].y > primaryHand[13].y && // Ring
                         primaryHand[20].y > primaryHand[17].y; // Pinky
 
+                    // NEW: Explicit fist check - thumb is also curled/close to palm
+                    const thumbCurled =
+                        Math.hypot(
+                            thumbTip.x - indexKnuckle.x,
+                            thumbTip.y - indexKnuckle.y,
+                        ) < 0.1; // Thumb close to hand = fist
+
                     const thumbOnSide =
                         Math.abs(thumbTip.x - indexKnuckle.x) > 0.05;
 
-                    // === THUMBS UP CHECKS ===
-                    const thumbPointingUp = thumbTip.y < thumbIP.y - 0.015;
-                    const thumbAboveWrist = thumbTip.y < wrist.y - 0.02;
+                    // === PRIORITY CHECK: EXPLICIT FIST (all fingers curled including thumb) ===
+                    if (otherFingersClosed && thumbCurled && !thumbExtended) {
+                        primaryGesture = "Closed_Fist";
+                    } else {
+                        // === THUMBS UP CHECKS ===
+                        const thumbPointingUp = thumbTip.y < thumbIP.y - 0.015;
+                        const thumbAboveWrist = thumbTip.y < wrist.y - 0.02;
 
-                    const thumbsUpScore =
-                        (thumbPointingUp ? 1 : 0) +
-                        (thumbAboveWrist ? 1 : 0) +
-                        (thumbExtended ? 1 : 0) +
-                        (otherFingersClosed ? 1 : 0) +
-                        (thumbOnSide ? 0.5 : 0);
+                        const thumbsUpScore =
+                            (thumbPointingUp ? 1 : 0) +
+                            (thumbAboveWrist ? 1 : 0) +
+                            (thumbExtended ? 1 : 0) +
+                            (otherFingersClosed ? 1 : 0) +
+                            (thumbOnSide ? 0.5 : 0);
 
-                    // === THUMBS DOWN CHECKS ===
-                    const thumbPointingDown = thumbTip.y > thumbIP.y + 0.015;
-                    const thumbBelowWrist = thumbTip.y > wrist.y + 0.02;
+                        // === THUMBS DOWN CHECKS ===
+                        const thumbPointingDown =
+                            thumbTip.y > thumbIP.y + 0.015;
+                        const thumbBelowWrist = thumbTip.y > wrist.y + 0.02;
 
-                    const thumbsDownScore =
-                        (thumbPointingDown ? 1 : 0) +
-                        (thumbBelowWrist ? 1 : 0) +
-                        (thumbExtended ? 1 : 0) +
-                        (otherFingersClosed ? 1 : 0) +
-                        (thumbOnSide ? 0.5 : 0);
+                        const thumbsDownScore =
+                            (thumbPointingDown ? 1 : 0) +
+                            (thumbBelowWrist ? 1 : 0) +
+                            (thumbExtended ? 1 : 0) +
+                            (otherFingersClosed ? 1 : 0) +
+                            (thumbOnSide ? 0.5 : 0);
 
-                    // Determine gesture - thumbs up takes priority if both score high
-                    if (thumbsUpScore >= 2.5) {
-                        primaryGesture = "Thumbs_Up";
-                    } else if (thumbsDownScore >= 2.5) {
-                        primaryGesture = "Thumbs_Down";
-                    } else if (otherFingersClosed && thumbExtended) {
-                        // Fallback: if fist is closed and thumb is out, check direction
-                        if (thumbPointingUp) {
+                        // Determine gesture - thumbs up takes priority if both score high
+                        if (thumbsUpScore >= 2.5) {
                             primaryGesture = "Thumbs_Up";
-                        } else if (thumbPointingDown) {
+                        } else if (thumbsDownScore >= 2.5) {
                             primaryGesture = "Thumbs_Down";
+                        } else if (otherFingersClosed && thumbExtended) {
+                            // Fallback: if fist is closed and thumb is out, check direction
+                            if (thumbPointingUp) {
+                                primaryGesture = "Thumbs_Up";
+                            } else if (thumbPointingDown) {
+                                primaryGesture = "Thumbs_Down";
+                            } else {
+                                primaryGesture = "Closed_Fist";
+                            }
                         } else {
+                            // Default: treat as fist when all else fails
                             primaryGesture = "Closed_Fist";
                         }
-                    } else {
-                        primaryGesture = "Closed_Fist";
                     }
                 } else if (
                     fingersUp === 1 &&
