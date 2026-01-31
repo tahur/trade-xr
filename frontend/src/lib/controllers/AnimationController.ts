@@ -177,6 +177,18 @@ class AnimationController {
     setStiffness(stiffness: number): void {
         this.config.stiffness = stiffness;
     }
+
+    /**
+     * Preserve zoom momentum for smooth coast when zoom gesture ends
+     * Instead of abruptly stopping, reduce velocity and let physics decay naturally
+     */
+    preserveZoomMomentum(): void {
+        // Reduce Z velocity to 40% for controlled coast (not too fast, not too slow)
+        this.velocity.z *= 0.4;
+        // Also dampen X/Y slightly for consistency
+        this.velocity.x *= 0.3;
+        this.velocity.y *= 0.3;
+    }
 }
 
 // === SINGLETON INSTANCE ===

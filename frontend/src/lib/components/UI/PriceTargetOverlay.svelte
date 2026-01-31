@@ -45,6 +45,7 @@
         | "ORDER_PLACED";
     let state: State = "IDLE";
     let lockedPrice: number | null = null;
+    let lockedScreenY: number | null = null; // Frozen screen position when locked
     let lockTime: number | null = null; // Track when locked for cooldown
     let confirmedOrderSide: "BUY" | "SELL" = "BUY"; // Track which gesture triggered order
 
@@ -79,6 +80,7 @@
         releaseTrading();
         state = "IDLE";
         lockedPrice = null;
+        lockedScreenY = null; // Unfreeze screen position
         lockTime = null;
         // Reset gesture bar to idle
         gestureBar.setIdle();
@@ -243,6 +245,7 @@
                         $gestureState.isHandStable // Check again after delay
                     ) {
                         lockedPrice = hoverPrice;
+                        lockedScreenY = screenY; // Freeze overlay position
                         lockTime = Date.now(); // Track when locked
                         state = "LOCKED";
                         gestureBar.setLocked(hoverPrice);
@@ -414,7 +417,9 @@
     <!-- === HOLOGRAPHIC TARGETING LINE === -->
     <div
         class="fixed left-0 right-0 pointer-events-none z-40"
-        style="top: 0; transform: translateY({screenY}vh); will-change: transform;"
+        style="top: 0; transform: translateY({isLocked && lockedScreenY !== null
+            ? lockedScreenY
+            : screenY}vh); will-change: transform;"
     >
         <!-- Main Line with Glow -->
         <div class="relative">

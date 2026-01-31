@@ -433,6 +433,9 @@
                     // Release zoom context with cooldown
                     releaseZoom();
 
+                    // Preserve momentum for smooth coast (instead of abrupt stop)
+                    animationController.preserveZoomMomentum();
+
                     // Emit zoom end event
                     gestureBus.emit("ZOOM_END");
 
