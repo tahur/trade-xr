@@ -379,8 +379,12 @@ cryptography==44.*    # Fernet encryption for vault
 | `/quote/quote/{symbol}` | GET | Full quote with OHLC |
 | `/quote/candles/{symbol}` | GET | Historical candlesticks |
 | `/ws` | WebSocket | Real-time price streaming |
-| `/vault/store` | POST | Store encrypted credentials |
-| `/vault/retrieve` | POST | Retrieve decrypted credentials |
+| `/api/vault/exists` | GET | Check if credentials stored |
+| `/api/vault/save` | POST | Store encrypted credentials |
+| `/api/vault/load` | POST | Retrieve decrypted credentials |
+| `/api/session/status` | GET | Check if session is active |
+| `/api/session/restore` | POST | Restore session from vault |
+| `/api/session/logout` | DELETE | Clear session and token |
 
 ### KiteClient Singleton
 
@@ -584,18 +588,35 @@ def decrypt_credentials(encrypted: bytes, master_password: str):
     return json.loads(fernet.decrypt(encrypted))
 ```
 
-**Security Model:**
+**Credential Security Model:**
 - User sets a master password during first setup
 - API credentials encrypted with Fernet (AES-128-CBC)
-- Encrypted blob stored on disk, master password never stored
+- Encrypted blob stored in `.vault` file, master password never stored
 - On app startup, user provides master password to unlock
+
+**Session Token Persistence:**
+- Access token encrypted with machine-derived key (no password needed)
+- Uses platform info + MAC address for key derivation
+- Stored in `.session` file, auto-restores on page refresh
+- Token persists across browser restarts (until Zerodha expires it daily)
+
+```python
+# Machine-derived key for session (no password prompt needed)
+machine_id = f"{platform.node()}:{platform.system()}:{uuid.getnode()}"
+key = hashlib.pbkdf2_hmac('sha256', machine_id.encode(), SALT, 50000)
+```
+
+**Why Machine-Derived Key:**
+- Convenience: No password needed on every page refresh
+- Security: Token encrypted at rest, only decryptable on same machine
+- Trade-off: Anyone with physical laptop access can use the session
 
 **Location:** `backend/app/security/vault.py`
 
 ### Environment Variables
 
 ```bash
-# backend/.env
+# backend/.env (optional - only needed for development)
 KITE_API_KEY=your_api_key
 KITE_API_SECRET=your_api_secret
 
@@ -604,7 +625,7 @@ VITE_API_URL=http://127.0.0.1:8000
 VITE_WS_URL=ws://127.0.0.1:8000
 ```
 
-> **Note:** Never commit `.env` files. Use `.env.example` as templates.
+> **Note:** For production use, enter credentials via the Control Center UI. The `.env` file is optional and primarily for development.
 
 ---
 

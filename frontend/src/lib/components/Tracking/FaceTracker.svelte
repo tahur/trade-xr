@@ -29,7 +29,7 @@
     let isCameraRunning = false;
 
     // Toggle for visualization overlays
-    let showOverlays = true;
+    let showOverlays = true; // Debug panel visible
 
     // Store latest results for drawing
     let latestFaceResults: any = null;
@@ -389,8 +389,9 @@
                     lastHandDist = handDist;
 
                     // Calculate zoom factor with INCREASED sensitivity
-                    // Amplify the ratio difference for faster zoom response
-                    const distanceRatio = zoomStartDistance / handDist;
+                    // Ratio: spread hands = bigger (>1), pinch hands = smaller (<1)
+                    // This matches natural iOS/mobile pinch-to-zoom behavior
+                    const distanceRatio = handDist / zoomStartDistance;
                     // Power of 1.5 makes small movements more impactful
                     const amplifiedRatio = Math.pow(distanceRatio, 1.5);
                     const newZoom = Math.max(
@@ -872,43 +873,126 @@
     ></canvas>
 
     <!-- Debug Info Overlay -->
-    <div
-        class="p-1.5 text-[9px] font-mono text-white/80 space-y-0.5 bg-black/60"
-    >
-        <div class="flex justify-between">
-            <span>Hand:</span>
-            <span
-                class={$gestureState.isHandDetected
-                    ? "text-green-400"
-                    : "text-red-400"}
-            >
-                {$gestureState.isHandDetected
-                    ? $gestureState.primaryHandSide
-                    : "None"}
-            </span>
+    {#if showOverlays}
+        <div
+            class="p-1.5 text-[8px] font-mono text-white/80 space-y-0.5 bg-black/70 rounded-b-md min-w-[120px]"
+        >
+            <!-- Hand Detection -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Hand</span>
+                <span
+                    class={$gestureState.isHandDetected
+                        ? "text-green-400"
+                        : "text-red-400"}
+                >
+                    {$gestureState.isHandDetected
+                        ? $gestureState.primaryHandSide
+                        : "—"}
+                </span>
+            </div>
+
+            <!-- Number of Hands -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Hands#</span>
+                <span
+                    class={$gestureState.numHandsDetected > 1
+                        ? "text-blue-400"
+                        : ""}>{$gestureState.numHandsDetected}</span
+                >
+            </div>
+
+            <!-- Detected Gesture -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Gesture</span>
+                <span class="text-cyan-400 truncate max-w-[70px]"
+                    >{$gestureState.detectedGesture}</span
+                >
+            </div>
+
+            <!-- Finger Count -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Fingers</span>
+                <span>{$gestureState.fingerCount}</span>
+            </div>
+
+            <hr class="border-white/10 my-0.5" />
+
+            <!-- Pinch Distance -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Pinch</span>
+                <span
+                    class={$gestureState.isPinching
+                        ? "text-yellow-400"
+                        : "text-slate-400"}
+                >
+                    {$gestureState.pinchDistance.toFixed(3)}
+                    {$gestureState.isPinching ? "●" : ""}
+                </span>
+            </div>
+
+            <!-- Hand Position -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Pos</span>
+                <span class="tabular-nums">
+                    {$gestureState.handPosition.x.toFixed(
+                        2,
+                    )},{$gestureState.handPosition.y.toFixed(2)}
+                </span>
+            </div>
+
+            <!-- Hand Velocity -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Vel</span>
+                <span
+                    class="tabular-nums {$gestureState.isHandStable
+                        ? 'text-green-400'
+                        : 'text-orange-400'}"
+                >
+                    {Math.sqrt(
+                        $gestureState.handVelocity.x ** 2 +
+                            $gestureState.handVelocity.y ** 2,
+                    ).toFixed(3)}
+                    {$gestureState.isHandStable ? "●" : "◊"}
+                </span>
+            </div>
+
+            <hr class="border-white/10 my-0.5" />
+
+            <!-- Head Position -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Head</span>
+                <span class="tabular-nums">
+                    {$headPosition.x.toFixed(1)},{$headPosition.y.toFixed(1)}
+                </span>
+            </div>
+
+            <!-- Zoom Level -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Zoom</span>
+                <span class="text-blue-400 tabular-nums"
+                    >{($zoomLevel * 100).toFixed(0)}%</span
+                >
+            </div>
+
+            <!-- Two-Hand Zoom -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">2H Zoom</span>
+                <span
+                    class={$twoHandPinch.isActive
+                        ? "text-purple-400"
+                        : "text-slate-500"}
+                >
+                    {$twoHandPinch.isActive ? "Active" : "—"}
+                </span>
+            </div>
+
+            <!-- Mode -->
+            <div class="flex justify-between gap-2">
+                <span class="text-white/50">Mode</span>
+                <span class="text-amber-400">{$gestureState.mode}</span>
+            </div>
         </div>
-        <div class="flex justify-between">
-            <span>Pinch:</span>
-            <span
-                class={$gestureState.isPinching
-                    ? "text-yellow-400"
-                    : "text-slate-400"}
-            >
-                {$gestureState.pinchDistance.toFixed(3)}
-                {$gestureState.isPinching ? "✓" : ""}
-            </span>
-        </div>
-        <div class="flex justify-between">
-            <span>Hands#:</span>
-            <span>{$gestureState.numHandsDetected}</span>
-        </div>
-        <div class="flex justify-between">
-            <span>Gest:</span>
-            <span class="text-cyan-400 truncate max-w-[60px]"
-                >{$gestureState.detectedGesture}</span
-            >
-        </div>
-    </div>
+    {/if}
 
     <div class="absolute top-1 right-1 flex gap-1">
         <!-- Overlay Toggle -->

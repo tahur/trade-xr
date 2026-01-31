@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
-from app.routes import orders, config, quote, websocket, vault
+from app.routes import orders, config, quote, websocket, vault, session
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,6 +42,7 @@ app.include_router(config.router)   # API configuration
 app.include_router(quote.router)    # Market data quotes
 app.include_router(websocket.router) # Real-time tick streaming
 app.include_router(vault.router)    # Encrypted credential storage
+app.include_router(session.router)  # Session management
 
 
 @app.get("/")

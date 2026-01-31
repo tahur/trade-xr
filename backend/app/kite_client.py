@@ -2,6 +2,7 @@ import os
 from kiteconnect import KiteConnect
 import logging
 from dotenv import load_dotenv
+from app.security.vault import CredentialVault
 
 load_dotenv()
 
@@ -31,8 +32,25 @@ class KiteClient:
             try:
                 self.kite = KiteConnect(api_key=self.api_key)
                 logger.info("KiteConnect initialized.")
+                
+                # Try to restore session from vault (auto-restore)
+                self._try_restore_session()
             except Exception as e:
                 logger.error(f"Failed to initialize KiteConnect: {e}")
+    
+    def _try_restore_session(self):
+        """Attempt to restore session from vault on startup."""
+        if not self.kite:
+            return
+        
+        try:
+            saved_token = CredentialVault.load_session()
+            if saved_token:
+                self.access_token = saved_token
+                self.kite.set_access_token(self.access_token)
+                logger.info("Session restored from vault.")
+        except Exception as e:
+            logger.warning(f"Could not restore session: {e}")
 
     def configure(self, api_key, api_secret):
         """Re-configures the client with new credentials."""
@@ -59,11 +77,57 @@ class KiteClient:
             data = self.kite.generate_session(request_token, api_secret=self.api_secret)
             self.access_token = data["access_token"]
             self.kite.set_access_token(self.access_token)
+            
+            # Persist session token to vault for auto-restore
+            try:
+                CredentialVault.save_session(self.access_token)
+                logger.info("Session token saved to vault.")
+            except Exception as ve:
+                logger.warning(f"Could not save session to vault: {ve}")
+            
             logger.info("Kite session established successfully.")
             return {"status": "success", "data": data}
         except Exception as e:
             logger.error(f"Error logging in to Kite: {e}")
             raise e
+    
+    def logout(self):
+        """Clears session and removes persisted token."""
+        self.access_token = None
+        if self.kite:
+            try:
+                self.kite.invalidate_access_token(self.access_token)
+            except:
+                pass  # Token might already be invalid
+        
+        # Clear persisted session
+        try:
+            CredentialVault.delete_session()
+            logger.info("Session cleared from vault.")
+        except Exception as e:
+            logger.warning(f"Could not clear session from vault: {e}")
+        
+        return {"status": "logged_out"}
+    
+    def is_session_active(self):
+        """Check if there's an active session."""
+        return self.access_token is not None and self.kite is not None
+    
+    def restore_session_from_vault(self):
+        """Manually restore session from vault (for reconfigure scenarios)."""
+        if not self.kite:
+            return False
+        
+        try:
+            saved_token = CredentialVault.load_session()
+            if saved_token:
+                self.access_token = saved_token
+                self.kite.set_access_token(self.access_token)
+                logger.info("Session manually restored from vault.")
+                return True
+        except Exception as e:
+            logger.warning(f"Could not restore session: {e}")
+        return False
 
     def get_instrument_token(self, symbol, exchange="NSE"):
         """Fetches and caches instrument token for a symbol."""

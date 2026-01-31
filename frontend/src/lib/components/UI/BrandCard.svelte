@@ -32,35 +32,90 @@
 </script>
 
 <div
-    class="relative"
+    class="brand-wrapper"
     style="perspective: 800px;"
     role="group"
     on:mousemove={handleMouseMove}
     on:mouseleave={handleMouseLeave}
 >
     <div
-        class="relative transition-transform duration-75 select-none"
-        style="transform: rotateX({$tilt.x}deg) rotateY({$tilt.y}deg); transform-style: preserve-3d;"
+        class="brand-card"
+        style="transform: rotateX({$tilt.x}deg) rotateY({$tilt.y}deg);"
     >
-        <div class="relative flex items-center gap-1">
-            <span class="text-lg font-bold text-white/80 tracking-tight">
-                Trade
-            </span>
-            <!-- Orange Ribbon Badge -->
-            <div class="relative group">
-                <div
-                    class="absolute inset-0 bg-orange-500 blur-sm opacity-40 group-hover:opacity-60 transition-opacity rounded-sm"
-                ></div>
-                <div
-                    class="relative px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-sm shadow-lg transform -skew-x-12"
-                >
-                    <span
-                        class="block text-xs font-black text-white transform skew-x-12 tracking-wide"
-                    >
-                        XR
-                    </span>
-                </div>
-            </div>
-        </div>
+        <span class="brand-trade">trade</span>
+        <span class="brand-xr">XR</span>
     </div>
 </div>
+
+<style>
+    .brand-wrapper {
+        user-select: none;
+    }
+
+    .brand-card {
+        display: flex;
+        align-items: baseline;
+        gap: 0.125rem;
+        padding: 0.5rem 0.875rem;
+
+        /* Glassmorphism background */
+        background: linear-gradient(
+            135deg,
+            rgba(20, 20, 28, 0.75) 0%,
+            rgba(30, 30, 42, 0.65) 100%
+        );
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+
+        /* Border and glow */
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        box-shadow:
+            0 4px 20px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+        transform-style: preserve-3d;
+        transition: transform 0.075s ease-out;
+    }
+
+    .brand-trade {
+        font-family:
+            "Manrope",
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
+        font-size: 1.125rem;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .brand-xr {
+        font-family:
+            "Manrope",
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
+        font-size: 1.125rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+
+        /* Orange gradient text */
+        background: linear-gradient(
+            135deg,
+            #f97316 0%,
+            #fb923c 50%,
+            #fbbf24 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+
+        /* Subtle glow */
+        filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.4));
+    }
+
+    .brand-card:hover .brand-xr {
+        filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.6));
+    }
+</style>

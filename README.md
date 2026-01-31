@@ -159,38 +159,67 @@ All thresholds live in `frontend/src/lib/config/` — tune the entire system fro
 4. Note your **API Key** and **API Secret**
 5. Subscribe to Historical + Live data (₹500/month)
 
-### 2. Clone & Setup
+### 2. Clone & Install
 
 ```bash
 git clone https://github.com/tahur/tradexr.git
 cd tradexr
+
+# One-time setup (installs all dependencies)
+./setup.sh
 ```
 
-### 3. Backend
+### 3. Start the App
 
+```bash
+./start.sh
+```
+
+Open **http://localhost:5173** in Chrome.
+
+### 4. Configure API Credentials (In-App)
+
+1. Click the **⚙️ Settings** icon to open Control Center
+2. Enter your **API Key** and **API Secret**
+3. Set a **master password** (used to encrypt your credentials)
+4. Click **Save** → credentials are encrypted and stored securely
+5. Click **Connect to Kite** to login via Zerodha
+
+> **Note:** Your API keys are encrypted with Fernet (AES-128) and stored locally. The master password is never saved.
+
+### Script Commands
+
+| Command | Description |
+|---------|-------------|
+| `./setup.sh` | One-time setup (installs dependencies) |
+| `./start.sh` | Start both servers |
+| `./start.sh restart` | Restart both servers |
+| `./start.sh stop` | Stop all servers |
+| `./start.sh status` | Check server status |
+| `./start.sh logs` | View server logs |
+
+<details>
+<summary><b>Manual Setup (Alternative)</b></summary>
+
+If you prefer manual setup:
+
+**Backend:**
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
-# Configure credentials
-echo "KITE_API_KEY=your_key" > .env
-echo "KITE_API_SECRET=your_secret" >> .env
-
-# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 4. Frontend
-
+**Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open **http://localhost:5173** in Chrome.
+</details>
 
 ---
 
@@ -204,6 +233,8 @@ Open **http://localhost:5173** in Chrome.
 | `GET` | `/api/holdings` | Portfolio holdings |
 | `GET` | `/quote/ltp/{symbol}` | Last traded price |
 | `GET` | `/quote/candles/{symbol}` | Historical candles |
+| `GET` | `/api/session/status` | Check session status |
+| `DELETE` | `/api/session/logout` | Clear session |
 
 ---
 
@@ -214,8 +245,18 @@ Open **http://localhost:5173** in Chrome.
 | Rate Limiter | Prevents rapid-fire orders |
 | Tab Guard | Disables trading when tab inactive |
 | Device Guard | Desktop-only enforcement |
-| Encrypted Vault | Fernet encryption for credentials |
+| Encrypted Vault | Fernet encryption for API credentials |
+| Session Persistence | Auto-restores session on refresh |
 | Gesture Cooldowns | Prevents accidental repeats |
+
+### API Key Security (BYOK)
+
+Your API credentials are handled securely:
+
+1. **Encrypted Storage** — API keys encrypted with AES-128 (Fernet) using your master password
+2. **Session Tokens** — Access tokens encrypted with machine-derived key for auto-restore
+3. **Local Only** — All data stored locally on your machine, never transmitted
+4. **No .env Required** — Credentials entered via Control Center UI, not config files
 
 ---
 

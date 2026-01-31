@@ -7,28 +7,47 @@
     $: zoomLevel = $gestureBar.zoomLevel;
     $: price = $gestureBar.price;
 
-    // Mode-based styling
-    $: barClass = {
-        idle: "border-white/8",
-        zoom: "border-blue-500/30",
-        targeting: "border-violet-500/30",
-        locked: "border-cyan-500/30",
-        confirming: "border-amber-500/30",
-        portfolio: "border-white/8", // Same as idle for continuity
-    }[mode];
+    // Gesture items configuration for each mode
+    const GESTURES = {
+        idle: [
+            { icon: "👐", label: "Zoom", key: "zoom" },
+            { icon: "✌️", label: "Portfolio", key: "portfolio" },
+            { icon: "☝️", label: "Set Price", key: "price" },
+        ],
+        portfolio: [
+            { icon: "👐", label: "Zoom", key: "zoom" },
+            { icon: "✊", label: "Back", key: "back" },
+        ],
+        targeting: [
+            { icon: "🤌", label: "Pinch Lock", key: "lock", active: true },
+            { icon: "✊", label: "Cancel", key: "cancel", muted: true },
+        ],
+        locked: [
+            { icon: "☝️", label: "Confirm", key: "confirm", active: true },
+            { icon: "✊", label: "Cancel", key: "cancel", muted: true },
+        ],
+        confirming: [
+            { icon: "👍", label: "Buy", key: "buy", variant: "buy" },
+            { icon: "👎", label: "Sell", key: "sell", variant: "sell" },
+        ],
+    };
 
-    $: bgClass = {
-        idle: "bg-black/45",
-        zoom: "bg-blue-950/60",
-        targeting: "bg-violet-950/60",
-        locked: "bg-cyan-950/60",
-        confirming: "bg-amber-950/60",
-        portfolio: "bg-black/45", // Same as idle for continuity
+    $: currentGestures = GESTURES[mode] || GESTURES.idle;
+
+    // Mode accent colors
+    $: accentColor = {
+        idle: "rgba(255,255,255,0.1)",
+        zoom: "rgba(96,165,250,0.2)",
+        targeting: "rgba(139,92,246,0.2)",
+        locked: "rgba(34,211,238,0.2)",
+        confirming: "rgba(251,191,36,0.2)",
+        portfolio: "rgba(255,255,255,0.1)",
     }[mode];
 </script>
 
 <div
-    class="gesture-bar {bgClass} {barClass}"
+    class="gesture-bar"
+    style="--accent: {accentColor}"
     transition:fade={{ duration: 150 }}
 >
     {#key mode}
@@ -36,77 +55,64 @@
             class="content"
             in:scale={{ duration: 150, start: 0.95, easing: cubicOut }}
         >
-            {#if mode === "idle"}
-                <!-- Default Gesture Hints -->
-                <div class="gesture-item">
-                    <span class="icon">👐</span>
-                    <span class="label">Zoom</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="icon">✌️</span>
-                    <span class="label">Portfolio</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="icon">👆</span>
-                    <span class="label">Set Price</span>
-                </div>
-            {:else if mode === "zoom"}
-                <!-- Zoom Mode - Show Percentage -->
-                <div class="zoom-display">
+            {#if mode === "zoom"}
+                <!-- Zoom Mode - Prominent Display -->
+                <div class="zoom-pill">
                     <span class="zoom-icon">🔍</span>
                     <span class="zoom-value">{zoomLevel}%</span>
                 </div>
-            {:else if mode === "targeting"}
-                <!-- Targeting Mode - Pinch to Lock -->
-                <div class="gesture-item active">
-                    <span class="icon">👌</span>
-                    <span class="label text-violet-300">Pinch to Lock</span>
+            {:else if mode === "locked" || mode === "confirming"}
+                <!-- Show Price Badge in center -->
+                {#each currentGestures as gesture, i}
+                    {#if gesture.key === "confirm" || gesture.key === "buy"}
+                        <div
+                            class="gesture-chip"
+                            class:active={gesture.active}
+                            class:buy={gesture.variant === "buy"}
+                        >
+                            <span class="chip-icon">{gesture.icon}</span>
+                            <span class="chip-label">{gesture.label}</span>
+                        </div>
+                    {/if}
+                {/each}
+
+                <div
+                    class="price-pill"
+                    class:confirming={mode === "confirming"}
+                >
+                    <span class="currency">₹</span>
+                    <span class="price-value"
+                        >{price?.toFixed(2) ?? "0.00"}</span
+                    >
                 </div>
-                <div class="divider"></div>
-                <div class="gesture-item muted">
-                    <span class="icon">✊</span>
-                    <span class="label">Cancel</span>
-                </div>
-            {:else if mode === "locked"}
-                <!-- Locked Mode - Point Up to Confirm -->
-                <div class="gesture-item active">
-                    <span class="icon">☝️</span>
-                    <span class="label text-cyan-300">Point Up</span>
-                </div>
-                <div class="price-badge">
-                    <span class="price">₹{price?.toFixed(2) ?? "0.00"}</span>
-                </div>
-                <div class="gesture-item muted">
-                    <span class="icon">✊</span>
-                    <span class="label">Cancel</span>
-                </div>
-            {:else if mode === "confirming"}
-                <!-- Confirming Mode - Buy/Sell -->
-                <div class="gesture-item buy">
-                    <span class="icon">👍</span>
-                    <span class="label text-emerald-400">Buy</span>
-                </div>
-                <div class="price-badge confirm">
-                    <span class="price">₹{price?.toFixed(2) ?? "0.00"}</span>
-                </div>
-                <div class="gesture-item sell">
-                    <span class="icon">👎</span>
-                    <span class="label text-rose-400">Sell</span>
-                </div>
-            {:else if mode === "portfolio"}
-                <!-- Portfolio Mode - Same format as idle for continuity -->
-                <div class="gesture-item">
-                    <span class="icon">👐</span>
-                    <span class="label">Zoom</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="icon">🙂</span>
-                    <span class="label">Head Move</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="icon">✊</span>
-                    <span class="label">Back</span>
-                </div>
+
+                {#each currentGestures as gesture}
+                    {#if gesture.key === "cancel" || gesture.key === "sell"}
+                        <div
+                            class="gesture-chip"
+                            class:muted={gesture.muted}
+                            class:sell={gesture.variant === "sell"}
+                        >
+                            <span class="chip-icon">{gesture.icon}</span>
+                            <span class="chip-label">{gesture.label}</span>
+                        </div>
+                    {/if}
+                {/each}
+            {:else}
+                <!-- Standard Mode - Gesture Hints -->
+                {#each currentGestures as gesture, i}
+                    <div
+                        class="gesture-chip"
+                        class:active={gesture.active}
+                        class:muted={gesture.muted}
+                    >
+                        <span class="chip-icon">{gesture.icon}</span>
+                        <span class="chip-label">{gesture.label}</span>
+                    </div>
+                    {#if i < currentGestures.length - 1}
+                        <div class="dot-separator"></div>
+                    {/if}
+                {/each}
             {/if}
         </div>
     {/key}
@@ -115,114 +121,150 @@
 <style>
     .gesture-bar {
         position: fixed;
-        bottom: 1.5rem;
+        bottom: 1.25rem;
         left: 50%;
         transform: translateX(-50%);
         z-index: 40;
 
-        padding: 0.5rem 0.75rem;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-radius: 100px;
-        border: 1px solid;
+        /* Glassmorphism */
+        background: linear-gradient(
+            135deg,
+            rgba(20, 20, 25, 0.85) 0%,
+            rgba(30, 30, 40, 0.8) 100%
+        );
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
 
-        transition:
-            background 0.2s ease,
-            border-color 0.2s ease;
+        /* Border with accent glow */
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 40px;
+        box-shadow:
+            0 4px 24px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(255, 255, 255, 0.03),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+        padding: 0.5rem 0.875rem;
     }
 
     .content {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
-    }
-
-    .gesture-item {
-        display: flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.375rem 0.75rem;
-        border-radius: 100px;
-        transition: background 0.15s ease;
-    }
-
-    .gesture-item:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .gesture-item.active {
-        background: rgba(255, 255, 255, 0.08);
-    }
-
-    .gesture-item.muted .label {
-        color: rgba(255, 255, 255, 0.4);
-    }
-
-    .gesture-item.buy:hover {
-        background: rgba(16, 185, 129, 0.15);
-    }
-
-    .gesture-item.sell:hover {
-        background: rgba(244, 63, 94, 0.15);
-    }
-
-    .icon {
-        font-size: 1rem;
-    }
-
-    .label {
-        font-size: 0.6875rem;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.7);
-        letter-spacing: 0.02em;
-    }
-
-    .divider {
-        width: 1px;
-        height: 1rem;
-        background: rgba(255, 255, 255, 0.15);
-        margin: 0 0.25rem;
-    }
-
-    /* Zoom Display */
-    .zoom-display {
-        display: flex;
-        align-items: center;
         gap: 0.5rem;
-        padding: 0.25rem 1rem;
     }
 
-    .zoom-icon {
-        font-size: 1.125rem;
-    }
-
-    .zoom-value {
-        font-size: 1.25rem;
-        font-weight: 700;
-        font-family: ui-monospace, monospace;
-        color: rgba(96, 165, 250, 1);
-        letter-spacing: -0.02em;
-    }
-
-    /* Price Badge */
-    .price-badge {
+    /* Gesture Chip - Compact pill design */
+    .gesture-chip {
         display: flex;
         align-items: center;
-        padding: 0.25rem 0.75rem;
-        border-radius: 100px;
+        gap: 0.35rem;
+        padding: 0.35rem 0.625rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.04);
+        transition: all 0.15s ease;
+    }
+
+    .gesture-chip:hover {
         background: rgba(255, 255, 255, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .gesture-chip.active {
+        background: var(--accent, rgba(255, 255, 255, 0.1));
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .price-badge.confirm {
-        background: rgba(251, 191, 36, 0.15);
-        border-color: rgba(251, 191, 36, 0.3);
+    .gesture-chip.muted {
+        opacity: 0.5;
     }
 
-    .price {
+    .gesture-chip.buy:hover {
+        background: rgba(16, 185, 129, 0.2);
+    }
+
+    .gesture-chip.sell:hover {
+        background: rgba(244, 63, 94, 0.2);
+    }
+
+    .chip-icon {
         font-size: 0.875rem;
+        line-height: 1;
+    }
+
+    .chip-label {
+        font-size: 0.6875rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.75);
+        letter-spacing: 0.015em;
+        white-space: nowrap;
+    }
+
+    .gesture-chip.buy .chip-label {
+        color: rgb(52, 211, 153);
+    }
+
+    .gesture-chip.sell .chip-label {
+        color: rgb(251, 113, 133);
+    }
+
+    /* Dot Separator */
+    .dot-separator {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Zoom Pill */
+    .zoom-pill {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 1rem;
+    }
+
+    .zoom-icon {
+        font-size: 1rem;
+    }
+
+    .zoom-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        color: rgb(96, 165, 250);
+        letter-spacing: -0.02em;
+    }
+
+    /* Price Pill */
+    .price-pill {
+        display: flex;
+        align-items: baseline;
+        gap: 0.125rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .price-pill.confirming {
+        background: rgba(251, 191, 36, 0.12);
+        border-color: rgba(251, 191, 36, 0.25);
+    }
+
+    .currency {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .price-value {
+        font-size: 0.9375rem;
         font-weight: 600;
-        font-family: ui-monospace, monospace;
+        font-family: ui-monospace, SFMono-Regular, monospace;
         color: white;
+        letter-spacing: -0.01em;
+    }
+
+    .price-pill.confirming .price-value {
+        color: rgb(251, 191, 36);
     }
 </style>
