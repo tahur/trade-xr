@@ -13,11 +13,52 @@
 
 ## The Story
 
-TradeXR was born out of **boredom and curiosity** — a weekend experiment that grew into a fully functional trading interface. The idea was simple: *What if you could trade with your hands instead of clicks?*
+TradeXR was born out of **boredom and curiosity** — a weekend experiment to explore gesture-based interaction. The idea was simple: *What if you could trade with your hands instead of clicks?*
 
-Built entirely on top of the [Zerodha Kite API](https://kite.trade), this project explores **computer vision**, **3D visualization**, and **real-time trading**. Open-sourced for transparency and learning.
+This is not a full trading terminal. It focuses on two core experiences:
+
+1. **Visualization** — A 3D candlestick chart you navigate with head movement and hand gestures.
+2. **Order Placement** — Lock onto a price with a pinch, confirm with a thumbs up or down.
+
+Built on top of the [Zerodha Kite API](https://kite.trade). Open-sourced for transparency and learning.
 
 **This is not financial advice. Trade at your own risk.**
+
+> **A note on how this was built:** This project was made through a lot of trial and error — trying things, breaking them, and trying again. Some parts were written with AI assistance, but every decision, every threshold, every "why does this feel wrong" moment was human judgment. The code reflects that messy, iterative process. It's not perfect, and that's fine.
+
+---
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                            │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
+│  │   Webcam    │───▶│  MediaPipe  │───▶│   Gesture Engine    │  │
+│  │   (60fps)   │    │  (Tracking) │    │  (Filter + Detect)  │  │
+│  └─────────────┘    └─────────────┘    └──────────┬──────────┘  │
+│                                                   │              │
+│                                                   ▼              │
+│                                        ┌─────────────────────┐  │
+│                                        │      3D Scene       │  │
+│                                        │  (Three.js + UI)    │  │
+│                                        └──────────┬──────────┘  │
+└───────────────────────────────────────────────────┼─────────────┘
+                                                    │ HTTP
+                                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     BACKEND (localhost:8000)                    │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      FastAPI                             │   │
+│  │  • Orders  • Quotes  • Session  • Credentials (Vault)    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└───────────────────────────────────────────────────┬─────────────┘
+                                                    │ HTTPS
+                                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        ZERODHA KITE API                         │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -36,9 +77,9 @@ No mouse. No keyboard. Just your hands.
 | ✌️ Victory | Open portfolio view |
 | ✊ Fist | Cancel / Go back |
 
-### Dynamic Island (Context-Aware Notifications)
+### Dynamic Island (Context-Aware Status Card)
 
-Inspired by Apple's Dynamic Island, the notification center **adapts to your trading context**:
+Inspired by Apple's Dynamic Island, this floating card **adapts to your trading context**:
 
 | State | What It Shows |
 |-------|---------------|
@@ -47,9 +88,9 @@ Inspired by Apple's Dynamic Island, the notification center **adapts to your tra
 | Position Open | Real-time P&L tracking |
 | Order Pending | Pulsing amber indicator |
 
-The island **expands**, **morphs**, and **animates** based on what's happening — no static banners, just fluid context.
+The card **expands**, **morphs**, and **animates** based on what's happening.
 
-**Head Tracking**: Move your head and the Dynamic Island tilts in 3D space, following your gaze with smooth spring physics.
+**Head Tracking**: Move your head and the card tilts in 3D space, following your gaze with smooth spring physics.
 
 ---
 
@@ -66,17 +107,17 @@ Move your head to **explore with parallax**. Make a ✊ Fist to return to tradin
 
 ---
 
-### Micro-Interactions
+### Gesture Confirmation
 
-| Interaction | Visual Feedback |
-|-------------|-----------------|
-| Hand detected | GestureGuide appears at bottom |
-| Pinch starts | Price line locks with glow effect |
-| Price confirmed | Haptic pulse + color shift |
-| Zoom active | Percentage badge in gesture bar |
-| Mode changes | Smooth transitions between states |
+To prevent accidental trades, all critical gestures require **hold time and cooldowns**:
 
-Every state change has a **purpose** and a **polish**.
+| Gesture | Confirmation Required |
+|---------|----------------------|
+| 👍 Thumbs Up / 👎 Thumbs Down | Hold for ~1 second before order triggers |
+| ☝️ Price Lock (Pinch) | Hold still for 450ms to lock price |
+| ✌️ Victory / ✊ Fist | Hold for 300ms to change view |
+
+This reduces false positives from accidental or momentary gestures.
 
 ---
 
@@ -96,45 +137,44 @@ TradeXR supports **5 low-cost ETFs** priced under ₹50 — perfect for experime
 
 ---
 
-## Engineering
+## Under the Hood
 
-### Physics-Based Animation
+### The Lag Problem
 
-We built a custom `AnimationController` using **Damped Harmonic Oscillator** physics (Hooke's Law: `F = -kx - dv`):
+Svelte's reactive system adds 16-32ms delay per update. At 60fps, that's noticeable lag when moving a camera with your hands.
 
-- RequestAnimationFrame loop running at 60fps
-- Direct Three.js camera control, bypassing Svelte reactivity
-- 16ms response time (down from 200ms with double Svelte springs)
+**Fix:** A custom physics engine using damped harmonic oscillators. It runs in `requestAnimationFrame`, outside Svelte entirely. Response time: 16ms (down from 200-500ms).
 
-```
-stiffness: 220  // Snappy response
-damping: 20     // No overshoot (critical damping)
-mass: 1.2       // Slight momentum feel
-```
+### The Noise Problem
 
-Svelte's reactive system was adding 16-32ms delay per store subscription. For gesture-driven camera movement, that felt like lag. The physics controller operates outside the reactive chain.
+MediaPipe hand tracking is noisy. A slight tremor looks like a gesture change.
 
-### Noise Control
+**Fix:** Three layers of filtering:
+- **Smoothing:** Each position blends with the previous one (EMA α=0.7)
+- **Hysteresis:** Gestures must hold for 3 frames before triggering
+- **Triple Lock:** Price selection requires tight pinch + still hand + 450ms hold
 
-Gesture detection is inherently noisy. Here's what we did:
+### The Conflict Problem
 
-| Problem | Solution |
-|---------|----------|
-| Jittery hand tracking | EMA smoothing (α=0.7) |
-| False two-hand detection | 3-frame hysteresis to enter zoom |
-| Accidental price locks | Triple Lock: threshold + velocity + 450ms hold |
-| Gesture flickering | Frame counters for all gestures |
-| Zoom vs trade conflicts | Priority-based context locking |
+What if you're zooming and your hand drifts into the price picker zone?
 
-### Optimizations
+**Fix:** Priority-based gesture locking. Zoom (priority 3) beats trading (priority 1). Higher priority locks out lower ones.
 
-| What | Result |
-|------|--------|
-| Event bus for gestures | Sub-millisecond propagation |
-| Shadow map 512px (from 2048px) | 75% VRAM savings |
-| Instrument token caching | Reduced API latency |
+### The Speed Problem
 
-All thresholds live in `frontend/src/lib/config/` — tune the entire system from one place.
+Svelte store subscriptions are too slow for 60fps gesture updates.
+
+**Fix:** Custom event bus (`GestureBus`) that fires callbacks directly. Sub-millisecond propagation.
+
+### Other Optimizations
+
+| Change | Result |
+|--------|--------|
+| Shadow maps 2048→512px | 75% VRAM savings |
+| Instrument token caching | Faster API calls |
+| Config in one place | Easy threshold tuning |
+
+All thresholds live in `frontend/src/lib/config/`.
 
 ---
 
@@ -304,17 +344,19 @@ tradexr/
 - **Limit orders** — No market orders (safety)
 - **Good lighting** — Hand detection needs visibility
 
----
 
-## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+## Disclaimer
+
+This is an **experimental toy project**. It will have bugs. It is not intended for serious trading.
+
+If you choose to connect it to a real brokerage account, you do so entirely at your own risk. Understand what the code does before you run it. Test with small amounts. I am not responsible for any financial losses.
 
 ---
 
 ## License
 
-MIT License — do whatever you want, just don't blame me if you lose money.
+MIT License 
 
 ---
 
