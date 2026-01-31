@@ -174,8 +174,39 @@
                 );
             }
         } else {
-            // No request token - check if existing session is valid
-            // Try to fetch margins to verify session
+            // No request token - try to restore session from vault first
+            try {
+                // Attempt to restore persisted session (if any)
+                const restoreRes = await fetch(
+                    "http://127.0.0.1:8000/api/session/restore",
+                    {
+                        method: "POST",
+                    },
+                );
+                const restoreData = await restoreRes.json();
+
+                if (restoreData.status === "restored") {
+                    console.log("[Session] Restored from vault!");
+                    kiteStatus = "Connected";
+                    positionsStore.startPolling(5000);
+                    ordersStore.startPolling(3000);
+                    etfStore.refresh();
+
+                    dynamicIsland.show(
+                        {
+                            type: "api",
+                            message: "Session restored ✓",
+                            severity: "success",
+                        },
+                        2000,
+                    );
+                    return;
+                }
+            } catch (e) {
+                console.log("[Session] Restore attempt failed:", e);
+            }
+
+            // Fallback: try to verify existing in-memory session
             try {
                 const margins = await kite.getMargins();
                 if (
@@ -190,8 +221,6 @@
                     kiteStatus = "Connected";
                     positionsStore.startPolling(5000);
                     ordersStore.startPolling(3000);
-
-                    // Immediately refresh chart data for existing session
                     etfStore.refresh();
                 }
             } catch (e) {
