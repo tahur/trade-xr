@@ -388,12 +388,14 @@
                         (handDist - (lastHandDist || handDist)) * 10;
                     lastHandDist = handDist;
 
-                    // Calculate zoom factor with INCREASED sensitivity
-                    // Ratio: spread hands = bigger (>1), pinch hands = smaller (<1)
-                    // This matches natural iOS/mobile pinch-to-zoom behavior
+                    // Calculate zoom factor with INVERTED direction
+                    // Ratio: spread hands = zoom OUT, pinch hands = zoom IN
+                    // This is the opposite of iOS/mobile behavior, per user preference
                     const distanceRatio = handDist / zoomStartDistance;
+                    // Invert: when hands spread (ratio > 1), zoom should decrease
+                    const invertedRatio = 1 / distanceRatio;
                     // Power of 1.5 makes small movements more impactful
-                    const amplifiedRatio = Math.pow(distanceRatio, 1.5);
+                    const amplifiedRatio = Math.pow(invertedRatio, 1.5);
                     const newZoom = Math.max(
                         0.3,
                         Math.min(3.0, baseZoom * amplifiedRatio),

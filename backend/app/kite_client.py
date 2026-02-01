@@ -48,9 +48,41 @@ class KiteClient:
             if saved_token:
                 self.access_token = saved_token
                 self.kite.set_access_token(self.access_token)
-                logger.info("Session restored from vault.")
+                
+                # Validate token by making a lightweight API call
+                if self._validate_token():
+                    logger.info("Session restored and validated from vault.")
+                else:
+                    logger.warning("Stored session token is expired. Please re-login.")
+                    self._clear_invalid_session()
         except Exception as e:
             logger.warning(f"Could not restore session: {e}")
+    
+    def _validate_token(self) -> bool:
+        """Validate the current access token by making a test API call."""
+        if not self.kite or not self.access_token:
+            return False
+        
+        try:
+            # Use profile() as a lightweight validation call
+            self.kite.profile()
+            return True
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "token" in error_msg or "access" in error_msg or "invalid" in error_msg:
+                return False
+            # Other errors (network, etc.) - assume token is okay
+            logger.warning(f"Token validation check failed with non-token error: {e}")
+            return True
+    
+    def _clear_invalid_session(self):
+        """Clear an invalid/expired session token."""
+        self.access_token = None
+        try:
+            CredentialVault.delete_session()
+            logger.info("Cleared expired session from vault.")
+        except Exception as e:
+            logger.warning(f"Could not clear session file: {e}")
 
     def configure(self, api_key, api_secret):
         """Re-configures the client with new credentials."""
@@ -123,8 +155,15 @@ class KiteClient:
             if saved_token:
                 self.access_token = saved_token
                 self.kite.set_access_token(self.access_token)
-                logger.info("Session manually restored from vault.")
-                return True
+                
+                # Validate the restored token
+                if self._validate_token():
+                    logger.info("Session manually restored and validated from vault.")
+                    return True
+                else:
+                    logger.warning("Stored session token is expired during manual restore.")
+                    self._clear_invalid_session()
+                    return False
         except Exception as e:
             logger.warning(f"Could not restore session: {e}")
         return False

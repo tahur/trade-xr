@@ -567,33 +567,36 @@ Location: `backend/app/kite_client.py`
 
 ## Security
 
-### Credential Storage (Vault)
+### API Credentials
 
+API keys are stored in `backend/.env`:
 ```
-User enters API Key + Secret + Master Password
-                    │
-                    ▼
-         Fernet Encrypt (AES-128-CBC)
-                    │
-                    ▼
-         Save to .vault file
-
-Master password is NEVER stored
+KITE_API_KEY=your_api_key
+KITE_API_SECRET=your_api_secret
 ```
 
-### Session Persistence
+### Session Token Handling
 
 ```
 Zerodha returns access_token
-                    │
-                    ▼
+          │
+          ▼
 Encrypt with machine-derived key
-(platform + MAC address, no password needed)
-                    │
-                    ▼
+(no password needed)
+          │
+          ▼
 Save to .session file
-
-On page refresh → auto-restore (same machine only)
+          │
+          ▼
+On startup → validate token via profile() API
+          │
+     ┌────┴────┐
+     ▼         ▼
+  Valid     Expired
+     │         │
+     ▼         ▼
+ Continue   Clear .session
+            Prompt re-login
 ```
 
 **Machine-Derived Key:**
@@ -602,7 +605,9 @@ machine_id = f"{platform.node()}:{platform.system()}:{uuid.getnode()}"
 key = hashlib.pbkdf2_hmac('sha256', machine_id.encode(), SALT, 50000)
 ```
 
-Location: `backend/app/security/vault.py`
+> **Zerodha tokens expire daily.** The app auto-validates on startup and clears stale tokens.
+
+Location: `backend/app/security/vault.py`, `backend/app/kite_client.py`
 
 ---
 

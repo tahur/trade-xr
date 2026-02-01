@@ -2,12 +2,12 @@
 
 > **Gesture-controlled 3D trading interface for Zerodha Kite**
 
-[![Status](https://img.shields.io/badge/Status-Pre--Alpha-7000ff.svg?style=for-the-badge)](https://github.com/tahur/trade-xr)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Zerodha Kite](https://img.shields.io/badge/Zerodha-Kite%20API-orange?style=for-the-badge)](https://kite.trade)
-[![SvelteKit](https://img.shields.io/badge/SvelteKit-5.x-ff3e00?style=for-the-badge)](https://kit.svelte.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge)](https://fastapi.tiangolo.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
+![Status](https://img.shields.io/badge/pre--alpha-7c3aed?style=flat-square)
+![License](https://img.shields.io/badge/MIT-22c55e?style=flat-square)
+![SvelteKit](https://img.shields.io/badge/SvelteKit-ff3e00?style=flat-square&logo=svelte&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-000?style=flat-square&logo=threedotjs&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-4285F4?style=flat-square&logo=google&logoColor=white)
 
 ---
 
@@ -220,11 +220,10 @@ Open **http://localhost:5173** in Chrome.
 
 1. Click the **⚙️ Settings** icon to open Control Center
 2. Enter your **API Key** and **API Secret**
-3. Set a **master password** (used to encrypt your credentials)
-4. Click **Save** → credentials are encrypted and stored securely
-5. Click **Connect to Kite** to login via Zerodha
+3. Click **Save & Connect** → redirects to Zerodha login
+4. After login, your session token is saved automatically
 
-> **Note:** Your API keys are encrypted with Fernet (AES-128) and stored locally. The master password is never saved.
+> **Session Handling:** Zerodha tokens expire daily. The app automatically validates tokens on startup—if expired, it clears the stale session and prompts for re-login. No manual intervention needed.
 
 ### Script Commands
 
@@ -288,11 +287,9 @@ npm run dev
 | Session Persistence | Auto-restores session on refresh |
 | Gesture Cooldowns | Prevents accidental repeats |
 
-### API Key Security (BYOK)
+### Security Model
 
-Your API credentials are handled securely:
-
-1. **Encrypted Storage** — API keys encrypted with AES-128 (Fernet) using your master password
+1. **Encrypted Storage** — API keys stored in `.env` (local only), session tokens encrypted with machine-derived keys
 2. **Session Tokens** — Access tokens encrypted with machine-derived key for auto-restore
 3. **Local Only** — All data stored locally on your machine, never transmitted
 4. **No .env Required** — Credentials entered via Control Center UI, not config files
@@ -359,6 +356,4 @@ MIT License
 
 ---
 
-<p align="center">
-  <i>Built with curiosity. Trade responsibly.</i>
-</p>
+

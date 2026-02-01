@@ -194,6 +194,19 @@
         }
     }
 
+    async function handleLogout() {
+        try {
+            await fetch("http://localhost:8000/api/session/logout", {
+                method: "DELETE",
+            });
+            kiteState = "CONFIGURED";
+            // Reload page to reset all stores and polling
+            window.location.reload();
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    }
+
     // Helper for clicking outside to close
     function handleClickOutside(event: MouseEvent) {
         if (currentState === "COMPACT") return;
@@ -555,6 +568,29 @@
                                 : "Setup"}
                     </span>
                 </button>
+
+                <!-- Logout Button (only when connected) -->
+                {#if kiteState === "CONNECTED"}
+                    <button
+                        class="flex items-center justify-center w-8 h-8 rounded-xl text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                        on:click={handleLogout}
+                        title="Logout from Kite"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="1.5"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9"
+                            />
+                        </svg>
+                    </button>
+                {/if}
 
                 <div class="w-px h-4 bg-white/10 mx-1"></div>
 
