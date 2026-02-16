@@ -9,11 +9,14 @@
     import { selectedETFStore } from "$lib/stores/selectedETF";
     import { positionsStore } from "$lib/stores/positions";
 
+    // Connection status prop from parent
+    export let isKiteConnected: boolean = false;
+
     // Available margin state
     let availableMargin: number | null = null;
     let marginInterval: ReturnType<typeof setInterval> | null = null;
     let retryInterval: ReturnType<typeof setInterval> | null = null;
-    let isKiteConnected = false;
+    let isMarginConnected = false;
 
     // Fetch margin only (positions come from store)
     async function fetchMargin() {
@@ -25,8 +28,8 @@
             );
 
             // If we successfully got margins, we're connected
-            if (!isKiteConnected) {
-                isKiteConnected = true;
+            if (!isMarginConnected) {
+                isMarginConnected = true;
 
                 // Stop slow retry now that we're connected
                 if (retryInterval) {
@@ -42,7 +45,7 @@
         } catch {
             // Not logged in or error - stop fast polling to prevent console spam
             availableMargin = null;
-            isKiteConnected = false;
+            isMarginConnected = false;
             if (marginInterval) {
                 clearInterval(marginInterval);
                 marginInterval = null;
@@ -55,7 +58,7 @@
         fetchMargin();
         // Keep retrying every 10s until we successfully connect
         retryInterval = setInterval(() => {
-            if (!isKiteConnected) {
+            if (!isMarginConnected) {
                 fetchMargin();
             } else if (retryInterval) {
                 clearInterval(retryInterval);
@@ -70,7 +73,7 @@
     });
 
     // Also retry immediately when positions appear (signals session became active)
-    $: if ($positionsStore.positions.length > 0 && !isKiteConnected) {
+    $: if ($positionsStore.positions.length > 0 && !isMarginConnected) {
         fetchMargin();
     }
 
@@ -207,13 +210,42 @@
                     >
                         <!-- Left: Info Group -->
                         <div class="flex flex-col justify-center gap-0.5">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    style="font-family: 'Space Grotesk', sans-serif;"
+                                    class="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none"
+                                >
+                                    {content.symbol}
+                                </span>
+                                <!-- Connection status indicator -->
+                                {#if !isKiteConnected}
+                                    <div
+                                        class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20"
+                                    >
+                                        <span class="relative flex h-1.5 w-1.5">
+                                            <span
+                                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"
+                                            ></span>
+                                            <span
+                                                class="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"
+                                            ></span>
+                                        </span>
+                                        <span
+                                            class="text-[8px] font-bold text-amber-400/80 uppercase tracking-wider"
+                                            >Offline</span
+                                        >
+                                    </div>
+                                {:else}
+                                    <span class="relative flex h-1.5 w-1.5">
+                                        <span
+                                            class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"
+                                        ></span>
+                                    </span>
+                                {/if}
+                            </div>
                             <span
-                                class="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none"
-                            >
-                                {content.symbol}
-                            </span>
-                            <span
-                                class="text-3xl font-mono font-medium text-white tracking-tight leading-none mt-1"
+                                style="font-family: 'JetBrains Mono', monospace;"
+                                class="text-3xl font-medium text-white tracking-tight leading-none mt-1"
                             >
                                 ₹{content.price.toFixed(2)}
                             </span>
@@ -225,7 +257,8 @@
                         >
                             {#if availableMargin !== null}
                                 <span
-                                    class="text-[10px] font-medium text-white/30 font-mono"
+                                    style="font-family: 'JetBrains Mono', monospace;"
+                                    class="text-[10px] font-medium text-white/30"
                                 >
                                     Funds: ₹{availableMargin.toLocaleString(
                                         "en-IN",
@@ -241,7 +274,10 @@
                                     ? 'bg-emerald-500/20 text-emerald-400'
                                     : 'bg-rose-500/20 text-rose-400'}"
                             >
-                                <span class="text-xs font-bold font-mono">
+                                <span
+                                    style="font-family: 'JetBrains Mono', monospace;"
+                                    class="text-xs font-bold"
+                                >
                                     {content.change >= 0 ? "▲" : "▼"}
                                     {Math.abs(content.changePercent).toFixed(
                                         2,
@@ -612,23 +648,28 @@
             rgba(255, 255, 255, 0.1) 0%,
             rgba(255, 255, 255, 0.05) 100%
         );
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
 
         /* Soft Border */
         border: 1px solid rgba(255, 255, 255, 0.15);
 
         /* Soft Shadow */
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        box-shadow:
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 0 0 0.5px rgba(255, 255, 255, 0.08);
 
         /* Square with subtle radius (Card shape) */
-        border-radius: 16px;
+        border-radius: 18px;
 
         /* Performance Optimizations */
         will-change: width, height, transform;
         user-select: none;
         position: relative;
         overflow: hidden;
+
+        /* Typography base */
+        font-family: "Space Grotesk", sans-serif;
     }
 
     /* Subtle top highlight for glass edge */

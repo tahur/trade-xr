@@ -19,6 +19,8 @@
     import { kite } from "$lib/services/kite";
     import { etfStore } from "$lib/services/etfService";
     import { DEFAULT_ETF, SUPPORTED_ETFS } from "$lib/config/etfs";
+    import { API_CONFIG } from "$lib/config/api";
+    import { etfPricesStore } from "$lib/stores/etfPrices";
 
     // Components
     import BrandCard from "$lib/components/UI/BrandCard.svelte";
@@ -55,7 +57,9 @@
     async function handleConnect() {
         isConnecting = true;
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/session/login-url");
+            const res = await fetch(
+                `${API_CONFIG.BASE_URL}/api/session/login-url`,
+            );
             if (res.ok) {
                 const data = await res.json();
                 window.location.href = data.url;
@@ -67,6 +71,14 @@
             console.error("Failed to get login URL:", e);
             isConnecting = false;
         }
+    }
+
+    // Helper: start all polling when connected
+    function startAllPolling() {
+        positionsStore.startPolling(5000);
+        ordersStore.startPolling(3000);
+        etfStore.refresh();
+        etfPricesStore.start();
     }
 
     // Device support check
@@ -110,9 +122,7 @@
                     2500,
                 );
 
-                positionsStore.startPolling(5000);
-                ordersStore.startPolling(3000);
-                etfStore.refresh();
+                startAllPolling();
 
                 window.history.replaceState(
                     {},
@@ -137,31 +147,32 @@
 
         // No request token — check session status from backend
         try {
-            const statusRes = await fetch("http://127.0.0.1:8000/api/session/status");
+            const statusRes = await fetch(
+                `${API_CONFIG.BASE_URL}/api/session/status`,
+            );
             const status = await statusRes.json();
 
             if (status.active) {
                 // Already connected (e.g. same-day reload)
                 kiteState = "CONNECTED";
-                positionsStore.startPolling(5000);
-                ordersStore.startPolling(3000);
-                etfStore.refresh();
+                startAllPolling();
                 return;
             }
 
             // Try restoring persisted session
             if (status.has_saved_session && status.configured) {
                 const restoreRes = await fetch(
-                    "http://127.0.0.1:8000/api/session/restore",
+                    `${API_CONFIG.BASE_URL}/api/session/restore`,
                     { method: "POST" },
                 );
                 const restoreData = await restoreRes.json();
 
-                if (restoreData.status === "restored" || restoreData.status === "already_active") {
+                if (
+                    restoreData.status === "restored" ||
+                    restoreData.status === "already_active"
+                ) {
                     kiteState = "CONNECTED";
-                    positionsStore.startPolling(5000);
-                    ordersStore.startPolling(3000);
-                    etfStore.refresh();
+                    startAllPolling();
                     dynamicIsland.show(
                         {
                             type: "api",
@@ -189,7 +200,11 @@
     onDestroy(() => {
         positionsStore.stopPolling();
         ordersStore.stopPolling();
+        etfPricesStore.stop();
     });
+
+    // Reactive: is Kite connected?
+    $: isKiteConnected = kiteState === "CONNECTED";
 
     // Currently selected ETF
     let selectedETF = DEFAULT_ETF;
@@ -521,6 +536,34 @@
         </Canvas>
     </div>
 
+    <!-- Disconnect Overlay - subtle dim when not connected -->
+    {#if !isKiteConnected && !showPortfolioCloud}
+        <div
+            class="absolute inset-0 z-1 pointer-events-none transition-opacity duration-500"
+            style="background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.35) 100%);"
+            transition:fade={{ duration: 400 }}
+        >
+            <!-- Bottom center connection prompt -->
+            <div
+                class="absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm"
+            >
+                <span class="relative flex h-2 w-2">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"
+                    ></span>
+                    <span
+                        class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"
+                    ></span>
+                </span>
+                <span
+                    style="font-family: 'Space Grotesk', sans-serif;"
+                    class="text-xs text-white/50 font-medium"
+                    >Connect to Kite to start trading</span
+                >
+            </div>
+        </div>
+    {/if}
+
     <!-- Portfolio Treemap Overlay (HTML) - TEXT ONLY, no blocking background -->
     {#if showPortfolioCloud}
         <div
@@ -637,7 +680,7 @@
     </div>
 
     <!-- Dynamic Island Notification Center -->
-    <DynamicIsland />
+    <DynamicIsland {isKiteConnected} />
 
     {#if !showPortfolioCloud}
         <!-- ETF Selector -->
@@ -674,5 +717,14 @@
 <style>
     :global(body) {
         background: #0a0a14;
+        font-family:
+            "Space Grotesk",
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
+    }
+
+    :global(.font-mono) {
+        font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace !important;
     }
 </style>

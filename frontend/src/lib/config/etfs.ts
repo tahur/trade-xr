@@ -4,15 +4,18 @@
 export interface ETFConfig {
     symbol: string;
     name: string;
+    shortName: string;
     exchange: string;
+    icon: string;
+    accentColor: string;
 }
 
 export const SUPPORTED_ETFS: ETFConfig[] = [
-    { symbol: "SILVERCASE", name: "Silver ETF", exchange: "NSE" },
-    { symbol: "GOLDCASE", name: "Gold ETF", exchange: "NSE" },
-    { symbol: "NIFTYCASE", name: "Nifty 50 ETF", exchange: "NSE" },
-    { symbol: "TOP100CASE", name: "Top 100 ETF", exchange: "NSE" },
-    { symbol: "MID150CASE", name: "Midcap 150 ETF", exchange: "NSE" }
+    { symbol: "SILVERCASE", name: "Silver ETF", shortName: "SILVER", exchange: "NSE", icon: "◈", accentColor: "#94A3B8" },
+    { symbol: "GOLDCASE", name: "Gold ETF", shortName: "GOLD", exchange: "NSE", icon: "◆", accentColor: "#F59E0B" },
+    { symbol: "NIFTYCASE", name: "Nifty 50 ETF", shortName: "NIFTY", exchange: "NSE", icon: "▲", accentColor: "#8B5CF6" },
+    { symbol: "TOP100CASE", name: "Top 100 ETF", shortName: "TOP100", exchange: "NSE", icon: "●", accentColor: "#06B6D4" },
+    { symbol: "MID150CASE", name: "Midcap 150 ETF", shortName: "MID150", exchange: "NSE", icon: "◉", accentColor: "#10B981" }
 ];
 
 // Default ETF to show on load
