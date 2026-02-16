@@ -12,24 +12,35 @@
     // Available margin state
     let availableMargin: number | null = null;
     let marginInterval: ReturnType<typeof setInterval> | null = null;
+    let retryInterval: ReturnType<typeof setInterval> | null = null;
     let isKiteConnected = false;
 
     // Fetch margin only (positions come from store)
     async function fetchMargin() {
         try {
             const data = await kite.getMargins();
-            availableMargin = data.available_cash || data.available_margin || 0;
+            availableMargin = Math.max(
+                data.available_margin ?? 0,
+                data.available_cash ?? 0,
+            );
 
             // If we successfully got margins, we're connected
             if (!isKiteConnected) {
                 isKiteConnected = true;
-                // Start polling only after first successful fetch
+
+                // Stop slow retry now that we're connected
+                if (retryInterval) {
+                    clearInterval(retryInterval);
+                    retryInterval = null;
+                }
+
+                // Start fast polling after first successful fetch
                 if (!marginInterval) {
                     marginInterval = setInterval(fetchMargin, 5000);
                 }
             }
         } catch {
-            // Not logged in or error - stop polling to prevent console spam
+            // Not logged in or error - stop fast polling to prevent console spam
             availableMargin = null;
             isKiteConnected = false;
             if (marginInterval) {
@@ -39,15 +50,29 @@
         }
     }
 
-    // Check connection status once on mount, don't poll until connected
+    // On mount: try once, then start slow retry until connected
     onMount(() => {
-        // Try once to check if already connected
         fetchMargin();
+        // Keep retrying every 10s until we successfully connect
+        retryInterval = setInterval(() => {
+            if (!isKiteConnected) {
+                fetchMargin();
+            } else if (retryInterval) {
+                clearInterval(retryInterval);
+                retryInterval = null;
+            }
+        }, 10000);
     });
 
     onDestroy(() => {
         if (marginInterval) clearInterval(marginInterval);
+        if (retryInterval) clearInterval(retryInterval);
     });
+
+    // Also retry immediately when positions appear (signals session became active)
+    $: if ($positionsStore.positions.length > 0 && !isKiteConnected) {
+        fetchMargin();
+    }
 
     // React to positions store changes and update P&L display
     $: {

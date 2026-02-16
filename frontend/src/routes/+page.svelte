@@ -48,40 +48,25 @@
     import { gestureBar } from "$lib/stores/gestureBar";
 
     // Kite Login State
-    let kiteStatus = "Not Connected";
     let kiteState: "NOT_CONFIGURED" | "CONFIGURED" | "CONNECTED" =
         "NOT_CONFIGURED";
     let isConnecting = false;
 
-    function updateKiteState() {
-        if (kiteStatus === "Connected") {
-            kiteState = "CONNECTED";
-            return;
-        }
-
-        const k = localStorage.getItem("kite_api_key");
-        const s = localStorage.getItem("kite_api_secret");
-
-        if (k && s) {
-            kiteState = "CONFIGURED";
-        } else {
-            kiteState = "NOT_CONFIGURED";
-        }
-    }
-
-    // React to status changes
-    $: kiteStatus, updateKiteState();
-
-    function handleConnect() {
-        const apiKey = localStorage.getItem("kite_api_key");
-        if (!apiKey) {
-            // Ideally should open Control Center here, but since it's user-driven usually they're already there.
-            // ControlCenter component handles the UI for missing keys.
-            return;
-        }
+    async function handleConnect() {
         isConnecting = true;
-        // Redirect to Kite Login
-        window.location.href = `https://kite.trade/connect/login?v=3&api_key=${apiKey}`;
+        try {
+            const res = await fetch("http://127.0.0.1:8000/api/session/login-url");
+            if (res.ok) {
+                const data = await res.json();
+                window.location.href = data.url;
+            } else {
+                console.error("Failed to get login URL");
+                isConnecting = false;
+            }
+        } catch (e) {
+            console.error("Failed to get login URL:", e);
+            isConnecting = false;
+        }
     }
 
     // Device support check
@@ -93,38 +78,15 @@
         // Check device compatibility first
         deviceSupport = isDeviceSupported();
         if (!deviceSupport.supported) {
-            return; // Don't initialize if device not supported
+            return;
         }
 
-        updateKiteState();
-
-        // --- BYOK: Auto-configure Backend ---
-        const storedKey = localStorage.getItem("kite_api_key");
-        const storedSecret = localStorage.getItem("kite_api_secret");
-
-        if (storedKey && storedSecret) {
-            try {
-                await fetch("http://127.0.0.1:8000/config", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        api_key: storedKey,
-                        api_secret: storedSecret,
-                    }),
-                });
-                console.log("[BYOK] Backend configured from storage.");
-            } catch (e) {
-                console.error("[BYOK] Auto-config failed:", e);
-            }
-        }
-
-        // Handle Zerodha Redirect
+        // Handle Zerodha OAuth redirect (request_token in URL)
         const urlParams = new URLSearchParams(window.location.search);
         const requestToken = urlParams.get("request_token");
 
         if (requestToken) {
-            // Fresh login flow
-            kiteStatus = "Connecting...";
+            kiteState = "CONFIGURED";
             isConnecting = true;
             dynamicIsland.show(
                 {
@@ -137,22 +99,19 @@
 
             try {
                 await kite.login(requestToken);
-                kiteStatus = "Connected";
+                kiteState = "CONNECTED";
                 isConnecting = false;
                 dynamicIsland.show(
                     {
                         type: "api",
-                        message: "Connected to Kite API ✓",
+                        message: "Connected to Kite API",
                         severity: "success",
                     },
                     2500,
                 );
 
-                // Start polling real positions from Kite
-                positionsStore.startPolling(5000); // Poll every 5 seconds
-                ordersStore.startPolling(3000); // Poll orders more frequently
-
-                // Immediately refresh chart data after login
+                positionsStore.startPolling(5000);
+                ordersStore.startPolling(3000);
                 etfStore.refresh();
 
                 window.history.replaceState(
@@ -162,7 +121,7 @@
                 );
             } catch (e) {
                 console.error("Kite Login Error:", e);
-                kiteStatus = "Connection Failed";
+                kiteState = "CONFIGURED";
                 isConnecting = false;
                 dynamicIsland.show(
                     {
@@ -173,60 +132,56 @@
                     3000,
                 );
             }
-        } else {
-            // No request token - try to restore session from vault first
-            try {
-                // Attempt to restore persisted session (if any)
+            return;
+        }
+
+        // No request token — check session status from backend
+        try {
+            const statusRes = await fetch("http://127.0.0.1:8000/api/session/status");
+            const status = await statusRes.json();
+
+            if (status.active) {
+                // Already connected (e.g. same-day reload)
+                kiteState = "CONNECTED";
+                positionsStore.startPolling(5000);
+                ordersStore.startPolling(3000);
+                etfStore.refresh();
+                return;
+            }
+
+            // Try restoring persisted session
+            if (status.has_saved_session && status.configured) {
                 const restoreRes = await fetch(
                     "http://127.0.0.1:8000/api/session/restore",
-                    {
-                        method: "POST",
-                    },
+                    { method: "POST" },
                 );
                 const restoreData = await restoreRes.json();
 
-                if (restoreData.status === "restored") {
-                    console.log("[Session] Restored from vault!");
-                    kiteStatus = "Connected";
+                if (restoreData.status === "restored" || restoreData.status === "already_active") {
+                    kiteState = "CONNECTED";
                     positionsStore.startPolling(5000);
                     ordersStore.startPolling(3000);
                     etfStore.refresh();
-
                     dynamicIsland.show(
                         {
                             type: "api",
-                            message: "Session restored ✓",
+                            message: "Session restored",
                             severity: "success",
                         },
                         2000,
                     );
                     return;
                 }
-            } catch (e) {
-                console.log("[Session] Restore attempt failed:", e);
             }
 
-            // Fallback: try to verify existing in-memory session
-            try {
-                const margins = await kite.getMargins();
-                if (
-                    margins &&
-                    (margins.available_cash !== undefined ||
-                        margins.available_margin !== undefined)
-                ) {
-                    // Session is valid! Start polling
-                    console.log(
-                        "[Session] Existing session detected, starting polling...",
-                    );
-                    kiteStatus = "Connected";
-                    positionsStore.startPolling(5000);
-                    ordersStore.startPolling(3000);
-                    etfStore.refresh();
-                }
-            } catch (e) {
-                // No valid session - that's fine, user needs to login
-                console.log("[Session] No existing session found");
+            // Set UI state based on whether credentials exist
+            if (status.has_credentials) {
+                kiteState = "CONFIGURED";
+            } else {
+                kiteState = "NOT_CONFIGURED";
             }
+        } catch (e) {
+            console.log("[Session] Status check failed:", e);
         }
     });
 

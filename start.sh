@@ -124,7 +124,7 @@ start_backend() {
     
     # Start uvicorn in background
     source venv/bin/activate
-    nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > "$BACKEND_LOG" 2>&1 &
+    nohup "$SCRIPT_DIR/backend/venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 --reload > "$BACKEND_LOG" 2>&1 &
     local pid=$!
     echo $pid > "$BACKEND_PID_FILE"
     deactivate

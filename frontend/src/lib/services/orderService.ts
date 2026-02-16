@@ -60,9 +60,14 @@ export async function placeOrder(params: OrderParams): Promise<OrderResult> {
     // === PRE-ORDER MARGIN CHECK ===
     try {
         const margins = await kite.getMargins();
-        const availableMargin = margins.available_cash || margins.available_margin || 0;
+        // Use live_balance (available_margin) as primary — it's the real-time usable balance
+        // Fall back to available_cash, but prefer the higher of the two to avoid false rejections
+        const availableMargin = Math.max(
+            margins.available_margin ?? 0,
+            margins.available_cash ?? 0
+        );
 
-        console.log(`[OrderService] Available margin: ₹${availableMargin}, Order value: ₹${orderValue}`);
+        console.log(`[OrderService] Available margin: ₹${availableMargin} (live: ${margins.available_margin}, cash: ${margins.available_cash}), Order value: ₹${orderValue}`);
 
         if (availableMargin < orderValue && side === 'BUY') {
             console.error(`[OrderService] Insufficient margin: ₹${availableMargin} < ₹${orderValue}`);
@@ -139,9 +144,10 @@ export async function placeOrder(params: OrderParams): Promise<OrderResult> {
         // Update local trading store (optimistic)
         tradingStore.addLocalOrder(symbol, side, quantity, price);
 
-        // Fetch real positions from API to get accurate P&L
+        // Fetch real positions and balance from API to get accurate data
         setTimeout(() => {
             tradingStore.fetchRealPositions();
+            tradingStore.fetchBalance();
         }, 1000); // Small delay to allow order to settle
 
         return {

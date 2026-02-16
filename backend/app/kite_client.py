@@ -26,13 +26,21 @@ class KiteClient:
         self.kite = None
         self._token_cache = {}  # Cache for instrument tokens
 
+        # Try env vars first, then fall back to vault
         if not self.api_key or not self.api_secret:
-            logger.warning("Kite API credentials not found in environment variables.")
-        else:
+            try:
+                creds = CredentialVault.load()
+                self.api_key = creds["api_key"]
+                self.api_secret = creds["api_secret"]
+                logger.info("Credentials loaded from vault.")
+            except Exception:
+                logger.warning("No credentials found in environment or vault.")
+
+        if self.api_key and self.api_secret:
             try:
                 self.kite = KiteConnect(api_key=self.api_key)
                 logger.info("KiteConnect initialized.")
-                
+
                 # Try to restore session from vault (auto-restore)
                 self._try_restore_session()
             except Exception as e:
@@ -85,20 +93,36 @@ class KiteClient:
             logger.warning(f"Could not clear session file: {e}")
 
     def configure(self, api_key, api_secret):
-        """Re-configures the client with new credentials."""
+        """Re-configures the client with new credentials.
+
+        If credentials haven't changed, preserves existing session.
+        Auto-saves to vault to keep it in sync.
+        """
+        creds_changed = (api_key != self.api_key or api_secret != self.api_secret)
+
         self.api_key = api_key
         self.api_secret = api_secret
-        self._token_cache = {} # Clear cache on re-config
-        self.access_token = None # Clear old session
-        logger.info("Re-configuring KiteClient with provided credentials.")
-        
+
+        if creds_changed:
+            self._token_cache = {}
+            self.access_token = None
+            logger.info("Credentials changed — re-configuring KiteClient.")
+        else:
+            logger.info("Credentials unchanged — preserving existing session.")
+
         try:
             self.kite = KiteConnect(api_key=self.api_key)
+            if not creds_changed and self.access_token:
+                self.kite.set_access_token(self.access_token)
             logger.info("KiteConnect re-initialized.")
             return True
         except Exception as e:
             logger.error(f"Failed to re-initialize KiteConnect: {e}")
             return False
+
+    def is_configured(self) -> bool:
+        """Check if the client has API credentials and a kite object."""
+        return self.kite is not None and bool(self.api_key)
 
     def login(self, request_token):
         """Exchanges request_token for access_token."""
@@ -264,15 +288,27 @@ class KiteClient:
         """Fetches available margins."""
         if not self.kite or not self.access_token:
             raise Exception("Kite session not active")
-        
+
         try:
             margins = self.kite.margins()
             # Extract equity segment available margin
             equity = margins.get("equity", {})
             available = equity.get("available", {})
+
+            # live_balance is the most accurate real-time available balance
+            # It accounts for intraday payins, collateral, and blocked amounts
+            live_balance = available.get("live_balance", 0)
+            cash = available.get("cash", 0)
+            opening_balance = available.get("opening_balance", 0)
+            collateral = available.get("collateral", 0)
+            intraday_payin = available.get("intraday_payin", 0)
+
             return {
-                "available_cash": available.get("cash", 0),
-                "available_margin": available.get("live_balance", 0),
+                "available_cash": cash,
+                "available_margin": live_balance,
+                "opening_balance": opening_balance,
+                "collateral": collateral,
+                "intraday_payin": intraday_payin,
                 "used_margin": equity.get("utilised", {}).get("debits", 0),
                 "total": equity.get("net", 0)
             }

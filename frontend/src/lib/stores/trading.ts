@@ -12,7 +12,7 @@ export interface TradingState {
 }
 
 const initialState: TradingState = {
-    balance: 100000, // ₹1,00,000 Mock Balance
+    balance: 0,
     positions: [],
     orders: []
 };
@@ -22,6 +22,24 @@ function createTradingStore() {
 
     return {
         subscribe,
+
+        /**
+         * Fetch real balance from Kite margins API
+         */
+        fetchBalance: async () => {
+            try {
+                const margins = await kite.getMargins();
+                const realBalance = Math.max(
+                    margins.available_margin ?? 0,
+                    margins.available_cash ?? 0
+                );
+                update(state => ({ ...state, balance: realBalance }));
+                return realBalance;
+            } catch (e) {
+                console.error("[TradingStore] Failed to fetch balance:", e);
+                return 0;
+            }
+        },
 
         /**
          * Fetch real positions from Kite API and update store

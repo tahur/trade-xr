@@ -76,43 +76,20 @@
     let apiKey = "";
     let apiSecret = "";
 
-    // Load stored keys on mount
+    // Determine initial state from backend on mount
     onMount(async () => {
-        // Check if vault exists
-        const vaultRes = await fetch("http://localhost:8000/api/vault/exists");
-        const vaultData = await vaultRes.json();
+        try {
+            const res = await fetch("http://localhost:8000/api/session/status");
+            const status = await res.json();
 
-        if (vaultData.exists) {
-            // Prompt for password
-            const password = prompt(
-                "Enter vault password to unlock credentials:",
-            );
-            if (password) {
-                try {
-                    const loadRes = await fetch(
-                        "http://localhost:8000/api/vault/load",
-                        {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ password }),
-                        },
-                    );
-
-                    if (loadRes.ok) {
-                        const creds = await loadRes.json();
-                        apiKey = creds.api_key;
-                        apiSecret = creds.api_secret;
-                        kiteState = "CONFIGURED"; // Assuming isConfigured maps to this
-                    } else {
-                        alert("❌ Invalid password");
-                    }
-                } catch (e) {
-                    console.error("Failed to load credentials:", e);
-                }
+            if (status.active) {
+                kiteState = "CONNECTED";
+            } else if (status.has_credentials) {
+                kiteState = "CONFIGURED";
             }
+        } catch (e) {
+            console.error("Failed to check session status:", e);
         }
-
-        // checkStatus(); // This function is not defined in the original code, assuming it's handled by kiteState updates
     });
 
     function toggleCamera() {
@@ -145,25 +122,7 @@
     }
 
     async function saveAndConnect() {
-        if (!apiKey || !apiSecret) {
-            alert("Please enter both API key and secret");
-            return;
-        }
-
-        // Prompt for encryption password
-        const password = prompt(
-            "Create a password to encrypt your credentials:",
-        );
-        if (!password || password.length < 8) {
-            alert("Password must be at least 8 characters");
-            return;
-        }
-
-        const confirmPassword = prompt("Confirm password:");
-        if (password !== confirmPassword) {
-            alert("Passwords do not match");
-            return;
-        }
+        if (!apiKey || !apiSecret) return;
 
         try {
             const response = await fetch(
@@ -174,23 +133,20 @@
                     body: JSON.stringify({
                         api_key: apiKey,
                         api_secret: apiSecret,
-                        password: password,
                     }),
                 },
             );
 
             if (response.ok) {
-                kiteState = "CONFIGURED"; // Assuming isConfigured maps to this
-                alert("✅ Credentials saved securely!");
-                dispatch("connect"); // Connect after saving
-                currentState = "COMPACT"; // Close config after saving
+                kiteState = "CONFIGURED";
+                currentState = "COMPACT";
+                dispatch("connect");
             } else {
                 const error = await response.json();
-                alert(`❌ Failed to save: ${error.detail}`);
+                console.error("Failed to save:", error.detail);
             }
         } catch (error) {
             console.error("Failed to save credentials:", error);
-            alert("❌ Failed to save credentials");
         }
     }
 
