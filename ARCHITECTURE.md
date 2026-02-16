@@ -62,20 +62,24 @@
 tradexr/
 ├── backend/                          # Python FastAPI server
 │   ├── app/
-│   │   ├── main.py                   # Entry point: CORS config, mounts all routes
-│   │   ├── kite_client.py            # Singleton wrapper for Zerodha SDK, caches instrument tokens
+│   │   ├── main.py                   # Entry point: CORS config, mounts all routers
+│   │   ├── kite_client.py            # Singleton wrapper for Zerodha SDK (345 lines)
+│   │   │                             #   Auto-restores session on startup via vault
+│   │   │                             #   Validates tokens, caches instrument tokens
 │   │   ├── ticker_service.py         # WebSocket service for real-time price streaming
 │   │   ├── routes/
-│   │   │   ├── orders.py             # POST /api/kite/order → calls kite_client.place_order()
-│   │   │   ├── quote.py              # GET /quote/* → calls kite_client for LTP/candles
+│   │   │   ├── orders.py             # POST /api/kite/order → place_order()
+│   │   │   ├── quote.py              # GET /quote/* → LTP, quotes, candles
 │   │   │   ├── config.py             # POST /config → runtime API credential update
-│   │   │   ├── vault.py              # Encrypt/decrypt credentials with Fernet
-│   │   │   ├── session.py            # Session persist/restore using machine-derived key
-│   │   │   └── websocket.py          # WebSocket endpoint for frontend connection
+│   │   │   ├── vault.py              # GET/POST/DELETE /api/vault/* → encrypted credentials
+│   │   │   ├── session.py            # GET/POST/DELETE /api/session/* → auth flow
+│   │   │   └── websocket.py          # WebSocket endpoint for frontend tick streaming
 │   │   └── security/
-│   │       └── vault.py              # Fernet encryption helpers (AES-128-CBC)
+│   │       └── vault.py              # CredentialVault: Fernet encryption (AES-128-CBC)
+│   │                                 #   .vault file → encrypted API keys
+│   │                                 #   .session file → encrypted access token
 │   ├── requirements.txt
-│   └── .env                          # API credentials (gitignored)
+│   └── .vault / .session             # Encrypted credential files (gitignored)
 │
 ├── frontend/                          # SvelteKit + Threlte (Three.js)
 │   ├── src/
@@ -401,7 +405,7 @@ Three-layer validation to prevent false triggers:
 ├─────────────────────────────────────────────┤
 │  Lock 1  │ Threshold │ Pinch < 0.035        │
 │  Lock 2  │ Velocity  │ Hand moving < 0.3    │
-│  Lock 3  │ Hold Time │ 450ms continuous     │
+│  Lock 3  │ Hold Time │ 350ms continuous     │
 ├─────────────────────────────────────────────┤
 │  All three must be TRUE to lock price       │
 └─────────────────────────────────────────────┘
@@ -456,6 +460,13 @@ PINCH_CONFIRM_MS: 80      // Hold time to confirm pinch
 VELOCITY_STABLE: 0.3      // Max hand velocity for stable detection
 THUMBS_UP_SCORE: 2.5      // Minimum score for thumbs up gesture
 
+// Trading Timing
+ENTRY_DELAY_MS: 200       // Before entering targeting mode
+LOCK_DELAY_MS: 350        // Before locking price on pinch
+CONFIRM_DELAY_MS: 400     // Before opening confirmation
+ORDER_DELAY_MS: 500       // Before placing order
+POST_LOCK_COOLDOWN: 400   // Cooldown after price lock
+
 // Zoom
 ZOOM_COOLDOWN_MS: 300     // Cooldown after zoom ends
 ZOOM_MIN: 0.3             // Minimum zoom level
@@ -477,7 +488,7 @@ INSTANT: 0.9         // Minimal smoothing
 
 ```typescript
 ENTRY_DELAY_MS: 200       // Before entering targeting mode
-LOCK_DELAY_MS: 450        // Before locking price on pinch
+LOCK_DELAY_MS: 350        // Before locking price on pinch
 CONFIRM_DELAY_MS: 400     // Before opening confirmation
 ORDER_DELAY_MS: 500       // Before placing order
 POST_LOCK_COOLDOWN: 400   // Cooldown after price lock
@@ -521,7 +532,7 @@ ORDERS_UPDATE_MS: 3000    // Orders every 3s
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/` | GET | Health check |
-| `/config` | POST | Configure API credentials (BYOK) |
+| `/config` | POST | Configure API credentials |
 | `/api/kite/login` | POST | OAuth token exchange |
 | `/api/kite/order` | POST | Place limit order |
 | `/api/kite/positions` | GET | Current positions |
@@ -531,10 +542,11 @@ ORDERS_UPDATE_MS: 3000    // Orders every 3s
 | `/quote/quote/{symbol}` | GET | Full quote with OHLC |
 | `/quote/candles/{symbol}` | GET | Historical candlesticks |
 | `/ws` | WebSocket | Real-time price streaming |
-| `/api/vault/exists` | GET | Check if credentials stored |
-| `/api/vault/save` | POST | Store encrypted credentials |
-| `/api/vault/load` | POST | Retrieve decrypted credentials |
-| `/api/session/status` | GET | Check if session is active |
+| `/api/vault/status` | GET | Check if credentials exist + preview |
+| `/api/vault/save` | POST | Encrypt and store credentials |
+| `/api/vault/reset` | DELETE | Delete vault file |
+| `/api/session/status` | GET | Full session state for frontend UI |
+| `/api/session/login-url` | GET | Get Zerodha OAuth login URL |
 | `/api/session/restore` | POST | Restore session from vault |
 | `/api/session/logout` | DELETE | Clear session and token |
 
@@ -567,28 +579,40 @@ Location: `backend/app/kite_client.py`
 
 ## Security
 
-### API Credentials
+### BYOK Credential Vault
 
-API keys are stored in `backend/.env`:
+API keys are stored encrypted in `.vault` file (not `.env`). Users enter credentials via the Control Center UI.
+
 ```
-KITE_API_KEY=your_api_key
-KITE_API_SECRET=your_api_secret
+User enters API Key + Secret in Control Center
+          │
+          ▼
+POST /api/vault/save
+          │
+          ├── Validate key format (6-64 alphanumeric)
+          ├── Encrypt with Fernet (AES-128-CBC + HMAC)
+          ├── Save to .vault file (chmod 0600)
+          └── Auto-configure KiteClient backend
 ```
 
 ### Session Token Handling
 
 ```
-Zerodha returns access_token
+Zerodha OAuth returns access_token
           │
           ▼
 Encrypt with machine-derived key
 (no password needed)
           │
           ▼
-Save to .session file
+Save to .session file (chmod 0600)
           │
           ▼
-On startup → validate token via profile() API
+On startup → KiteClient._try_restore_session()
+          │
+          ├── Load credentials from .vault
+          ├── Load access_token from .session
+          ├── Validate via kite.profile() API
           │
      ┌────┴────┐
      ▼         ▼
@@ -597,6 +621,19 @@ On startup → validate token via profile() API
      ▼         ▼
  Continue   Clear .session
             Prompt re-login
+```
+
+### Session Status API
+
+`GET /api/session/status` returns full state for frontend UI:
+```json
+{
+    "active": true,
+    "has_saved_session": true,
+    "has_credentials": true,
+    "configured": true,
+    "api_key_preview": "x1y2"
+}
 ```
 
 **Machine-Derived Key:**

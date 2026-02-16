@@ -159,14 +159,18 @@ frontend/src/lib/
 
 ```
 backend/app/
-├── main.py                 (28 lines - FastAPI app)
-├── kite_client.py          (195 lines - Singleton with caching)
+├── main.py                 (52 lines - FastAPI app, CORS, router mounts)
+├── kite_client.py          (345 lines - Singleton with auto-restore + caching)
 ├── ticker_service.py       (5,332 bytes - WebSocket streaming)
-└── routes/
-    ├── orders.py           (Order placement)
-    ├── quote.py            (Live price quotes)
-    ├── config.py           (API configuration)
-    └── websocket.py        (WebSocket endpoint)
+├── routes/
+│   ├── orders.py           (Order placement)
+│   ├── quote.py            (Live price quotes)
+│   ├── config.py           (API configuration)
+│   ├── vault.py            (Encrypted credential CRUD)
+│   ├── session.py          (Auth flow: status, login-url, restore, logout)
+│   └── websocket.py        (WebSocket endpoint)
+└── security/
+    └── vault.py            (CredentialVault: Fernet encryption for .vault + .session)
 ```
 
 ---

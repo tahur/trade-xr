@@ -113,7 +113,7 @@ To prevent accidental trades, all critical gestures require **hold time and cool
 | Gesture | Confirmation Required |
 |---------|----------------------|
 | 👍 Thumbs Up / 👎 Thumbs Down | Hold for ~1 second before order triggers |
-| ☝️ Price Lock (Pinch) | Hold still for 450ms to lock price |
+| ☝️ Price Lock (Pinch) | Hold still for 350ms to lock price |
 | ✌️ Victory / ✊ Fist | Hold for 300ms to change view |
 
 This reduces false positives from accidental or momentary gestures.
@@ -268,11 +268,18 @@ npm run dev
 | `POST` | `/config` | Configure API credentials |
 | `POST` | `/api/kite/order` | Place limit order |
 | `GET` | `/api/kite/positions` | Current positions |
+| `GET` | `/api/kite/margins` | Available margins |
 | `GET` | `/api/holdings` | Portfolio holdings |
 | `GET` | `/quote/ltp/{symbol}` | Last traded price |
+| `GET` | `/quote/quote/{symbol}` | Full quote with OHLC |
 | `GET` | `/quote/candles/{symbol}` | Historical candles |
 | `GET` | `/api/session/status` | Check session status |
-| `DELETE` | `/api/session/logout` | Clear session |
+| `GET` | `/api/session/login-url` | Get Zerodha OAuth login URL |
+| `POST` | `/api/session/restore` | Restore session from vault |
+| `DELETE` | `/api/session/logout` | Clear session and token |
+| `GET` | `/api/vault/status` | Check if credentials exist |
+| `POST` | `/api/vault/save` | Store encrypted credentials |
+| `DELETE` | `/api/vault/reset` | Delete vault file |
 
 ---
 
@@ -289,10 +296,11 @@ npm run dev
 
 ### Security Model
 
-1. **Encrypted Storage** — API keys stored in `.env` (local only), session tokens encrypted with machine-derived keys
-2. **Session Tokens** — Access tokens encrypted with machine-derived key for auto-restore
-3. **Local Only** — All data stored locally on your machine, never transmitted
-4. **No .env Required** — Credentials entered via Control Center UI, not config files
+1. **BYOK Vault** — API keys encrypted with Fernet (AES-128-CBC + HMAC) using machine-derived key, stored in `.vault` file
+2. **Session Tokens** — Access tokens encrypted and stored in `.session` file, auto-restored on startup
+3. **Machine-Bound** — Encryption key derived from platform + MAC address via PBKDF2 (50,000 iterations)
+4. **Local Only** — All data stored locally, never transmitted. Vault files have `0600` permissions
+5. **No .env Required** — Credentials entered via Control Center UI, not config files
 
 ---
 
